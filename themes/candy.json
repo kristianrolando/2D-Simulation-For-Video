@@ -1,0 +1,305 @@
+{
+  "id": "candy",
+  "name": "Candy Pop",
+  "icon": "🍬",
+  "concept": "Cartoon stickers on a violet sunburst: chunky white outlines, hard shadows, elastic bounces and confetti.",
+  "bestFor": "Light-hearted, kid-friendly or reaction-style shorts where energy matters more than precision.",
+  "dark": false,
+  "color": {
+    "bg": [
+      "#8657ff",
+      "#5a2fe0"
+    ],
+    "bgMode": "radial",
+    "text": "#ffffff",
+    "accent": "#ff3d8b",
+    "muted": "#e6dcff",
+    "handle": "#d9ccff",
+    "guide": "#c9b8ff",
+    "wall": "#ffffff",
+    "wallGlow": "#2a1170",
+    "wall2": "#ffd23a",
+    "wall2Glow": "#2a1170",
+    "focus": "#ffffff",
+    "focusLit": "#ffd23a",
+    "ripple": "#ffffff",
+    "highlight": "#ffffff",
+    "flash": "#ffffff",
+    "peg": "#ffffff",
+    "pegHot": "#ffd23a",
+    "pegLit": "#ff3d8b",
+    "pivot": "#ffffff",
+    "sunHalo": "#ffd23a",
+    "sunCore": "#ffffff",
+    "sunDisc": "#ffd23a",
+    "sunRing": "#ff7a3d",
+    "planetA": "#ff3d8b",
+    "planetB": "#3dd6ff",
+    "bgCy": 0.48
+  },
+  "palettes": {
+    "cyclic": [
+      "#ff5fa2",
+      "#ffd23a",
+      "#3dd6ff",
+      "#7dff8a",
+      "#ff8a3d"
+    ],
+    "timeline": [
+      "#3dd6ff",
+      "#7dff8a",
+      "#ffd23a",
+      "#ff8a3d",
+      "#ff5fa2"
+    ],
+    "spectrum": [
+      "#7dff8a",
+      "#ffd23a",
+      "#ff8a3d",
+      "#ff5fa2",
+      "#3dd6ff"
+    ],
+    "sparks": [
+      "#ffd23a",
+      "#ff5fa2",
+      "#3dd6ff",
+      "#7dff8a",
+      "#ffffff"
+    ]
+  },
+  "texture": {
+    "kind": "sunburst",
+    "color": "#ffffff",
+    "amount": 0.07,
+    "spacing": 32,
+    "vignette": 0.15
+  },
+  "line": {
+    "style": "sticker",
+    "width": 1.0,
+    "glow": 0
+  },
+  "ball": {
+    "style": "sticker",
+    "outline": "#ffffff"
+  },
+  "comet": {
+    "style": "flat",
+    "alpha": 0.8
+  },
+  "spark": "confetti",
+  "focus": "ring",
+  "blend": "source-over",
+  "trail": {
+    "alpha": 1.1,
+    "width": 1.8,
+    "haze": 0
+  },
+  "font": {
+    "family": "\"Arial Rounded MT Bold\", DejaVuSansBold",
+    "weight": "",
+    "titleSize": 64,
+    "counterSize": 52,
+    "lineHeight": 1.15,
+    "case": "none",
+    "align": "center",
+    "counterStyle": "pill",
+    "deco": "none"
+  },
+  "motion": {
+    "pop": "outElastic",
+    "popAmount": 1.8,
+    "roll": "outBack",
+    "rollTime": 0.45,
+    "titleIn": "drop",
+    "titleInDur": 0.9,
+    "ripple": "outBack",
+    "shake": "random"
+  },
+  "juice": {
+    "shake": 1.5,
+    "flash": 0.6,
+    "burst": 1.8,
+    "squash": 1.8,
+    "pop": 1.6,
+    "energy": 0.6,
+    "flashMode": "tint",
+    "flashColor": "#ffffff",
+    "blend": "source-over"
+  },
+  "audio": {
+    "pitch": 5,
+    "scale": "major",
+    "decay": 0.8,
+    "roleMap": {
+      "tick": "pop",
+      "bounce": "pop"
+    },
+    "fx": {
+      "lowpass": 0,
+      "highpass": 120,
+      "drive": 0,
+      "crushRate": 1,
+      "crushBits": 0,
+      "echoDelay": 0.06,
+      "echoFeedback": 0.1,
+      "echoMix": 0.12,
+      "doubler": 1
+    }
+  },
+  "background": {
+    "params": {
+      "center": {
+        "type": "color",
+        "label": "Sunburst centre colour",
+        "group": "Background",
+        "icon": "🍭",
+        "default": "#8657ff",
+        "target": "color.bg.0",
+        "lumaMin": 0.1,
+        "lumaMax": 0.7
+      },
+      "edge": {
+        "type": "color",
+        "label": "Edge colour",
+        "group": "Background",
+        "icon": "🍭",
+        "default": "#5a2fe0",
+        "target": "color.bg.1",
+        "lumaMin": 0.05,
+        "lumaMax": 0.55
+      },
+      "rays": {
+        "type": "color",
+        "label": "Ray colour",
+        "group": "Sunburst",
+        "icon": "☀️",
+        "default": "#ffffff",
+        "target": "texture.color",
+        "lumaMin": 0.5
+      },
+      "rayAmount": {
+        "type": "number",
+        "label": "Ray strength",
+        "group": "Sunburst",
+        "icon": "☀️",
+        "default": 0.07,
+        "target": "texture.amount",
+        "min": 0,
+        "max": 0.2,
+        "step": 0.005
+      },
+      "rayCount": {
+        "type": "number",
+        "label": "Number of rays",
+        "group": "Sunburst",
+        "icon": "☀️",
+        "default": 32,
+        "target": "texture.spacing",
+        "min": 12,
+        "max": 64,
+        "step": 2
+      },
+      "focusX": {
+        "type": "number",
+        "label": "Burst centre (x)",
+        "group": "Sunburst",
+        "icon": "🎯",
+        "default": 0.5,
+        "target": "color.bgCx",
+        "min": 0.2,
+        "max": 0.8,
+        "step": 0.01
+      },
+      "focusY": {
+        "type": "number",
+        "label": "Burst centre (y)",
+        "group": "Sunburst",
+        "icon": "🎯",
+        "default": 0.48,
+        "target": "color.bgCy",
+        "min": 0.2,
+        "max": 0.8,
+        "step": 0.01
+      },
+      "vignette": {
+        "type": "number",
+        "label": "Edge darkening",
+        "group": "Background",
+        "icon": "◐",
+        "default": 0.15,
+        "target": "texture.vignette",
+        "min": 0,
+        "max": 0.4,
+        "step": 0.01
+      },
+      "outline": {
+        "type": "color",
+        "label": "Sticker outline",
+        "group": "Stickers",
+        "icon": "🏷️",
+        "default": "#ffffff",
+        "target": "color.wall",
+        "lumaMin": 0.7
+      },
+      "shadow": {
+        "type": "color",
+        "label": "Sticker shadow",
+        "group": "Stickers",
+        "icon": "🏷️",
+        "default": "#2a1170",
+        "target": "color.wallGlow",
+        "lumaMax": 0.3
+      },
+      "pill": {
+        "type": "color",
+        "label": "Number colour",
+        "group": "Stickers",
+        "icon": "🔢",
+        "default": "#ff3d8b",
+        "target": "color.accent",
+        "lumaMax": 0.6
+      }
+    },
+    "presets": [
+      {
+        "id": "grape",
+        "name": "Grape",
+        "values": {}
+      },
+      {
+        "id": "gum",
+        "name": "Bubblegum",
+        "values": {
+          "center": "#ff7ac0",
+          "edge": "#d83a8f",
+          "shadow": "#6a0f45",
+          "pill": "#7b2ff0"
+        }
+      },
+      {
+        "id": "lime",
+        "name": "Lime soda",
+        "values": {
+          "center": "#27c37a",
+          "edge": "#0f8f66",
+          "shadow": "#06402e",
+          "pill": "#ff3d8b",
+          "rayCount": 24
+        }
+      },
+      {
+        "id": "sunset",
+        "name": "Sunset",
+        "values": {
+          "center": "#ff9a3d",
+          "edge": "#e0502f",
+          "shadow": "#5a1408",
+          "pill": "#6a2ff0",
+          "rayCount": 40,
+          "focusY": 0.62
+        }
+      }
+    ]
+  }
+}

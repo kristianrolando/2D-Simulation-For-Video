@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sim preview</title>
+<style>
+  @font-face { font-family: 'DejaVuSansBold'; src: url('/assets/fonts/DejaVuSans-Bold.ttf'); }
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #0b0d14; color: #dde3f0; font: 13px/1.4 system-ui, sans-serif; display: flex; height: 100vh; }
+  #stage { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
+  canvas { height: calc(100vh - 24px); aspect-ratio: 9 / 16; background: #000; }
+  aside { width: 300px; padding: 12px; overflow: auto; border-left: 1px solid #222838; }
+  label { display: block; margin: 8px 0 2px; color: #9aa6c0; }
+  input[type=text] { width: 100%; box-sizing: border-box; }
+  input[type=range] { width: 100%; }
+  button, select { margin: 4px 4px 4px 0; }
+  #stats { white-space: pre; font: 12px ui-monospace, monospace; margin-top: 12px; color: #b8f0c0; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c" width="1080" height="1920"></canvas></div>
+<aside>
+  <select id="scene"><option>p1-ellipse</option><option>p2-rosette</option><option>p3-pendulum</option></select>
+  <button id="play">Play</button><button id="audio">Play + audio</button><button id="restart">Restart</button>
+  <div id="params"></div>
+  <div id="stats"></div>
+</aside>
+<script type="module">
+import { hashFloats } from './lib/core.js';
+const qs = new URLSearchParams(location.search);
+const sel = document.getElementById('scene');
+sel.value = qs.get('scene') || 'p1-ellipse';
+const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+const env = { createCanvas: (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; } };
+await document.fonts.load('55px DejaVuSansBold');
+
+let mod, params, inst, playing = false, t0 = 0, audio = null, src = null;
+const perf = { frames: 0, drawn: 0, drawMs: [], dropped: 0 };
+
+async function load(name) {
+  mod = await import(`./${name}/scene.js`);
+  params = mod.defaults();
+  buildUI();
+  reset();
+}
+function buildUI() {
+  const box = document.getElementById('params'); box.innerHTML = '';
+  for (const [k, def] of Object.entries(mod.schema)) {
+    const l = document.createElement('label'); l.textContent = def.label || k; box.append(l);
+    const inp = document.createElement('input');
+    if (def.type === 'string') { inp.type = 'text'; inp.value = params[k]; }
+    else { inp.type = 'range'; inp.min = def.min; inp.max = def.max; inp.step = def.step ?? 1; inp.value = params[k]; }
+    inp.oninput = () => { params[k] = def.type === 'string' ? inp.value : +inp.value; l.textContent = `${def.label || k}: ${inp.value}`; reset(); };
+    box.append(inp);
+  }
+}
+function reset() { inst = mod.create(env, params); inst.renderFrame(ctx, 0); playing = false; stop(); }
+function stop() { if (src) { try { src.stop(); } catch {} src = null; } }
+
+async function play(withAudio) {
+  reset();
+  Object.assign(perf, { frames: 0, drawn: 0, drawMs: [], dropped: 0 });
+  if (withAudio) {
+    audio ??= new AudioContext({ sampleRate: 44100 });
+    const mix = mod.renderAudio(params);
+    const buf = audio.createBuffer(2, mix.L.length, mix.sr);
+    buf.copyToChannel(mix.L, 0); buf.copyToChannel(mix.R, 1);
+    src = audio.createBufferSource(); src.buffer = buf; src.connect(audio.destination);
+    const when = audio.currentTime + 0.05; src.start(when);
+    clock = () => audio.currentTime - when; // audio clock drives video
+  } else { const s = performance.now(); clock = () => (performance.now() - s) / 1000; }
+  playing = true; requestAnimationFrame(tick);
+}
+let clock = () => 0, last = 0;
+function tick() {
+  if (!playing) return;
+  const target = Math.min(inst.frames - 1, Math.max(0, Math.floor(clock() * 60)));
+  if (target > last + 1) perf.dropped += target - last - 1;
+  if (target !== last || perf.drawn === 0) {
+    const a = performance.now();
+    inst.renderFrame(ctx, target);
+    perf.drawMs.push(performance.now() - a); perf.drawn++;
+    last = target;
+  }
+  if (target >= inst.frames - 1) { playing = false; report(); return; }
+  if (perf.drawn % 30 === 0) report();
+  requestAnimationFrame(tick);
+}
+function report() {
+  const d = perf.drawMs.slice().sort((a, b) => a - b);
+  const q = (p) => d.length ? d[Math.min(d.length - 1, Math.floor(p * d.length))].toFixed(1) : '-';
+  document.getElementById('stats').textContent =
+    `frame ${last}/${inst.frames - 1}\nrender+step ms  p50 ${q(0.5)}  p95 ${q(0.95)}  max ${q(1)}\nframes drawn ${perf.drawn}  skipped ${perf.dropped}`;
+  window.__perf = { drawn: perf.drawn, skipped: perf.dropped, p50: +q(0.5), p95: +q(0.95), max: +q(1), lastFrame: last };
+}
+sel.onchange = () => { history.replaceState(null, '', '?scene=' + sel.value); load(sel.value); };
+document.getElementById('play').onclick = () => play(false);
+document.getElementById('audio').onclick = () => play(true);
+document.getElementById('restart').onclick = () => reset();
+
+// ---- test hooks used by the Phase-2 report (cross-runtime parity) ----
+window.__test = {
+  play,
+  /** sim-state hash after advancing a fresh instance to frame f (same function as tools/state-hash.mjs) */
+  stateHash(f) {
+    const i = mod.create(env, params); const scratch = env.createCanvas(1080, 1920).getContext('2d');
+    i.renderFrame(scratch, f);
+    const s = i.sim.snapshot ? i.sim.snapshot() : i.sim.pend.map((_, k) => i.sim.theta(k, i.warp.sim(f)));
+    return hashFloats(s);
+  },
+  /** pixel diff of browser frame f vs the PNG Node wrote for the same frame */
+  async pixelDiff(f, pngUrl) {
+    const i = mod.create(env, params); const c = env.createCanvas(1080, 1920), g = c.getContext('2d');
+    i.renderFrame(g, f);
+    const img = new Image(); img.src = pngUrl; await img.decode();
+    const c2 = env.createCanvas(1080, 1920), g2 = c2.getContext('2d'); g2.drawImage(img, 0, 0);
+    const a = g.getImageData(0, 0, 1080, 1920).data, b = g2.getImageData(0, 0, 1080, 1920).data;
+    let sum = 0, max = 0, over8 = 0, n = 0;
+    for (let k = 0; k < a.length; k += 4) for (let ch = 0; ch < 3; ch++) { const d = Math.abs(a[k + ch] - b[k + ch]); sum += d; if (d > max) max = d; if (d > 8) over8++; n++; }
+    return { meanAbsDiff: +(sum / n).toFixed(3), maxDiff: max, pctChannelsOver8: +(100 * over8 / n).toFixed(3) };
+  },
+};
+await load(sel.value);
+</script>
+</body>
+</html>

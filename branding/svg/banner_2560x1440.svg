@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440" >
+  <defs><filter id="blurXL" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="110"/></filter>
+    <radialGradient id="bg" cx="50%" cy="45%" r="75%">
+      <stop offset="0" stop-color="#10224d"/><stop offset="0.55" stop-color="#0a1430"/><stop offset="1" stop-color="#03050c"/>
+    </radialGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#3ef2ff" stroke-width="1" opacity="0.10"/>
+    </pattern>
+    <filter id="blurS" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+    <filter id="blurM" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14"/></filter>
+    <filter id="blurL" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="30"/></filter>
+  </defs>
+  <rect width="2560" height="1440" fill="url(#bg)"/><rect width="2560" height="1440" fill="url(#grid)"/>
+  <g filter="url(#blurS)"><polyline points="120,300 2560,1389.6 2447.2,1440 0,347.1 777.3,0 2560,796.1 1902.2,1089.8" fill="none" stroke="#3ef2ff" stroke-width="3" stroke-linejoin="round" opacity="0.35"/><polyline points="2400,1200 405.3,0 0,243.8 1988.3,1440 2560,1096.1 1521.8,471.5" fill="none" stroke="#3ef2ff" stroke-width="2" stroke-linejoin="round" opacity="0.22"/><polyline points="900,1380 1602.4,0 2335.3,1440 2560,998.5 2051.8,0 1498.4,1087.2" fill="none" stroke="#d6ff3a" stroke-width="2" stroke-linejoin="round" opacity="0.18"/></g><polyline points="120,300 2560,1389.6 2447.2,1440 0,347.1 777.3,0 2560,796.1 1902.2,1089.8" fill="none" stroke="#3ef2ff" stroke-width="3" stroke-linejoin="round" opacity="0.35"/><polyline points="2400,1200 405.3,0 0,243.8 1988.3,1440 2560,1096.1 1521.8,471.5" fill="none" stroke="#3ef2ff" stroke-width="2" stroke-linejoin="round" opacity="0.22"/><polyline points="900,1380 1602.4,0 2335.3,1440 2560,998.5 2051.8,0 1498.4,1087.2" fill="none" stroke="#d6ff3a" stroke-width="2" stroke-linejoin="round" opacity="0.18"/>
+  <g filter="url(#blurM)"><circle cx="1902.2" cy="1089.8" r="11" fill="#3ef2ff"/><circle cx="1521.8" cy="471.5" r="11" fill="#3ef2ff"/><circle cx="1498.4" cy="1087.2" r="9" fill="#d6ff3a"/></g><circle cx="1902.2" cy="1089.8" r="11" fill="#3ef2ff"/><circle cx="1521.8" cy="471.5" r="11" fill="#3ef2ff"/><circle cx="1498.4" cy="1087.2" r="9" fill="#d6ff3a"/>
+  <ellipse cx="1280" cy="720" rx="927.5999999999999" ry="359.55" fill="#03050c" opacity="0.8" filter="url(#blurXL)"/>
+  <g>
+    <circle cx="777.3" cy="720" r="144.4" fill="#03050c" opacity="0.75"/>
+    <g filter="url(#blurM)" opacity="0.85"><circle cx="777.3" cy="720" r="150" fill="none" stroke="#3ef2ff" stroke-width="11.3"/><line x1="943" y1="720" x2="967.8" y2="720" stroke="#3ef2ff" stroke-width="10.1" stroke-linecap="round"/><line x1="777.3" y1="885.8" x2="777.3" y2="910.5" stroke="#3ef2ff" stroke-width="10.1" stroke-linecap="round"/><line x1="611.5" y1="720" x2="586.8" y2="720" stroke="#3ef2ff" stroke-width="10.1" stroke-linecap="round"/><line x1="777.3" y1="554.3" x2="777.3" y2="529.5" stroke="#3ef2ff" stroke-width="10.1" stroke-linecap="round"/><polyline points="726.3,804 726.3,636 843.3,705 726.3,747" fill="none" stroke="#3ef2ff" stroke-width="45" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <circle cx="777.3" cy="720" r="150" fill="none" stroke="#3ef2ff" stroke-width="11.3"/><line x1="943" y1="720" x2="967.8" y2="720" stroke="#3ef2ff" stroke-width="10.1" stroke-linecap="round"/><line x1="777.3" y1="885.8" x2="777.3" y2="910.5" stroke="#3ef2ff" stroke-width="10.1" stroke-linecap="round"/><line x1="611.5" y1="720" x2="586.8" y2="720" stroke="#3ef2ff" stroke-width="10.1" stroke-linecap="round"/><line x1="777.3" y1="554.3" x2="777.3" y2="529.5" stroke="#3ef2ff" stroke-width="10.1" stroke-linecap="round"/>
+    <g filter="url(#blurS)" opacity="0.9"><polyline points="726.3,804 726.3,636 843.3,705 726.3,747" fill="none" stroke="#3ef2ff" stroke-width="45" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <polyline points="726.3,804 726.3,636 843.3,705 726.3,747" fill="none" stroke="#eafcff" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="843.3" cy="705" r="30" fill="#d6ff3a" filter="url(#blurS)" opacity="0.7"/>
+    <circle cx="843.3" cy="705" r="21" fill="#d6ff3a"/>
+  </g>
+  <text x="1031.8" y="618.7" font-family="DIN Condensed, Avenir Next Condensed, DejaVu Sans Condensed, sans-serif" font-weight="700" font-size="84" fill="#d6ff3a" text-anchor="start" opacity="1">PHYSICS, LIT UP.</text>
+  <g filter="url(#blurM)" opacity="0.8"><text x="1031.8" y="813.7" font-family="DIN Condensed, Avenir Next Condensed, DejaVu Sans Condensed, sans-serif" font-weight="700" font-size="230" fill="#3ef2ff" text-anchor="start" opacity="1">PHOTON LAB</text></g><text x="1031.8" y="813.7" font-family="DIN Condensed, Avenir Next Condensed, DejaVu Sans Condensed, sans-serif" font-weight="700" font-size="230" fill="#3ef2ff" text-anchor="start" opacity="1">PHOTON LAB</text>
+  <text x="1031.8" y="813.7" font-family="DIN Condensed, Avenir Next Condensed, DejaVu Sans Condensed, sans-serif" font-weight="700" font-size="230" fill="#eafcff" text-anchor="start" opacity="1">PHOTON LAB</text>
+  <text x="1031.8" y="880.1" font-family="DIN Condensed, Avenir Next Condensed, DejaVu Sans Condensed, sans-serif" font-weight="700" font-size="52" fill="#8fb3d1" text-anchor="start" opacity="1">PHYSICS &amp; MATH SIMULATIONS · NEW SHORTS EVERY WEEK</text>
+  </svg>

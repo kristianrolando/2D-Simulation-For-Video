@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sim Studio</title>
+  <!-- Interface colour mode, applied before the first paint so there is no flash. Mirrors apps/studio/mode.ts
+       (tests/mode.test.ts runs this exact script). Stored choice: studio.theme = auto | light | dark; default auto. -->
+  <script id="theme-boot">
+    (function () {
+      var r = document.documentElement, p = 'auto', d = true;
+      try { var v = localStorage.getItem('studio.theme'); if (v === 'light' || v === 'dark') p = v; } catch (e) {}
+      try { d = !matchMedia('(prefers-color-scheme: light)').matches; } catch (e) {}
+      r.dataset.themePref = p; r.dataset.theme = p === 'auto' ? (d ? 'dark' : 'light') : p;
+    })();
+  </script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2311141d'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%237fe6ff' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%237fe6ff'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand"><span class="logo" aria-hidden="true">◎</span> Sim Studio</div>
+    <div id="staleNote" class="stale" role="status" hidden><span></span></div>
+    <div class="top-actions">
+      <button id="setBtn" type="button" class="drawer-btn" aria-expanded="false" aria-controls="right" title="Scene and style settings"><span class="ico-slot" data-icon="settings"></span> Settings</button>
+      <button id="helpBtn" type="button" class="icon" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts"><span class="ico-slot" data-icon="help"></span></button>
+      <div id="themeSwitch" class="modesw"></div>
+    </div>
+  </header>
+  <aside id="left" aria-label="Simulations">
+    <nav class="views" aria-label="Studio or video list">
+      <button id="navStudio" type="button" aria-pressed="true">Studio</button>
+      <button id="navVideos" type="button" aria-pressed="false" title="Texts, status and links of your videos (V)">Videos <span id="videosBadge" class="badge" hidden></span></button>
+    </nav>
+    <h2 id="galleryTitle">Simulations</h2>
+    <input id="search" type="search" placeholder="Search…  ( / )" aria-label="Search simulations" autocomplete="off" spellcheck="false">
+    <div id="filters" class="chips" role="group" aria-label="Filter by category"></div>
+    <div id="gallery" class="gallery"></div>
+    <p id="noResults" class="empty" hidden>Nothing matches. <button id="clearSearch" type="button" class="link">Clear search</button></p>
+  </aside>
+
+  <main id="stage">
+    <div id="frame"><canvas id="view" aria-label="Live preview"></canvas></div>
+    <div id="transport">
+      <div id="scrub"><div id="buffered"></div><input id="timeline" type="range" min="0" max="1" value="0" step="1" aria-label="Timeline"></div>
+      <button id="play" class="play" title="Play / pause (Space)" aria-label="Play"></button>
+      <span id="time" title="">0.00 / 0.00 s</span>
+      <label class="chk" title="Preview with sound (M)"><input id="sound" type="checkbox" checked> <span class="ico-slot" data-icon="sound"></span> Sound</label>
+      <label class="sel" title="Preview quality only. The final render is always full quality.">Preview
+        <select id="quality">
+          <option value="auto">Auto</option>
+          <option value="high">High</option>
+          <option value="low">Low (light)</option>
+        </select>
+      </label>
+      <button id="render" type="button" class="primary" title="Render a 1080×1920 · 60 fps MP4 with sound (R)">Render MP4 <kbd>R</kbd></button>
+    </div>
+    <div id="rstrip" role="status" aria-live="polite" hidden>
+      <div class="rs-row">
+        <span class="rs-state"></span>
+        <div class="bar" aria-hidden="true"><div></div></div>
+        <span class="rs-meta"></span>
+      </div>
+      <div class="rs-note" hidden></div>
+      <div class="rs-actions">
+        <a class="btn rs-open" target="_blank" hidden><span class="ico-slot" data-icon="play"></span> Play</a>
+        <button type="button" class="rs-reveal" hidden>Show in folder</button>
+        <button type="button" class="rs-publish" hidden title="Texts to copy, status and link for this video (V)">Texts &amp; publish</button>
+        <button type="button" class="rs-hist link" aria-expanded="false">All renders</button>
+      </div>
+      <div id="rhist" hidden><div id="jobs"></div></div>
+    </div>
+    <div id="stats" hidden></div>
+  </main>
+
+  <aside id="right" aria-label="Settings">
+    <div id="sceneInfo"></div>
+    <div class="tabs" role="tablist" aria-label="Settings level">
+      <button id="tabBasic" type="button" role="tab" aria-selected="true" aria-controls="paneBasic">Basic</button>
+      <button id="tabAdv" type="button" role="tab" aria-selected="false" aria-controls="paneAdv">Advanced</button>
+    </div>
+    <section id="paneBasic" role="tabpanel" aria-labelledby="tabBasic">
+      <form id="params" onsubmit="return false"></form>
+      <h3 class="sub">Style <span class="hint">look, motion and sound; goes into the render (1–6)</span></h3>
+      <div id="styles" class="styles" role="radiogroup" aria-label="Video style"></div>
+      <p id="styleInfo"></p>
+    </section>
+    <section id="paneAdv" role="tabpanel" aria-labelledby="tabAdv" hidden>
+      <section id="bgBox" class="bgbox" aria-label="Background settings"></section>
+      <form id="paramsAdv" onsubmit="return false"></form>
+      <div class="row">
+        <button id="reset" type="button" title="Put this simulation's options back to their defaults (style and background stay)">Reset scene options</button>
+        <form id="savePreset" class="row grow">
+          <input id="presetName" placeholder="Save as preset…" required pattern="[A-Za-z0-9 _-]+" aria-label="Preset name" title="Letters, numbers, space, - and _">
+          <button type="submit">Save</button>
+        </form>
+      </div>
+      <p id="presetMsg" class="msg" role="status"></p>
+      <details id="diagBox"><summary>Simulation check</summary><pre id="diag"></pre></details>
+    </section>
+  </aside>
+
+  <section id="vview" aria-label="Videos" hidden>
+    <header class="vtop">
+      <button id="vBack" type="button" class="link"><span class="ico-slot" data-icon="back"></span> Studio</button>
+      <h1>Videos</h1>
+      <div id="vChips" class="chips" role="group" aria-label="Filter by status"></div>
+      <input id="vSearch" type="search" placeholder="Search videos…" aria-label="Search videos" autocomplete="off" spellcheck="false">
+      <label class="sel" title="Language of the suggested title, description and tags (interface stays English)">Suggestions <select id="vLang"><option value="en">English</option><option value="id">Indonesian</option></select></label>
+      <details class="menu" id="vExport"><summary>Export</summary>
+        <div class="menu-body">
+          <a href="/api/videos/export?format=csv" download>Spreadsheet (CSV)</a>
+          <a href="/api/videos/export?format=json" download>Backup copy (JSON)</a>
+          <button id="vYt" type="button" class="link">YouTube settings…</button>
+          <button id="vData" type="button" class="link">Open data folder</button>
+        </div>
+      </details>
+    </header>
+    <div id="vReadOnly" class="vnotice ro" role="status" hidden><span></span></div>
+    <div id="vUntracked" class="vnotice info" role="status" hidden><span></span> <button type="button" class="primary"></button></div>
+    <div id="vNotice" class="vnotice" role="status" hidden><span></span> <button type="button" class="link">Dismiss</button></div>
+    <div class="vbody">
+      <div class="vcol">
+        <div id="vNeeds" class="needs" role="status" hidden></div>
+        <details id="vCoverage"><summary id="vCovSummary"></summary><div id="vMatrix"></div></details>
+        <div id="vList" role="list"></div>
+      </div>
+      <div id="vDetail"></div>
+    </div>
+  </section>
+
+  <nav id="botnav" aria-label="Sections">
+    <button type="button" data-pane="pick"><span class="ico-slot" data-icon="pick"></span><span>Pick</span></button>
+    <button type="button" data-pane="preview"><span class="ico-slot" data-icon="preview"></span><span>Preview</span></button>
+    <button type="button" data-pane="settings"><span class="ico-slot" data-icon="settings"></span><span>Settings</span></button>
+    <button type="button" data-pane="videos"><span class="ico-slot" data-icon="videos"></span><span>Videos</span></button>
+  </nav>
+
+  <dialog id="help" aria-label="Keyboard shortcuts">
+    <h3>Keyboard shortcuts</h3>
+    <dl id="helpList"></dl>
+    <form method="dialog"><button>Close</button></form>
+  </dialog>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

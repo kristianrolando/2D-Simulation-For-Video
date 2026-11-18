@@ -1,0 +1,28 @@
+{
+  "name": "Photon Lab",
+  "handle": "@PhotonPlayground",
+  "tagline": "Physics, lit up.",
+  "bannerLine": "Physics & math simulations · New Shorts every week",
+  "colors": {
+    "bg0": "#03050c",
+    "bg1": "#0a1430",
+    "bg2": "#10224d",
+    "core": "#3ef2ff",
+    "accent": "#d6ff3a",
+    "text": "#eafcff",
+    "muted": "#8fb3d1",
+    "grid": "#3ef2ff"
+  },
+  "fonts": {
+    "display": "DIN Condensed",
+    "displayFile": "/System/Library/Fonts/Supplemental/DIN Condensed Bold.ttf",
+    "fallback": "Avenir Next Condensed, DejaVu Sans Condensed, sans-serif"
+  },
+  "thumb": {
+    "series": "EXPERIMENT",
+    "number": "012",
+    "title": "Will they all come back?",
+    "counterLabel": "BOUNCES",
+    "counterValue": "128"
+  }
+}

@@ -1,0 +1,147 @@
+{
+  "note": "Complete list of sounds the scenes need. Roles map to packages/audio/bank.ts. 'source: synth' roles are deliberately NOT generated: they must be pitch-accurate musical tones, which the local synth does better and for free.",
+  "model": "eleven_text_to_sound_v2",
+  "requests": [
+    {
+      "id": "tick-glass",
+      "role": "tick",
+      "duration": 0.5,
+      "prompt": "single tiny crisp glass marble click, very short, dry, close-miked, no reverb",
+      "tags": [
+        "click",
+        "peg",
+        "small"
+      ]
+    },
+    {
+      "id": "bounce-rubber",
+      "role": "bounce",
+      "duration": 0.5,
+      "prompt": "single soft rubber ball bounce on a hard wooden floor, short clean tok, dry, no reverb",
+      "tags": [
+        "bounce",
+        "collision"
+      ]
+    },
+    {
+      "id": "drop-marble",
+      "role": "drop",
+      "duration": 0.5,
+      "prompt": "single small glass marble dropping into a wooden tray, soft short thud, dry",
+      "tags": [
+        "land",
+        "thud"
+      ]
+    },
+    {
+      "id": "ping-crystal",
+      "role": "ping",
+      "duration": 1.0,
+      "prompt": "single bright crystal glass ping, clean bell-like tone, short natural decay",
+      "tags": [
+        "milestone",
+        "orbit"
+      ]
+    },
+    {
+      "id": "whoosh-soft",
+      "role": "whoosh",
+      "duration": 1.0,
+      "prompt": "short soft airy whoosh swish, smooth, no impact",
+      "tags": [
+        "transition",
+        "speed"
+      ]
+    },
+    {
+      "id": "boom-sub",
+      "role": "boom",
+      "duration": 1.5,
+      "prompt": "deep soft cinematic sub-bass impact boom, clean, no rumble tail",
+      "tags": [
+        "impact",
+        "climax"
+      ]
+    },
+    {
+      "id": "success-shimmer",
+      "role": "success",
+      "duration": 2.0,
+      "prompt": "short magical sparkle shimmer chime, bright and positive, gentle",
+      "tags": [
+        "final",
+        "reveal"
+      ]
+    },
+    {
+      "id": "pop-bubble",
+      "role": "pop",
+      "duration": 0.5,
+      "prompt": "single small soft bubble pop, cute, very short, dry",
+      "tags": [
+        "ui",
+        "counter"
+      ]
+    },
+    {
+      "id": "slam-metal",
+      "role": "slam",
+      "duration": 0.8,
+      "prompt": "single heavy metal piston slamming shut, short deep clank thud, dry, close-miked, no reverb",
+      "tags": [
+        "hammer",
+        "impact"
+      ]
+    },
+    {
+      "id": "crush-glass",
+      "role": "crush",
+      "duration": 0.5,
+      "prompt": "single small glass marble being crushed, short crisp crunch, dry, close-miked, no reverb",
+      "tags": [
+        "crush",
+        "split"
+      ]
+    },
+    {
+      "id": "shatter-burst",
+      "role": "shatter",
+      "duration": 1.5,
+      "prompt": "glass container bursting and shattering, many small shards scattering, bright, no reverb tail",
+      "tags": [
+        "burst",
+        "climax"
+      ]
+    },
+    {
+      "id": "rewind-tape",
+      "role": "rewind",
+      "duration": 1.5,
+      "prompt": "fast tape rewind whir rising in pitch, smooth mechanical, no music, clean stop",
+      "tags": [
+        "rewind",
+        "loop"
+      ]
+    },
+    {
+      "id": "clang-lid",
+      "role": "clang",
+      "duration": 0.8,
+      "prompt": "single small metal lid being tapped by a marble, short bright clink with soft ring, dry",
+      "tags": [
+        "lid",
+        "hit"
+      ]
+    }
+  ],
+  "synthOnly": [
+    {
+      "role": "chime",
+      "why": "pitched per event on a musical scale"
+    },
+    {
+      "role": "note",
+      "why": "pitched per pendulum / swing on a musical scale"
+    }
+  ]
+}

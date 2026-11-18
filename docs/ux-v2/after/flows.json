@@ -1,0 +1,82 @@
+{
+ "drawer": {
+  "hiddenBefore": "hidden",
+  "scrollW": 1024,
+  "visibleAfter": "visible",
+  "closedByOutside": "hidden"
+ },
+ "pane-pick-400": {
+  "sw": 400,
+  "vw": 400,
+  "renderReachable": false,
+  "pressed": [
+   "pick"
+  ]
+ },
+ "pane-settings-400": {
+  "sw": 400,
+  "vw": 400,
+  "renderReachable": false,
+  "pressed": [
+   "settings"
+  ]
+ },
+ "pane-preview-400": {
+  "sw": 400,
+  "vw": 400,
+  "renderReachable": true,
+  "pressed": [
+   "preview"
+  ]
+ },
+ "pane-pick-768": {
+  "sw": 768,
+  "vw": 768,
+  "renderReachable": true,
+  "pressed": [
+   "pick"
+  ]
+ },
+ "pane-settings-768": {
+  "sw": 768,
+  "vw": 768,
+  "renderReachable": true,
+  "pressed": [
+   "settings"
+  ]
+ },
+ "pane-preview-768": {
+  "sw": 768,
+  "vw": 768,
+  "renderReachable": true,
+  "pressed": [
+   "preview"
+  ]
+ },
+ "vNarrow": {
+  "step0": "list",
+  "autoSelected": false,
+  "step1": "detail",
+  "step2": "list"
+ },
+ "vWide": {
+  "openTitle": "One mirror, one focal point, every ball counted",
+  "rows": 19,
+  "badgesWithText": 19,
+  "needs": "Needs you:18 rendered, not scheduled",
+  "openSections": [
+   "Video and thumbnail:false",
+   "Texts for YouTube:true",
+   "Notes:false"
+  ],
+  "visibleWords": 158
+ },
+ "vKeys": {
+  "focusedAfterArrow": "Can a ellipse mirror send every ball to one spot? 🔭",
+  "openAfterClick": "Can a ellipse mirror send every ball to one spot? 🔭",
+  "tabStops": 1,
+  "escBackToStudio": true
+ },
+ "title": "Sim Studio",
+ "logs": []
+}

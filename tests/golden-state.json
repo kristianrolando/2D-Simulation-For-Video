@@ -1,0 +1,20 @@
+{
+  "focal-reflection:{\"layout\":\"ellipse\"}": "2e4ac70b,6bfd2ceb,977c4812,602790aa",
+  "focal-reflection:{\"layout\":\"peanut\"}": "60e28317,a2b2ff80,2a27bcb7,031b7786",
+  "focal-reflection:{\"layout\":\"cassegrain\"}": "f2ae90b3,14d60f7e,8b8ee74d,63e9b7ad",
+  "rosette-orbit:{}": "7273daec,b1f6922b,095f0acb,f54f9656",
+  "pendulum-wave:{}": "99ccea0d,6435bc1f,a73129aa,2b170c39",
+  "galton-board:{}": "a2d65680,191b6cc6,160499bc,0b0795d6",
+  "harmonograph:{}": "ab597e1c,20504345,c6204a29,47a1bb07",
+  "gravity-bounce:{}": "8655ec00,3229f208,af329557,4b8cee77",
+  "resonance-orbits:{}": "db39d66a,d55ad966,5b4d05aa,571b9bd4",
+  "billiard:{}": "b9fa51ca,2b883554,8f1ef209,94d231de",
+  "billiard:{\"table\":\"circle\"}": "d4023471,7d1c7a61,1dd7ba7a,f7720ef5",
+  "hammer-smash:{}": "7b0126a1,9f075570,1b18dc0b,e4cec7da",
+  "hammer-smash:{\"rule\":\"box\",\"container\":\"circle\"}": "7b0126a1,9f075570,3f044783,79759896",
+  "hammer-smash:{\"rule\":\"survive\",\"startBalls\":6}": "268d54ff,5de5c784,758014be,7fcb29d2",
+  "sync-lines:{}": "7d4f3b58,e18f9151,3203c4b8,341c8ee6",
+  "sync-lines:{\"mode\":\"lid\",\"container\":\"square\"}": "eb3124ac,ec595b65,aa1ce386,4ab1490b",
+  "sync-lines:{\"mode\":\"slider\"}": "2b1a84d9,f67906d5,d6cc88d3,2aa169fd",
+  "sync-lines:{\"mode\":\"close\"}": "51df0157,7a7acbd7,24e406b0,7eae60f9"
+}

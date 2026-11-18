@@ -1,0 +1,66 @@
+{
+ "when": "2026-11-17T17:49:48.399Z",
+ "node": "v26.11.1",
+ "results": [
+  {
+   "name": "butterfly-60-balls",
+   "frames": 1800,
+   "setupMs": 24,
+   "audioMs": 65,
+   "drawP50": 16.61,
+   "drawP95": 18.7,
+   "drawMax": 24.5,
+   "drawLoopSec": 29.44,
+   "rssDeltaMB": 75,
+   "rssPeakMB": 135
+  },
+  {
+   "name": "butterfly-bounce",
+   "frames": 1800,
+   "setupMs": 22,
+   "audioMs": 49,
+   "drawP50": 11.3,
+   "drawP95": 12.56,
+   "drawMax": 28.2,
+   "drawLoopSec": 20.31,
+   "rssDeltaMB": 57,
+   "rssPeakMB": 193
+  },
+  {
+   "name": "galton-board-skewed",
+   "frames": 1800,
+   "setupMs": 15,
+   "audioMs": 125,
+   "drawP50": 2.46,
+   "drawP95": 2.99,
+   "drawMax": 3.3,
+   "drawLoopSec": 4.37,
+   "rssDeltaMB": 51,
+   "rssPeakMB": 229
+  },
+  {
+   "name": "galton-board-wide",
+   "frames": 1800,
+   "setupMs": 17,
+   "audioMs": 145,
+   "drawP50": 2.87,
+   "drawP95": 3.48,
+   "drawMax": 3.8,
+   "drawLoopSec": 5.07,
+   "rssDeltaMB": 50,
+   "rssPeakMB": 279
+  },
+  {
+   "name": "mirrors-ellipse",
+   "frames": 1900,
+   "setupMs": 21,
+   "audioMs": 59,
+   "drawP50": 11.72,
+   "drawP95": 16.09,
+   "drawMax": 30,
+   "drawLoopSec": 23.25,
+   "rssDeltaMB": 77,
+   "rssPeakMB": 375
+  }
+ ]
+}

@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "samples": [
+    {
+      "id": "tick-glass",
+      "file": "tick-glass.wav",
+      "role": "tick",
+      "tags": [
+        "click",
+        "peg",
+        "small"
+      ],
+      "duration": 0.48,
+      "prompt": "single tiny crisp glass marble click, very short, dry, close-miked, no reverb",
+      "promptHash": "72be4b53ba8c3b52",
+      "source": "elevenlabs",
+      "model": "eleven_text_to_sound_v2",
+      "created": "2026-11-17"
+    },
+    {
+      "id": "bounce-rubber",
+      "file": "bounce-rubber.wav",
+      "role": "bounce",
+      "tags": [
+        "bounce",
+        "collision"
+      ],
+      "duration": 0.48,
+      "prompt": "single soft rubber ball bounce on a hard wooden floor, short clean tok, dry, no reverb",
+      "promptHash": "22ffd23140bab490",
+      "source": "elevenlabs",
+      "model": "eleven_text_to_sound_v2",
+      "created": "2026-11-17"
+    },
+    {
+      "id": "drop-marble",
+      "file": "drop-marble.wav",
+      "role": "drop",
+      "tags": [
+        "land",
+        "thud"
+      ],
+      "duration": 0.162,
+      "prompt": "single small glass marble dropping into a wooden tray, soft short thud, dry",
+      "promptHash": "8c265b01429eefb4",
+      "source": "elevenlabs",
+      "model": "eleven_text_to_sound_v2",
+      "created": "2026-11-17"
+    },
+    {
+      "id": "ping-crystal",
+      "file": "ping-crystal.wav",
+      "role": "ping",
+      "tags": [
+        "milestone",
+        "orbit"
+      ],
+      "duration": 1,
+      "prompt": "single bright crystal glass ping, clean bell-like tone, short natural decay",
+      "promptHash": "a641c511a0a38cf4",
+      "source": "elevenlabs",
+      "model": "eleven_text_to_sound_v2",
+      "created": "2026-11-17"
+    },
+    {
+      "id": "whoosh-soft",
+      "file": "whoosh-soft.wav",
+      "role": "whoosh",
+      "tags": [
+        "transition",
+        "speed"
+      ],
+      "duration": 0.501,
+      "prompt": "short soft airy whoosh swish, smooth, no impact",
+      "promptHash": "92c50a0da237bf3b",
+      "source": "elevenlabs",
+      "model": "eleven_text_to_sound_v2",
+      "created": "2026-11-17"
+    },
+    {
+      "id": "boom-sub",
+      "file": "boom-sub.wav",
+      "role": "boom",
+      "tags": [
+        "impact",
+        "climax"
+      ],
+      "duration": 1.48,
+      "prompt": "deep soft cinematic sub-bass impact boom, clean, no rumble tail",
+      "promptHash": "13bafdad3ae6c9b8",
+      "source": "elevenlabs",
+      "model": "eleven_text_to_sound_v2",
+      "created": "2026-11-17"
+    },
+    {
+      "id": "success-shimmer",
+      "file": "success-shimmer.wav",
+      "role": "success",
+      "tags": [
+        "final",
+        "reveal"
+      ],
+      "duration": 2,
+      "prompt": "short magical sparkle shimmer chime, bright and positive, gentle",
+      "promptHash": "359396bc4837c56e",
+      "source": "elevenlabs",
+      "model": "eleven_text_to_sound_v2",
+      "created": "2026-11-17"
+    },
+    {
+      "id": "pop-bubble",
+      "file": "pop-bubble.wav",
+      "role": "pop",
+      "tags": [
+        "ui",
+        "counter"
+      ],
+      "duration": 0.48,
+      "prompt": "single small soft bubble pop, cute, very short, dry",
+      "promptHash": "e6c67d7f8e2ba2b6",
+      "source": "elevenlabs",
+      "model": "eleven_text_to_sound_v2",
+      "created": "2026-11-17"
+    },
+    {
+      "id": "crush-glass",
+      "file": "crush-glass.wav",
+      "role": "crush",
+      "tags": [
+        "crush",
+        "split"
+      ],
+      "duration": 0.48,
+      "prompt": "single small glass marble being crushed, short crisp crunch, dry, close-miked, no reverb",
+      "promptHash": "83b06fa1eb3469de",
+      "source": "elevenlabs",
+      "model": "eleven_text_to_sound_v2",
+      "created": "2026-11-18"
+    },
+    {
+      "id": "shatter-burst",
+      "file": "shatter-burst.wav",
+      "role": "shatter",
+      "tags": [
+        "burst",
+        "climax"
+      ],
+      "duration": 1.48,
+      "prompt": "glass container bursting and shattering, many small shards scattering, bright, no reverb tail",
+      "promptHash": "09f90498afd025e2",
+      "source": "elevenlabs",
+      "model": "eleven_text_to_sound_v2",
+      "created": "2026-11-18"
+    },
+    {
+      "id": "rewind-tape",
+      "file": "rewind-tape.wav",
+      "role": "rewind",
+      "tags": [
+        "rewind",
+        "loop"
+      ],
+      "duration": 1.48,
+      "prompt": "fast tape rewind whir rising in pitch, smooth mechanical, no music, clean stop",
+      "promptHash": "534e13a220eed5e2",
+      "source": "elevenlabs",
+      "model": "eleven_text_to_sound_v2",
+      "created": "2026-11-18"
+    },
+    {
+      "id": "clang-lid",
+      "file": "clang-lid.wav",
+      "role": "clang",
+      "tags": [
+        "lid",
+        "hit"
+      ],
+      "duration": 0.117,
+      "prompt": "single small metal lid being tapped by a marble, short bright clink with soft ring, dry",
+      "promptHash": "1abbdf87a7b75e43",
+      "source": "elevenlabs",
+      "model": "eleven_text_to_sound_v2",
+      "created": "2026-11-18"
+    },
+    {
+      "id": "slam-metal",
+      "file": "slam-metal.wav",
+      "role": "slam",
+      "tags": [
+        "hammer",
+        "impact"
+      ],
+      "duration": 0.8,
+      "prompt": "single heavy metal piston slamming shut, short deep clank thud, dry, close-miked, no reverb",
+      "promptHash": "8d09d0c6b8d1f47e",
+      "source": "elevenlabs",
+      "model": "eleven_text_to_sound_v2",
+      "created": "2026-11-18"
+    }
+  ]
+}

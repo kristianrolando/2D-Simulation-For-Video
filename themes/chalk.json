@@ -1,0 +1,284 @@
+{
+  "id": "chalk",
+  "name": "Chalkboard",
+  "icon": "🧑‍🏫",
+  "concept": "A teacher's slate: wobbly pastel chalk on a smudged green board, handwritten titles, a calm classroom pace.",
+  "bestFor": "Step-by-step explanations and proofs where the video should feel like a lesson.",
+  "dark": true,
+  "color": {
+    "bg": [
+      "#2e443a",
+      "#24362e",
+      "#1b2a24"
+    ],
+    "bgMode": "linear",
+    "text": "#f2f0e6",
+    "accent": "#ffd86b",
+    "muted": "#b9c7bd",
+    "handle": "#9fb1a5",
+    "guide": "#d8e2da",
+    "wall": "#f2f0e6",
+    "wallGlow": "#cfe0d6",
+    "wall2": "#ffd86b",
+    "wall2Glow": "#ffb0c0",
+    "focus": "#a7b8ad",
+    "focusLit": "#ffd86b",
+    "ripple": "#ffd86b",
+    "highlight": "#ffffff",
+    "flash": "#f2f0e6",
+    "peg": "#e8efe9",
+    "pegHot": "#ffb0c0",
+    "pegLit": "#ffd86b",
+    "pivot": "#f2f0e6",
+    "sunHalo": "#ffd86b",
+    "sunCore": "#fff4c8",
+    "sunDisc": "#ffe9a8",
+    "sunRing": "#ffb36b",
+    "planetA": "#ffb0c0",
+    "planetB": "#9fd8ff"
+  },
+  "palettes": {
+    "cyclic": [
+      "#ffb0c0",
+      "#9fd8ff",
+      "#ffd86b",
+      "#b9f0a8",
+      "#d7b8ff",
+      "#ffc89a"
+    ],
+    "timeline": [
+      "#9fd8ff",
+      "#b9f0a8",
+      "#ffd86b",
+      "#ffc89a",
+      "#ffb0c0",
+      "#d7b8ff"
+    ],
+    "spectrum": [
+      "#b9f0a8",
+      "#ffd86b",
+      "#ffc89a",
+      "#ffb0c0",
+      "#d7b8ff",
+      "#9fd8ff"
+    ],
+    "sparks": [
+      "#f2f0e6",
+      "#ffd86b",
+      "#cfe0d6"
+    ]
+  },
+  "texture": {
+    "kind": "chalk",
+    "color": "#e9efe9",
+    "amount": 0.09,
+    "spacing": 0,
+    "vignette": 0.35
+  },
+  "line": {
+    "style": "sketch",
+    "width": 0.85,
+    "glow": 0
+  },
+  "ball": {
+    "style": "chalk",
+    "outline": "#f2f0e6"
+  },
+  "comet": {
+    "style": "none",
+    "alpha": 0
+  },
+  "spark": "dust",
+  "focus": "ring",
+  "blend": "screen",
+  "trail": {
+    "alpha": 0.9,
+    "width": 1.25,
+    "haze": 0.5
+  },
+  "font": {
+    "family": "Chalkduster, \"Marker Felt\", DejaVuSansBold",
+    "weight": "",
+    "titleSize": 60,
+    "counterSize": 50,
+    "lineHeight": 1.25,
+    "case": "none",
+    "align": "center",
+    "counterStyle": "inline",
+    "deco": "underline"
+  },
+  "motion": {
+    "pop": "inOutSine",
+    "popAmount": 0.7,
+    "roll": "inOutSine",
+    "rollTime": 0.6,
+    "titleIn": "wipe",
+    "titleInDur": 1.2,
+    "ripple": "inOutSine",
+    "shake": "none"
+  },
+  "juice": {
+    "shake": 0,
+    "flash": 0.4,
+    "burst": 0.9,
+    "squash": 0.4,
+    "pop": 0.8,
+    "energy": 0.2,
+    "flashMode": "tint",
+    "flashColor": "#f2f0e6",
+    "blend": "screen"
+  },
+  "audio": {
+    "pitch": -5,
+    "scale": "minorPenta",
+    "decay": 0.4,
+    "roleMap": {
+      "tick": "drop",
+      "ping": "note",
+      "chime": "note",
+      "pop": "note"
+    },
+    "fx": {
+      "lowpass": 2600,
+      "highpass": 90,
+      "drive": 0,
+      "crushRate": 1,
+      "crushBits": 0,
+      "echoDelay": 0.19,
+      "echoFeedback": 0.32,
+      "echoMix": 0.28,
+      "doubler": 0
+    }
+  },
+  "background": {
+    "params": {
+      "board": {
+        "type": "color",
+        "label": "Board colour (top)",
+        "group": "Board",
+        "icon": "🟩",
+        "default": "#2e443a",
+        "target": "color.bg.0",
+        "lumaMax": 0.3
+      },
+      "board2": {
+        "type": "color",
+        "label": "Board colour (middle)",
+        "group": "Board",
+        "icon": "🟩",
+        "default": "#24362e",
+        "target": "color.bg.1",
+        "lumaMax": 0.28
+      },
+      "board3": {
+        "type": "color",
+        "label": "Board colour (bottom)",
+        "group": "Board",
+        "icon": "🟩",
+        "default": "#1b2a24",
+        "target": "color.bg.2",
+        "lumaMax": 0.25
+      },
+      "smudge": {
+        "type": "enum",
+        "label": "Smudge style",
+        "group": "Smudges",
+        "icon": "🧽",
+        "default": "chalk",
+        "target": "texture.kind",
+        "options": [
+          "chalk",
+          "grain",
+          "none"
+        ]
+      },
+      "dust": {
+        "type": "number",
+        "label": "Chalk dust amount",
+        "group": "Smudges",
+        "icon": "🧽",
+        "default": 0.09,
+        "target": "texture.amount",
+        "min": 0,
+        "max": 0.25,
+        "step": 0.01
+      },
+      "dustColor": {
+        "type": "color",
+        "label": "Chalk dust colour",
+        "group": "Smudges",
+        "icon": "🧽",
+        "default": "#e9efe9",
+        "target": "texture.color",
+        "lumaMin": 0.5
+      },
+      "vignette": {
+        "type": "number",
+        "label": "Board edge darkening",
+        "group": "Board",
+        "icon": "◐",
+        "default": 0.35,
+        "target": "texture.vignette",
+        "min": 0,
+        "max": 0.7,
+        "step": 0.01
+      },
+      "stroke": {
+        "type": "color",
+        "label": "Chalk line colour",
+        "group": "Chalk",
+        "icon": "✏️",
+        "default": "#f2f0e6",
+        "target": "color.wall",
+        "lumaMin": 0.55
+      },
+      "underline": {
+        "type": "color",
+        "label": "Underline / number colour",
+        "group": "Chalk",
+        "icon": "✏️",
+        "default": "#ffd86b",
+        "target": "color.accent",
+        "lumaMin": 0.5
+      }
+    },
+    "presets": [
+      {
+        "id": "green",
+        "name": "Green board",
+        "values": {}
+      },
+      {
+        "id": "black",
+        "name": "Blackboard",
+        "values": {
+          "board": "#232323",
+          "board2": "#1a1a1a",
+          "board3": "#101010",
+          "dustColor": "#d8d8d8",
+          "vignette": 0.5
+        }
+      },
+      {
+        "id": "blue",
+        "name": "Blue slate",
+        "values": {
+          "board": "#2c3e57",
+          "board2": "#22324a",
+          "board3": "#18243a",
+          "underline": "#ffc27a",
+          "stroke": "#eef3fb"
+        }
+      },
+      {
+        "id": "clean",
+        "name": "Freshly wiped",
+        "values": {
+          "dust": 0.03,
+          "smudge": "grain",
+          "vignette": 0.2
+        }
+      }
+    ]
+  }
+}

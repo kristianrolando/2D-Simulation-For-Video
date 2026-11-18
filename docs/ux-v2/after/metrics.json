@@ -1,0 +1,123 @@
+{
+ "studio-1440-dark": {
+  "vw": 1440,
+  "scrollW": 1440,
+  "offscreen": 0,
+  "controls": 80,
+  "words": 323,
+  "fontSizes": 6,
+  "emoji": 0,
+  "title": "Sim Studio"
+ },
+ "videos-1440-dark": {
+  "vw": 1440,
+  "scrollW": 1440,
+  "offscreen": 0,
+  "controls": 145,
+  "words": 579,
+  "fontSizes": 5,
+  "emoji": 3,
+  "title": "Sim Studio"
+ },
+ "studio-1440-light": {
+  "vw": 1440,
+  "scrollW": 1440,
+  "offscreen": 0,
+  "controls": 80,
+  "words": 323,
+  "fontSizes": 6,
+  "emoji": 0,
+  "title": "Sim Studio"
+ },
+ "videos-1440-light": {
+  "vw": 1440,
+  "scrollW": 1440,
+  "offscreen": 0,
+  "controls": 145,
+  "words": 579,
+  "fontSizes": 5,
+  "emoji": 3,
+  "title": "Sim Studio"
+ },
+ "studio-1280-dark": {
+  "vw": 1280,
+  "scrollW": 1280,
+  "offscreen": 0,
+  "controls": 80,
+  "words": 323,
+  "fontSizes": 6,
+  "emoji": 0,
+  "title": "Sim Studio"
+ },
+ "videos-1280-dark": {
+  "vw": 1280,
+  "scrollW": 1280,
+  "offscreen": 0,
+  "controls": 145,
+  "words": 579,
+  "fontSizes": 5,
+  "emoji": 3,
+  "title": "Sim Studio"
+ },
+ "studio-1280-light": {
+  "vw": 1280,
+  "scrollW": 1280,
+  "offscreen": 0,
+  "controls": 80,
+  "words": 323,
+  "fontSizes": 6,
+  "emoji": 0,
+  "title": "Sim Studio"
+ },
+ "videos-1280-light": {
+  "vw": 1280,
+  "scrollW": 1280,
+  "offscreen": 0,
+  "controls": 145,
+  "words": 579,
+  "fontSizes": 5,
+  "emoji": 3,
+  "title": "Sim Studio"
+ },
+ "studio-400-dark": {
+  "vw": 400,
+  "scrollW": 400,
+  "offscreen": 0,
+  "controls": 17,
+  "words": 43,
+  "fontSizes": 5,
+  "emoji": 0,
+  "title": "Sim Studio"
+ },
+ "videos-400-dark": {
+  "vw": 400,
+  "scrollW": 400,
+  "offscreen": 0,
+  "controls": 57,
+  "words": 231,
+  "fontSizes": 5,
+  "emoji": 2,
+  "title": "Sim Studio"
+ },
+ "studio-400-light": {
+  "vw": 400,
+  "scrollW": 400,
+  "offscreen": 0,
+  "controls": 17,
+  "words": 43,
+  "fontSizes": 5,
+  "emoji": 0,
+  "title": "Sim Studio"
+ },
+ "videos-400-light": {
+  "vw": 400,
+  "scrollW": 400,
+  "offscreen": 0,
+  "controls": 57,
+  "words": 231,
+  "fontSizes": 5,
+  "emoji": 2,
+  "title": "Sim Studio"
+ },
+ "consoleLogs": []
+}

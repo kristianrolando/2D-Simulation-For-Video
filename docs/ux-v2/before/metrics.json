@@ -1,0 +1,126 @@
+{
+ "studio-1440-dark": {
+  "vw": 1440,
+  "scrollW": 1440,
+  "offscreen": 0,
+  "controls": 80,
+  "words": 329,
+  "fontSizes": 9,
+  "emoji": 11,
+  "title": "Sim Studio"
+ },
+ "videos-1440-dark": {
+  "vw": 1440,
+  "scrollW": 1440,
+  "offscreen": 0,
+  "controls": 127,
+  "words": 618,
+  "fontSizes": 9,
+  "emoji": 2,
+  "title": "Sim Studio"
+ },
+ "studio-1440-light": {
+  "vw": 1440,
+  "scrollW": 1440,
+  "offscreen": 0,
+  "controls": 80,
+  "words": 329,
+  "fontSizes": 9,
+  "emoji": 11,
+  "title": "Sim Studio"
+ },
+ "videos-1440-light": {
+  "vw": 1440,
+  "scrollW": 1440,
+  "offscreen": 0,
+  "controls": 127,
+  "words": 618,
+  "fontSizes": 9,
+  "emoji": 2,
+  "title": "Sim Studio"
+ },
+ "studio-1280-dark": {
+  "vw": 1280,
+  "scrollW": 1280,
+  "offscreen": 0,
+  "controls": 80,
+  "words": 329,
+  "fontSizes": 9,
+  "emoji": 11,
+  "title": "Sim Studio"
+ },
+ "videos-1280-dark": {
+  "vw": 1280,
+  "scrollW": 1280,
+  "offscreen": 0,
+  "controls": 127,
+  "words": 618,
+  "fontSizes": 9,
+  "emoji": 2,
+  "title": "Sim Studio"
+ },
+ "studio-1280-light": {
+  "vw": 1280,
+  "scrollW": 1280,
+  "offscreen": 0,
+  "controls": 80,
+  "words": 329,
+  "fontSizes": 9,
+  "emoji": 11,
+  "title": "Sim Studio"
+ },
+ "videos-1280-light": {
+  "vw": 1280,
+  "scrollW": 1280,
+  "offscreen": 0,
+  "controls": 127,
+  "words": 618,
+  "fontSizes": 9,
+  "emoji": 2,
+  "title": "Sim Studio"
+ },
+ "studio-400-dark": {
+  "vw": 550,
+  "scrollW": 550,
+  "offscreen": 0,
+  "controls": 80,
+  "words": 329,
+  "fontSizes": 9,
+  "emoji": 11,
+  "title": "Sim Studio"
+ },
+ "videos-400-dark": {
+  "vw": 550,
+  "scrollW": 550,
+  "offscreen": 18,
+  "controls": 127,
+  "words": 618,
+  "fontSizes": 9,
+  "emoji": 2,
+  "title": "Sim Studio"
+ },
+ "studio-400-light": {
+  "vw": 550,
+  "scrollW": 550,
+  "offscreen": 0,
+  "controls": 80,
+  "words": 329,
+  "fontSizes": 9,
+  "emoji": 11,
+  "title": "Sim Studio"
+ },
+ "videos-400-light": {
+  "vw": 550,
+  "scrollW": 550,
+  "offscreen": 18,
+  "controls": 127,
+  "words": 618,
+  "fontSizes": 9,
+  "emoji": 2,
+  "title": "Sim Studio"
+ },
+ "consoleLogs": [
+  "log-error: Failed to load resource: the server responded with a status of 404 (Not Found) http://127.0.0.1:5180/favicon.ico",
+  "log-error: Failed to load resource: the server responded with a status of 404 (Not Found) http://127.0.0.1:5180/api/videos/v-mwlmkcbtkff4/cover"
+ ]
+}

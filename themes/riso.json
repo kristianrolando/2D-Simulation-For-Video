@@ -1,0 +1,310 @@
+{
+  "id": "riso",
+  "name": "Riso Print",
+  "icon": "🖨️",
+  "concept": "A risograph poster: two spot inks overprinted on warm paper, slightly misregistered, big condensed caps.",
+  "bestFor": "Chance, statistics and pop-science explainers that should feel printed and handmade.",
+  "dark": false,
+  "color": {
+    "bg": [
+      "#f6eedf",
+      "#efe3cc"
+    ],
+    "bgMode": "linear",
+    "text": "#1d2f6f",
+    "accent": "#ff2f7d",
+    "muted": "#5a6a9a",
+    "handle": "#7a7368",
+    "guide": "#8c95b8",
+    "wall": "#2a4bd7",
+    "wallGlow": "#ff4fa3",
+    "wall2": "#ffe14a",
+    "wall2Glow": "#ff4fa3",
+    "focus": "#1d2f6f",
+    "focusLit": "#ff2f7d",
+    "ripple": "#ff2f7d",
+    "highlight": "#1d2f6f",
+    "flash": "#ffe14a",
+    "peg": "#2a4bd7",
+    "pegHot": "#ff4fa3",
+    "pegLit": "#ff2f7d",
+    "pivot": "#1d2f6f",
+    "sunHalo": "#ffd23a",
+    "sunCore": "#ff6b3d",
+    "sunDisc": "#ff6b3d",
+    "sunRing": "#1d2f6f",
+    "planetA": "#ff2f7d",
+    "planetB": "#2a4bd7"
+  },
+  "palettes": {
+    "cyclic": [
+      "#ff2f7d",
+      "#2a4bd7",
+      "#ffae00",
+      "#00a88f",
+      "#7b3fe4"
+    ],
+    "timeline": [
+      "#2a4bd7",
+      "#7b3fe4",
+      "#ff2f7d",
+      "#ff7a00",
+      "#00a88f"
+    ],
+    "spectrum": [
+      "#00a88f",
+      "#2a4bd7",
+      "#7b3fe4",
+      "#ff2f7d",
+      "#ff7a00"
+    ],
+    "sparks": [
+      "#ff2f7d",
+      "#2a4bd7",
+      "#ffc400"
+    ]
+  },
+  "texture": {
+    "kind": "halftone",
+    "color": "#ff4fa3",
+    "amount": 0.2,
+    "spacing": 18,
+    "vignette": 0
+  },
+  "line": {
+    "style": "misprint",
+    "width": 1.15,
+    "glow": 0
+  },
+  "ball": {
+    "style": "misprint",
+    "outline": "#ffffff"
+  },
+  "comet": {
+    "style": "none",
+    "alpha": 0
+  },
+  "spark": "confetti",
+  "focus": "ring",
+  "blend": "multiply",
+  "trail": {
+    "alpha": 1.6,
+    "width": 1.3,
+    "haze": 0.35
+  },
+  "font": {
+    "family": "\"Avenir Next Condensed\", Impact, DejaVuSansCondensedBold",
+    "weight": "800",
+    "titleSize": 80,
+    "counterSize": 56,
+    "lineHeight": 1.0,
+    "case": "upper",
+    "align": "left",
+    "counterStyle": "stack",
+    "deco": "highlight"
+  },
+  "motion": {
+    "pop": "outBack",
+    "popAmount": 1.3,
+    "roll": "outQuint",
+    "rollTime": 0.3,
+    "titleIn": "slide",
+    "titleInDur": 0.5,
+    "ripple": "outCubic",
+    "shake": "random"
+  },
+  "juice": {
+    "shake": 0.6,
+    "flash": 0.7,
+    "burst": 1.3,
+    "squash": 1.2,
+    "pop": 1.3,
+    "energy": 0,
+    "flashMode": "tint",
+    "flashColor": "#ffe14a",
+    "blend": "multiply"
+  },
+  "audio": {
+    "pitch": -2,
+    "scale": "major",
+    "decay": 0.7,
+    "roleMap": {
+      "chime": "note",
+      "ping": "pop"
+    },
+    "fx": {
+      "lowpass": 3800,
+      "highpass": 60,
+      "drive": 0.12,
+      "crushRate": 1,
+      "crushBits": 0,
+      "echoDelay": 0.085,
+      "echoFeedback": 0.12,
+      "echoMix": 0.2,
+      "doubler": 0
+    }
+  },
+  "background": {
+    "params": {
+      "paper": {
+        "type": "color",
+        "label": "Paper colour",
+        "group": "Paper",
+        "icon": "📄",
+        "default": "#f6eedf",
+        "target": "color.bg.0",
+        "lumaMin": 0.7
+      },
+      "paper2": {
+        "type": "color",
+        "label": "Paper shade (bottom)",
+        "group": "Paper",
+        "icon": "📄",
+        "default": "#efe3cc",
+        "target": "color.bg.1",
+        "lumaMin": 0.62
+      },
+      "ink1": {
+        "type": "color",
+        "label": "Ink 1 (lines, balls)",
+        "group": "Inks",
+        "icon": "🖍️",
+        "default": "#2a4bd7",
+        "target": [
+          "color.wall"
+        ],
+        "lumaMax": 0.45
+      },
+      "ink2": {
+        "type": "color",
+        "label": "Ink 2 (misprint layer)",
+        "group": "Inks",
+        "icon": "🖍️",
+        "default": "#ff4fa3",
+        "target": "color.wallGlow",
+        "lumaMax": 0.62
+      },
+      "text": {
+        "type": "color",
+        "label": "Title ink",
+        "group": "Inks",
+        "icon": "🔤",
+        "default": "#1d2f6f",
+        "target": "color.text",
+        "lumaMax": 0.35
+      },
+      "accent": {
+        "type": "color",
+        "label": "Highlight ink",
+        "group": "Inks",
+        "icon": "🔢",
+        "default": "#ff2f7d",
+        "target": "color.accent",
+        "lumaMax": 0.55
+      },
+      "pattern": {
+        "type": "enum",
+        "label": "Print pattern",
+        "group": "Texture",
+        "icon": "🔘",
+        "default": "halftone",
+        "target": "texture.kind",
+        "options": [
+          "halftone",
+          "grain",
+          "none"
+        ]
+      },
+      "dots": {
+        "type": "number",
+        "label": "Dot size / spacing",
+        "group": "Texture",
+        "icon": "🔘",
+        "default": 18,
+        "target": "texture.spacing",
+        "min": 8,
+        "max": 40,
+        "step": 1,
+        "unit": "px"
+      },
+      "dotAmount": {
+        "type": "number",
+        "label": "Pattern strength",
+        "group": "Texture",
+        "icon": "🔘",
+        "default": 0.2,
+        "target": "texture.amount",
+        "min": 0,
+        "max": 0.45,
+        "step": 0.01
+      },
+      "dotColor": {
+        "type": "color",
+        "label": "Pattern ink",
+        "group": "Texture",
+        "icon": "🔘",
+        "default": "#ff4fa3",
+        "target": "texture.color",
+        "lumaMax": 0.7
+      },
+      "angle": {
+        "type": "number",
+        "label": "Paper shading direction",
+        "group": "Paper",
+        "icon": "🧭",
+        "default": 0,
+        "target": "color.bgAngle",
+        "min": -30,
+        "max": 30,
+        "step": 1,
+        "unit": "°"
+      }
+    },
+    "presets": [
+      {
+        "id": "classic",
+        "name": "Pink & blue",
+        "values": {}
+      },
+      {
+        "id": "teal",
+        "name": "Teal & coral",
+        "values": {
+          "ink1": "#007f73",
+          "ink2": "#ff6b4a",
+          "text": "#0b3b38",
+          "accent": "#ff5a36",
+          "dotColor": "#ff6b4a"
+        }
+      },
+      {
+        "id": "sun",
+        "name": "Sunny paper",
+        "values": {
+          "paper": "#fbe9a8",
+          "paper2": "#f4d77a",
+          "ink1": "#c4290d",
+          "ink2": "#2a4bd7",
+          "text": "#4a1408",
+          "accent": "#c4290d",
+          "dotColor": "#e8a400"
+        }
+      },
+      {
+        "id": "mint",
+        "name": "Mint & violet",
+        "values": {
+          "paper": "#e4f3e8",
+          "paper2": "#cfe7d6",
+          "ink1": "#5b2fc4",
+          "ink2": "#00a88f",
+          "text": "#2a1366",
+          "accent": "#d6246e",
+          "dotColor": "#00a88f",
+          "pattern": "grain",
+          "dotAmount": 0.3
+        }
+      }
+    ]
+  }
+}

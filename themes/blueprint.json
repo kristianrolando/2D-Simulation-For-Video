@@ -1,0 +1,317 @@
+{
+  "id": "blueprint",
+  "name": "Blueprint",
+  "icon": "📐",
+  "concept": "An engineering drawing: white double lines and dash-dot centre lines on a gridded blue sheet, red-pencil values, a title block.",
+  "bestFor": "Geometry, optics and mechanics where precision and 'how it works' are the point.",
+  "dark": true,
+  "color": {
+    "bg": [
+      "#1d5296",
+      "#174379",
+      "#11335e"
+    ],
+    "bgMode": "linear",
+    "text": "#f4f8ff",
+    "accent": "#ff9b7a",
+    "muted": "#9fc0ea",
+    "handle": "#9fc0ea",
+    "guide": "#9fc0ea",
+    "wall": "#f4f8ff",
+    "wallGlow": "#9fc0ea",
+    "wall2": "#ff9b7a",
+    "wall2Glow": "#ff9b7a",
+    "focus": "#9fc0ea",
+    "focusLit": "#ff9b7a",
+    "ripple": "#f4f8ff",
+    "highlight": "#ffffff",
+    "flash": "#ffffff",
+    "peg": "#f4f8ff",
+    "pegHot": "#ff9b7a",
+    "pegLit": "#ffffff",
+    "pivot": "#f4f8ff",
+    "sunHalo": "#9fc0ea",
+    "sunCore": "#ffffff",
+    "sunDisc": "#174379",
+    "sunRing": "#f4f8ff",
+    "planetA": "#ff9b7a",
+    "planetB": "#ffffff"
+  },
+  "palettes": {
+    "cyclic": [
+      "#ffffff",
+      "#bcd6ff",
+      "#8fb8f0",
+      "#ff9b7a",
+      "#dbe9ff"
+    ],
+    "timeline": [
+      "#8fb8f0",
+      "#bcd6ff",
+      "#ffffff",
+      "#ffc2ad",
+      "#ff9b7a"
+    ],
+    "spectrum": [
+      "#ff9b7a",
+      "#ffc2ad",
+      "#ffffff",
+      "#bcd6ff",
+      "#8fb8f0"
+    ],
+    "sparks": [
+      "#ffffff",
+      "#ff9b7a"
+    ]
+  },
+  "texture": {
+    "kind": "grid",
+    "color": "#cfe0ff",
+    "amount": 0.16,
+    "spacing": 36,
+    "vignette": 0.25
+  },
+  "line": {
+    "style": "technical",
+    "width": 1.0,
+    "glow": 0
+  },
+  "ball": {
+    "style": "ring",
+    "outline": "#f4f8ff"
+  },
+  "comet": {
+    "style": "none",
+    "alpha": 0
+  },
+  "spark": "cross",
+  "focus": "cross",
+  "blend": "screen",
+  "trail": {
+    "alpha": 0.9,
+    "width": 1.0,
+    "haze": 0
+  },
+  "font": {
+    "family": "\"DIN Condensed\", \"Avenir Next Condensed\", DejaVuSansCondensedBold",
+    "weight": "bold",
+    "titleSize": 66,
+    "counterSize": 50,
+    "lineHeight": 1.05,
+    "case": "upper",
+    "align": "left",
+    "counterStyle": "tag",
+    "deco": "titleblock"
+  },
+  "motion": {
+    "pop": "outQuint",
+    "popAmount": 0.5,
+    "roll": "linear",
+    "rollTime": 0.25,
+    "titleIn": "wipe",
+    "titleInDur": 0.8,
+    "ripple": "linear",
+    "shake": "none"
+  },
+  "juice": {
+    "shake": 0,
+    "flash": 0.35,
+    "burst": 0.6,
+    "squash": 0,
+    "pop": 0.6,
+    "energy": 0,
+    "flashMode": "tint",
+    "flashColor": "#ffffff",
+    "blend": "screen"
+  },
+  "audio": {
+    "pitch": -7,
+    "scale": "lydian",
+    "decay": 0.6,
+    "roleMap": {
+      "ping": "tick",
+      "chime": "ping",
+      "note": "tick"
+    },
+    "fx": {
+      "lowpass": 5200,
+      "highpass": 180,
+      "drive": 0,
+      "crushRate": 1,
+      "crushBits": 0,
+      "echoDelay": 0.011,
+      "echoFeedback": 0.55,
+      "echoMix": 0.55,
+      "doubler": 0
+    }
+  },
+  "background": {
+    "params": {
+      "sheet": {
+        "type": "color",
+        "label": "Sheet colour (top)",
+        "group": "Sheet",
+        "icon": "📘",
+        "default": "#1d5296",
+        "target": "color.bg.0",
+        "lumaMax": 0.4
+      },
+      "sheet2": {
+        "type": "color",
+        "label": "Sheet colour (middle)",
+        "group": "Sheet",
+        "icon": "📘",
+        "default": "#174379",
+        "target": "color.bg.1",
+        "lumaMax": 0.35
+      },
+      "sheet3": {
+        "type": "color",
+        "label": "Sheet colour (bottom)",
+        "group": "Sheet",
+        "icon": "📘",
+        "default": "#11335e",
+        "target": "color.bg.2",
+        "lumaMax": 0.3
+      },
+      "angle": {
+        "type": "number",
+        "label": "Shading direction",
+        "group": "Sheet",
+        "icon": "🧭",
+        "default": 0,
+        "target": "color.bgAngle",
+        "min": -30,
+        "max": 30,
+        "step": 1,
+        "unit": "°"
+      },
+      "grid": {
+        "type": "enum",
+        "label": "Drafting grid",
+        "group": "Grid",
+        "icon": "▦",
+        "default": "grid",
+        "target": "texture.kind",
+        "options": [
+          "grid",
+          "none",
+          "halftone"
+        ]
+      },
+      "gridSpacing": {
+        "type": "number",
+        "label": "Grid density (spacing)",
+        "group": "Grid",
+        "icon": "▦",
+        "default": 36,
+        "target": "texture.spacing",
+        "min": 18,
+        "max": 80,
+        "step": 2,
+        "unit": "px"
+      },
+      "gridAmount": {
+        "type": "number",
+        "label": "Grid strength",
+        "group": "Grid",
+        "icon": "▦",
+        "default": 0.16,
+        "target": "texture.amount",
+        "min": 0,
+        "max": 0.4,
+        "step": 0.01
+      },
+      "gridColor": {
+        "type": "color",
+        "label": "Grid colour",
+        "group": "Grid",
+        "icon": "▦",
+        "default": "#cfe0ff",
+        "target": "texture.color",
+        "lumaMin": 0.4
+      },
+      "vignette": {
+        "type": "number",
+        "label": "Edge darkening",
+        "group": "Sheet",
+        "icon": "◐",
+        "default": 0.25,
+        "target": "texture.vignette",
+        "min": 0,
+        "max": 0.5,
+        "step": 0.01
+      },
+      "ink": {
+        "type": "color",
+        "label": "Drawing ink",
+        "group": "Ink",
+        "icon": "✒️",
+        "default": "#f4f8ff",
+        "target": "color.wall",
+        "lumaMin": 0.6
+      },
+      "axis": {
+        "type": "color",
+        "label": "Centre-line colour",
+        "group": "Ink",
+        "icon": "✒️",
+        "default": "#9fc0ea",
+        "target": "color.wallGlow",
+        "lumaMin": 0.4
+      },
+      "pencil": {
+        "type": "color",
+        "label": "Red-pencil values",
+        "group": "Ink",
+        "icon": "🔴",
+        "default": "#ff9b7a",
+        "target": "color.accent",
+        "lumaMin": 0.45
+      }
+    },
+    "presets": [
+      {
+        "id": "blueprint",
+        "name": "Blueprint",
+        "values": {}
+      },
+      {
+        "id": "teal",
+        "name": "Teal draft",
+        "values": {
+          "sheet": "#0f5a5e",
+          "sheet2": "#0b4a4e",
+          "sheet3": "#073639",
+          "gridColor": "#bff5ee",
+          "axis": "#8fe0d6"
+        }
+      },
+      {
+        "id": "graphite",
+        "name": "Graphite",
+        "values": {
+          "sheet": "#3a3f48",
+          "sheet2": "#2d3138",
+          "sheet3": "#202328",
+          "gridColor": "#c8d0de",
+          "axis": "#aab4c8",
+          "pencil": "#ffc27a"
+        }
+      },
+      {
+        "id": "violet",
+        "name": "Violet draft",
+        "values": {
+          "sheet": "#3f2a82",
+          "sheet2": "#32216a",
+          "sheet3": "#241850",
+          "gridColor": "#d8ccff",
+          "axis": "#b9a8f2",
+          "pencil": "#ffb0c0",
+          "angle": 15
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+ "when": "2026-11-17T17:15:49.457Z",
+ "node": "v26.11.1",
+ "results": [
+  {
+   "name": "mirrors-ellipse",
+   "frames": 1900,
+   "setupMs": 56,
+   "audioMs": 51,
+   "drawP50": 12.29,
+   "drawP95": 23.09,
+   "drawMax": 48.7,
+   "drawLoopSec": 26.11,
+   "rssDeltaMB": 90,
+   "rssPeakMB": 148,
+   "renderTotalSec": 33.02,
+   "realtimeFactor": 0.96
+  }
+ ]
+}
