@@ -468,14 +468,14 @@ addEventListener('keydown', (e) => {
 });
 
 // ---------------- 3. render: status strip under the preview + history of the last renders ----------------
-interface JobView { id: string; sceneId: string; params: Record<string, unknown>; status: string; progress: { frame: number; frames: number; fps: number; phase: string }; out: string; file?: string; abs?: string; size?: number; created: number; finished?: number; report?: any; error?: string }
+interface JobView { retriedBy?: string; note?: string; id: string; sceneId: string; params: Record<string, unknown>; status: string; progress: { frame: number; frames: number; fps: number; phase: string }; out: string; file?: string; abs?: string; size?: number; created: number; finished?: number; report?: any; error?: string }
 interface JobNode { root: HTMLElement; st: HTMLElement; bar: HTMLElement; meta: HTMLElement; acts: HTMLElement; status: string; video?: HTMLVideoElement }
 const jobNodes = new Map<string, JobNode>(), jobData = new Map<string, JobView>();
 let latestId = '';
 const strip = $('rstrip'), rsState = strip.querySelector('.rs-state') as HTMLElement, rsBar = strip.querySelector('.bar > div') as HTMLElement,
   rsMeta = strip.querySelector('.rs-meta') as HTMLElement, rsNote = strip.querySelector('.rs-note') as HTMLElement, rsRow = strip.querySelector('.rs-row') as HTMLElement,
   rsOpen = strip.querySelector('.rs-open') as HTMLAnchorElement, rsReveal = strip.querySelector('.rs-reveal') as HTMLButtonElement,
-  rsPublish = strip.querySelector('.rs-publish') as HTMLButtonElement, rsHist = strip.querySelector('.rs-hist') as HTMLButtonElement;
+  rsPublish = strip.querySelector('.rs-publish') as HTMLButtonElement, rsAgain = strip.querySelector('.rs-again') as HTMLButtonElement, rsHist = strip.querySelector('.rs-hist') as HTMLButtonElement;
 const PHASE: Record<string, string> = { queued: 'Queued', audio: 'Preparing sound', video: 'Rendering', mux: 'Finishing', done: 'Rendering' };
 const jobLabel = (j: JobView) => `${SCENES.find(s => s.meta.id === j.sceneId)?.meta.name ?? j.sceneId} · ${getTheme(String(j.params?.style ?? 'classic')).name}`;
 const pctOf = (j: JobView) => (j.status === 'done' ? 100 : j.progress.frames ? Math.min(100, (100 * j.progress.frame) / j.progress.frames) : 0);
@@ -487,13 +487,23 @@ function note(text: string, kind: 'bad' | 'info' = 'bad', keep = false) {
   rsNote.textContent = text; rsNote.hidden = !text; rsNote.className = 'rs-note' + (kind === 'info' ? ' info' : '');
   if (text) { strip.hidden = false; if (!keep) noteTimer = window.setTimeout(() => note(''), 10000); }
 }
-function stateText(j: JobView) { return j.status === 'running' || j.status === 'queued' ? `${PHASE[j.progress.phase] ?? 'Rendering'}${j.status === 'running' ? ' ' + pctOf(j).toFixed(0) + '%' : ''}` : j.status === 'done' ? '✓ Done' : '✕ Failed'; }
+function stateText(j: JobView) { return j.status === 'running' || j.status === 'queued' ? `${PHASE[j.progress.phase] ?? 'Rendering'}${j.status === 'running' ? ' ' + pctOf(j).toFixed(0) + '%' : ''}` : j.status === 'done' ? '✓ Done' : j.status === 'stopped' ? '⏸ Stopped' : '✕ Failed'; }
 function metaText(j: JobView) {
   const ahead = [...jobData.values()].filter(x => x.status === 'queued' && x.created < j.created).length;
   if (j.status === 'running') return `${jobLabel(j)}${j.progress.fps ? ` · ${j.progress.fps.toFixed(0)} fps · ~${fmtSecs((j.progress.frames - j.progress.frame) / j.progress.fps)} left` : ''}`;
   if (j.status === 'queued') return `${jobLabel(j)}${ahead ? ` · ${ahead} ahead` : ''}`;
   if (j.status === 'done') return [jobLabel(j), fmtSize(j.size), j.report ? `${j.report.totalSec} s` : ''].filter(Boolean).join(' · ');
+  if (j.status === 'stopped') return `${jobLabel(j)} · stopped when the studio stopped`;
   return jobLabel(j);
+}
+/** run a stopped or failed render again from its saved settings (renders are deterministic: the same settings give the same video) */
+async function renderAgain(j: JobView, btn: HTMLButtonElement) {
+  btn.disabled = true;
+  try {
+    const r = await fetch(`/api/jobs/${encodeURIComponent(j.id)}/again`, { method: 'POST' }); const b = await r.json();
+    if (!r.ok || b.error) { note(friendlyError(b.error ?? `HTTP ${r.status}`)); btn.disabled = false; return; }
+    upsertJob(b);
+  } catch (e) { note(friendlyError(e)); btn.disabled = false; }
 }
 async function reveal(j: JobView) {
   try {
@@ -512,7 +522,10 @@ function updateStrip(j: JobView) {
   rsBar.style.width = `${pctOf(j)}%`; rsMeta.textContent = metaText(j); rsMeta.title = j.file ?? '';
   rsOpen.hidden = rsReveal.hidden = rsPublish.hidden = !done;
   if (done) { rsPublish.onclick = () => vids.showJob(j.id); rsOpen.href = j.out; rsReveal.onclick = () => reveal(j); }
+  const again = (j.status === 'stopped' || j.status === 'error') && !j.retriedBy;
+  rsAgain.hidden = !again; rsAgain.disabled = false; if (again) rsAgain.onclick = () => renderAgain(j, rsAgain);
   if (j.status === 'error') note(friendlyError(j.error), 'bad', true);
+  else if (j.status === 'stopped') note(j.note ?? 'The studio stopped while this was in the queue.', 'info', true);
   else if (rsNote.dataset.jobError) note('');
   rsHist.textContent = `All renders (${jobNodes.size})`;
   const pt = progressTitle(j.status, pctOf(j)); if (pt) document.title = pt; else if (!document.hidden) document.title = 'Sim Studio';
@@ -537,6 +550,9 @@ function upsertJob(j: JobView) {
     show.onclick = () => reveal(j); cp.onclick = () => copyPath(j);
     n.acts.append(play, show, cp, el('a', { href: j.out, target: '_blank', className: 'link' }, 'Open'));
   }
+  if ((j.status === 'stopped' || j.status === 'error') && !j.retriedBy) {
+    const again = el('button', { type: 'button', className: 'primary' }, 'Render again') as HTMLButtonElement; again.onclick = () => renderAgain(j, again); n.acts.replaceChildren(again);
+  } else if (j.status === 'stopped' || j.status === 'error') n.acts.replaceChildren(el('span', { className: 'meta' }, 'Started again'));
   if (fresh || prev !== j.status) vids.refresh(); // the video list follows renders: new entry, finished, failed
   const newest = !latestId || j.created >= (jobData.get(latestId)?.created ?? 0);
   if (newest) latestId = j.id;
