@@ -86,18 +86,23 @@
       <div id="styles" class="styles" role="radiogroup" aria-label="Video style"></div>
       <p id="styleInfo"></p>
       <div id="styleTools" class="row"></div>
+      <h3 class="sub">Style presets <span class="hint">background, colours and font · laid over the style above · any scene</span></h3>
+      <section id="stylePresets" class="spbox" aria-label="Style presets">
+        <div id="spChips" class="sprow" role="group" aria-label="Style presets"></div>
+        <form id="savePreset" class="row">
+          <input id="presetName" class="grow" placeholder="Name this look…" required maxlength="40" aria-label="Style preset name" title="Saves only the background, colours and font you see now. It does not save scene settings (those are the Scene presets in the gallery).">
+          <button type="submit" title="Save the background, colours and font you see now as a style preset">Save style preset</button>
+        </form>
+        <p id="presetMsg" class="msg" role="status"></p>
+        <ul id="spProblems" class="hints" hidden></ul>
+      </section>
     </section>
     <section id="paneAdv" role="tabpanel" aria-labelledby="tabAdv" hidden>
       <section id="bgBox" class="bgbox" aria-label="Background settings"></section>
       <form id="paramsAdv" onsubmit="return false"></form>
       <div class="row">
         <button id="reset" type="button" title="Put this simulation's options back to their defaults (style and background stay)">Reset scene options</button>
-        <form id="savePreset" class="row grow">
-          <input id="presetName" placeholder="Save as preset…" required pattern="[A-Za-z0-9 _-]+" aria-label="Preset name" title="Letters, numbers, space, - and _">
-          <button type="submit">Save</button>
-        </form>
       </div>
-      <p id="presetMsg" class="msg" role="status"></p>
       <details id="diagBox"><summary>Simulation check</summary><pre id="diag"></pre></details>
     </section>
   </aside>

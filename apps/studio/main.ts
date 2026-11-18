@@ -5,7 +5,7 @@ import { SCENES } from '../../packages/scenes/index.ts';
 import { Player, type Quality } from './player.ts';
 import { benchScene } from './bench.ts';
 import { setSampleBank, parseWav, type Manifest } from '../../packages/audio/bank.ts';
-import { registerThemes, unregisterTheme, getTheme, sanitizeBackground, serializeBackground } from '../../packages/theme/index.ts';
+import { registerThemes, unregisterTheme, getTheme, themeOf, sanitizeBackground, serializeBackground, sanitizeStylePreset, captureStylePreset } from '../../packages/theme/index.ts';
 import { openStyleEditor } from './style-editor.ts';
 import { initVideos } from './videos.ts';
 import { catColor } from './mode.ts';
@@ -54,6 +54,17 @@ function loadBg(style: string): string {
   const raw = store.get(bgStoreKey(style)); if (!raw) return '';
   return serializeBackground(getTheme(style), sanitizeBackground(getTheme(style), raw).values);
 }
+// ---------------- style presets: background + colours + font, laid over the selected style, in any scene ----------------
+interface PresetInfo { id: string; name: string; basedOn: string; value: string; swatch: string[] }
+interface PresetProblem { file: string; message: string }
+let stylePresets: PresetInfo[] = [], presetProblems: PresetProblem[] = [];
+async function loadStylePresets() {
+  try { const r = await (await fetch('/api/style-presets')).json(); stylePresets = r.presets ?? []; presetProblems = r.problems ?? []; } catch { stylePresets = []; presetProblems = []; }
+}
+await loadStylePresets();
+/** like the style, the chosen preset is a global choice that carries over to whatever scene you pick next */
+let currentPresetId = store.get('studio.preset') ?? '';
+const presetValue = (id: string) => stylePresets.find(p => p.id === id)?.value ?? '';
 try {
   // sound library: fetched and decoded once per session, shared by every scene's audio()
   const man: Manifest = await (await fetch('/assets/sfx/manifest.json')).json();
@@ -121,8 +132,8 @@ function renderGallery() {
     const c = cat(it.family), s = SCENES.find(x => x.meta.id === it.sceneId)!;
     const img = el('img', { className: 'thumb' + (it.ready ? '' : ' loading'), alt: '', loading: 'lazy', decoding: 'async' }) as HTMLImageElement;
     if (it.ready) img.src = it.thumb;
-    const fam = el('span', { className: 'f' }); fam.innerHTML = it.kind === 'scene' ? c.icon + c.label : '↳ ' + s.meta.name;
-    const card = el('button', { type: 'button', className: 'card', title: `${it.kind === 'scene' ? s.meta.name : pretty(it.name)}: ${s.meta.description}` }, img, el('div', { className: 'meta' }, el('div', { className: 't' }, it.kind === 'scene' ? s.meta.name : pretty(it.name)), fam)) as HTMLButtonElement;
+    const fam = el('span', { className: 'f' }); fam.innerHTML = it.kind === 'scene' ? c.icon + c.label : '↳ ' + s.meta.name + ' · scene preset';
+    const card = el('button', { type: 'button', className: 'card', title: `${it.kind === 'scene' ? s.meta.name : 'Scene preset “' + pretty(it.name) + '”'}: ${s.meta.description}` }, img, el('div', { className: 'meta' }, el('div', { className: 't' }, it.kind === 'scene' ? s.meta.name : pretty(it.name)), fam)) as HTMLButtonElement;
     card.style.setProperty('--cat', c.color);
     card.onclick = () => pick(it);
     cards.set(itemKey(it), card); box.append(card);
@@ -134,7 +145,8 @@ function renderGallery() {
 /** choose a gallery item. The chosen style is a global choice: it carries over to whatever scene you pick next. */
 function pick(it: Item) {
   const s = SCENES.find(x => x.meta.id === it.sceneId); if (!s) return;
-  select(s, validate(s.schema, { style: currentStyle, bgSettings: loadBg(currentStyle), ...it.params }).params, { kind: it.kind, name: it.name });
+  const pv = presetValue(currentPresetId);
+  select(s, validate(s.schema, { style: currentStyle, bgSettings: pv ? '' : loadBg(currentStyle), stylePreset: pv, ...it.params }).params, { kind: it.kind, name: it.name });
   cards.get(itemKey(it))?.scrollIntoView({ block: 'nearest' });
   if (narrow.matches) setPane('preview'); // one column: choosing a simulation shows it
 }
@@ -160,11 +172,12 @@ function select(s: SceneModule, p: Params, from: { kind: string; name: string })
   const c = cat(s.meta.family);
   document.documentElement.style.setProperty('--cat', c.color);
   const ico = el('div', { className: 'ico' }); ico.innerHTML = c.icon;
-  $('sceneInfo').replaceChildren(ico, el('div', {}, el('h3', {}, from.kind === 'preset' ? pretty(from.name) : s.meta.name), el('p', { title: s.meta.description }, s.meta.description)));
+  $('sceneInfo').replaceChildren(ico, el('div', {}, el('h3', {}, from.kind === 'preset' ? 'Scene preset · ' + pretty(from.name) : s.meta.name), el('p', { title: s.meta.description }, s.meta.description)));
   player.load(s, p);
   showDiagnostics();
   renderStyles();
   renderBg();
+  renderStylePresets();
 }
 
 // ---------------- style picker ----------------
@@ -192,7 +205,7 @@ async function renderStyles() {
 }
 function chooseStyle(id: string) {
   if (!themes.some(t => t.id === id) || id === params.style) return;
-  currentStyle = id; store.set('studio.style', id); params = { ...params, style: id, bgSettings: loadBg(id) }; changed('style'); markStyle(); renderBg();
+  currentStyle = id; store.set('studio.style', id); params = { ...params, style: id, bgSettings: bgFor(id) }; changed('style'); markStyle(); renderBg();
 }
 function markStyle() {
   [...$('styles').children].forEach((b, i) => { const on = themes[i]?.id === params.style; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); });
@@ -226,24 +239,72 @@ async function previewDraft(raw: Record<string, unknown> | null) {
 async function afterStyleSaved(id: string) {
   if (draftBase !== null) { params = { ...params, style: draftBase }; draftBase = null; }
   unregisterTheme('__draft'); await loadThemes();
-  currentStyle = id; store.set('studio.style', id); params = { ...params, style: id, bgSettings: loadBg(id) };
+  currentStyle = id; store.set('studio.style', id); params = { ...params, style: id, bgSettings: bgFor(id) };
   changed('style'); await renderStyles(); renderBg();
 }
 async function afterStyleRemoved(id: string) {
   draftBase = null; unregisterTheme('__draft'); unregisterTheme(id); await loadThemes();
-  currentStyle = 'classic'; store.set('studio.style', 'classic'); params = { ...params, style: 'classic', bgSettings: loadBg('classic') };
+  currentStyle = 'classic'; store.set('studio.style', 'classic'); params = { ...params, style: 'classic', bgSettings: bgFor('classic') };
   changed('style'); await renderStyles(); renderBg();
 }
 
+// ---------------- style presets (Basic tab, under the style cards) ----------------
+/** the preset laid over the style right now, read from the scene parameter (what is rendered), or null */
+const activePreset = () => sanitizeStylePreset(params.stylePreset).preset;
+/** a style editor draft is on screen: nothing may be applied or saved until it is closed */
+const editorOpen = () => draftBase !== null;
+/** background settings to use for a style: none while a style preset provides the background */
+const bgFor = (style: string) => (params.stylePreset ? '' : loadBg(style));
+function choosePreset(id: string) {
+  if (editorOpen()) { const m = $('presetMsg'); m.textContent = 'Close the style editor first (Save or Cancel), then pick a style preset.'; m.className = 'msg bad'; return; }
+  const p = stylePresets.find(x => x.id === id);
+  currentPresetId = p ? p.id : ''; store.set('studio.preset', currentPresetId);
+  params = { ...params, stylePreset: p?.value ?? '', bgSettings: p ? '' : loadBg(String(params.style)) };
+  changed('stylePreset'); renderStylePresets(); renderBg(); renderStyles();
+}
+function renderStylePresets() {
+  const box = $('spChips'), act = activePreset(), say = (t: string, bad = false) => { const m = $('presetMsg'); m.textContent = t; m.className = 'msg' + (bad ? ' bad' : ''); };
+  box.replaceChildren();
+  const chip = (label: string, on: boolean, colors: string[], click: () => void, title: string) => {
+    const dot = el('i'); dot.style.background = colors.length > 1 ? `linear-gradient(90deg, ${colors.join(',')})` : (colors[0] ?? 'transparent');
+    const b = el('button', { type: 'button', className: on ? 'on' : '', title }, dot, label) as HTMLButtonElement; b.setAttribute('aria-pressed', String(on)); b.onclick = click; box.append(b); return b;
+  };
+  chip('None', !act, [], () => choosePreset(''), 'No style preset: the style looks as it is');
+  for (const p of stylePresets) chip(p.name, act?.id === p.id, p.swatch, () => choosePreset(p.id), `Lay “${p.name}” (background, colours, font) over the style. Scene settings stay as they are.`);
+  if (act && !stylePresets.some(p => p.id === act.id)) chip(`${act.name} (file removed)`, true, [], () => {}, 'This preset is still used by the picture, but its file in style-presets/ is gone');
+  const known = act && stylePresets.find(p => p.id === act.id);
+  if (known) {
+    const del = el('button', { type: 'button', className: 'danger', title: `Delete the style preset “${known.name}” (its file in style-presets/)` }, `Delete “${known.name}”`) as HTMLButtonElement;
+    del.onclick = async () => {
+      if (!confirm(`Delete the style preset “${known.name}”?\n\nVideos already rendered keep their look.`)) return;
+      try {
+        const r = await fetch(`/api/style-presets/${known.id}`, { method: 'DELETE' }), j = await r.json();
+        if (!r.ok) { say(j.error ?? 'The style preset could not be deleted.', true); return; }
+        stylePresets = j.presets; presetProblems = j.problems; choosePreset(''); say(`Deleted the style preset “${known.name}”.`);
+      } catch (e) { say(friendlyError(e), true); }
+    };
+    box.append(del);
+  }
+  $('spProblems').replaceChildren(...presetProblems.map(p => el('li', {}, `style-presets/${p.file}: ${p.message}`)));
+  $('spProblems').hidden = presetProblems.length === 0;
+}
 $('savePreset').onsubmit = async (e) => {
   e.preventDefault();
-  const msg = $('presetMsg'), name = $<HTMLInputElement>('presetName').value.trim(); if (!name) return;
+  const msg = $('presetMsg'), input = $<HTMLInputElement>('presetName'), name = input.value.trim(); if (!name) return;
   const say = (t: string, bad = false) => { msg.textContent = t; msg.className = 'msg' + (bad ? ' bad' : ''); };
+  if (editorOpen()) { say('Close the style editor first (Save or Cancel), then save the style preset.', true); return; }
+  // what is saved: the background, colours and font you see now (style + background settings + any preset). Not the scene settings.
+  const look = captureStylePreset(themeOf(params), 'new-preset', name);
+  const post = async (overwrite: boolean) => { const r = await fetch('/api/style-presets', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, preset: look, basedOn: String(params.style), overwrite }) }); return { r, j: await r.json() }; };
   try {
-    const r = await fetch('/api/presets', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, sceneId: scene.meta.id, params }) });
-    const j = await r.json();
-    if (j.name) { current = { kind: 'preset', name: j.name }; $<HTMLInputElement>('presetName').value = ''; say(`Saved as preset “${pretty(j.name)}”. It is now in the gallery under ${scene.meta.name}.`); await loadGallery(); cards.get(itemKey(current))?.scrollIntoView({ block: 'nearest' }); }
-    else say(j.error ? friendlyError(j.error) : 'The preset could not be saved. Try another name.', true);
+    let { r, j } = await post(false);
+    if (r.status === 409 && /already exists/.test(String(j.error))) {
+      if (!confirm(`A style preset called “${name}” already exists. Replace it?`)) { say('Not saved. Choose another name.', true); return; }
+      ({ r, j } = await post(true));
+    }
+    if (!r.ok) { say(j.error ? friendlyError(j.error) : 'The style preset could not be saved. Try another name.', true); return; }
+    stylePresets = j.presets; presetProblems = j.problems; input.value = '';
+    choosePreset(j.id); say(`Saved the style preset “${name}”: background, colours and font only. Pick it in any scene.`);
   } catch (err) { say(friendlyError(err), true); }
 };
 
@@ -251,6 +312,13 @@ $('savePreset').onsubmit = async (e) => {
 function renderBg() {
   const box = $('bgBox'), T = getTheme(String(params.style)), spec = T.background, keys = Object.keys(spec.params);
   box.replaceChildren(); box.hidden = keys.length === 0; if (!keys.length) return;
+  const act = activePreset();
+  if (act) { // the style preset provides the background: the style's own controls would be hidden under it
+    const clear = el('button', { type: 'button', title: 'Remove the style preset; the style\'s own background controls come back' }, 'Clear style preset');
+    clear.onclick = () => choosePreset('');
+    box.append(el('div', { className: 'bghead' }, el('h3', {}, `🎨 Background — style preset “${act.name}”`), clear), el('p', { className: 'msg' }, 'The background comes from the style preset. Clear it to adjust this style\'s own background.'));
+    return;
+  }
   let cur = sanitizeBackground(T, params.bgSettings).values;
   const apply = () => {
     const raw = serializeBackground(T, cur);
@@ -355,7 +423,7 @@ function buildParams() {
   const basic = $('params'), adv = $('paramsAdv'); basic.replaceChildren(); adv.replaceChildren();
   const groups = new Map<string, HTMLDetailsElement>();
   for (const [k, d] of Object.entries(scene.schema)) {
-    if (k === 'style' || k === 'bgSettings') continue; // chosen with the style picker / background panel
+    if (k === 'style' || k === 'bgSettings' || k === 'stylePreset') continue; // chosen with the style picker / background panel
     const g = d.group ?? 'General';
     if (!groups.has(g)) groups.set(g, el('details', { className: 'group' }, el('summary', {}, g === 'Juice' ? 'Effects (juice)' : g === 'Style' ? 'Colours & trails' : g)) as HTMLDetailsElement);
     groups.get(g)!.append(control(k, d));
@@ -365,7 +433,7 @@ function buildParams() {
   main.forEach((g, i) => { groups.get(g)!.open = i === 0; basic.append(groups.get(g)!); });
   for (const [g, det] of groups) if (!OPEN_GROUPS.has(g)) adv.append(det);
 }
-$('reset').onclick = () => { $('presetMsg').textContent = ''; select(scene, { ...defaults(scene.schema), style: params.style, bgSettings: params.bgSettings }, { kind: 'scene', name: scene.meta.name }); };
+$('reset').onclick = () => { $('presetMsg').textContent = ''; select(scene, { ...defaults(scene.schema), style: params.style, bgSettings: params.bgSettings, stylePreset: params.stylePreset }, { kind: 'scene', name: scene.meta.name }); };
 function showDiagnostics() {
   const d = player.diagnostics();
   $('diag').textContent = d ? JSON.stringify(d, (_, v) => (typeof v === 'number' ? +v.toPrecision(6) : v), 2) : '—';
@@ -399,7 +467,7 @@ const vids = initVideos({
   scenes: SCENES, styleIds: () => themes.map(t => t.id), onVisibility: () => syncNav(),
   openScene: (sceneId, style) => {
     const s = SCENES.find(x => x.meta.id === sceneId); if (!s) return;
-    currentStyle = style; store.set('studio.style', style);
+    currentStyle = style; store.set('studio.style', style); currentPresetId = ''; store.set('studio.preset', ''); // a coverage cell is a plain style
     select(s, validate(s.schema, { style, bgSettings: loadBg(style) }).params, { kind: 'scene', name: s.meta.name });
     cards.get(itemKey({ kind: 'scene', name: s.meta.name }))?.scrollIntoView({ block: 'nearest' });
   },

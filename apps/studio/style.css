@@ -400,3 +400,13 @@ dialog.side legend { color: var(--muted); font-size: var(--fs-xs); padding: 0 4p
 dialog.side .hints { margin: 6px 0; padding-left: 18px; color: var(--warn-ink); font-size: var(--fs-xs); }
 #styleTools { margin-top: 6px; gap: 6px; flex-wrap: wrap; }
 @media (max-width: 760px) { dialog.side { inset: 8px; width: auto; max-height: calc(100vh - 16px); } }
+
+/* style presets (Basic tab): chips like the background presets, plus a save row */
+.spbox { border: 1px solid var(--line); border-radius: var(--r-md); padding: 8px 10px 10px; margin: 0 0 10px; }
+.spbox .sprow { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 8px; align-items: center; }
+.spbox .sprow button { font-size: var(--fs-xs); padding: 2px 9px; border-radius: 999px; display: inline-flex; gap: 6px; align-items: center; }
+.spbox .sprow button.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.spbox .sprow button.danger { margin-left: auto; }
+.spbox .sprow i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--swatch-line); }
+.spbox .hints { margin: 6px 0 0; padding-left: 18px; color: var(--warn-ink); font-size: var(--fs-xs); }
+.spbox input.grow { flex: 1; min-width: 0; }

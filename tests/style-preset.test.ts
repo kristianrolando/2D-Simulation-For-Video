@@ -1,12 +1,13 @@
 // Style presets: a look (background + colours + font) laid over ANY style and applied to ANY scene. It never changes scene
 // parameters, juice or the simulation; without a preset nothing changes; old scene-format files cannot break anything;
 // files are written atomically.
-import { test } from 'node:test';
+import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import '../apps/server/host.ts';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { createCanvas } from '@napi-rs/canvas';
 import { validate, hashFloats, type Ctx, type Env } from '../packages/core/index.ts';
 import { SCENES, sceneById } from '../packages/scenes/index.ts';
@@ -164,4 +165,56 @@ test('delete removes a style preset and nothing else', () => {
   deleteStylePreset('ocean-test', dir);
   assert.deepEqual(fs.readdirSync(dir), ['old-scene.json']);
   fs.rmSync(dir, { recursive: true });
+});
+
+// ---------------- API, end to end in throw-away folders ----------------
+const A = fs.mkdtempSync(path.join(os.tmpdir(), 'sim-sp-api-'));
+const PORT = 5990 + Math.floor(Math.random() * 40), BASE = `http://127.0.0.1:${PORT}`;
+const SPDIR = path.join(A, 'style-presets'), PRDIR = path.join(A, 'presets');
+let server: ChildProcess | null = null, log = '';
+before(async () => {
+  for (const d of ['data', 'out', 'style-presets', 'presets']) fs.mkdirSync(path.join(A, d));
+  fs.copyFileSync(path.join(ROOT, 'presets', 'billiard-square.json'), path.join(PRDIR, 'billiard-square.json'));
+  fs.writeFileSync(path.join(PRDIR, 'broken.json'), '{ nope');
+  fs.writeFileSync(path.join(PRDIR, 'no-scene.json'), JSON.stringify({ kind: 'style-preset', id: 'x' }));
+  fs.writeFileSync(path.join(PRDIR, 'ghost-scene.json'), JSON.stringify({ sceneId: 'does-not-exist', params: {} }));
+  server = spawn(process.execPath, ['apps/server/server.ts'], { cwd: ROOT, env: { ...process.env, HOME: path.join(A, 'home'), PORT: String(PORT), SIM_DATA_DIR: path.join(A, 'data'), SIM_OUT_DIR: path.join(A, 'out'), SIM_STYLE_PRESET_DIR: SPDIR, SIM_PRESETS_DIR: PRDIR }, stdio: ['ignore', 'pipe', 'pipe'] });
+  server.stdout!.on('data', d => { log += d; }); server.stderr!.on('data', d => { log += d; });
+  for (let i = 0; i < 80; i++) { try { if ((await fetch(`${BASE}/api/style-presets`)).ok) return; } catch { /* starting */ } await new Promise(r => setTimeout(r, 150)); }
+  throw new Error('studio did not start:\n' + log);
+});
+after(() => { server?.kill(); fs.rmSync(A, { recursive: true, force: true }); });
+const api = async (method: string, p: string, body?: unknown) => { const r = await fetch(BASE + p, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined }); return { status: r.status, j: await r.json().catch(() => ({})) as any }; };
+
+test('API: save, list, replace, delete style presets; scene-format files are reported and left alone', async () => {
+  fs.writeFileSync(path.join(SPDIR, 'old-scene.json'), JSON.stringify(sceneFormat()));
+  const empty = await api('GET', '/api/style-presets');
+  assert.equal(empty.status, 200); assert.deepEqual(empty.j.presets, []); assert.match(empty.j.problems[0].message, /scene preset/);
+  const { id: _i, name: _n, ...look } = OCEAN;
+  const ok = await api('POST', '/api/style-presets', { name: 'API Look', preset: look, basedOn: 'classic' });
+  assert.equal(ok.status, 200, JSON.stringify(ok.j)); assert.equal(ok.j.id, 'api-look');
+  const saved = ok.j.presets.find((p: any) => p.id === 'api-look');
+  assert.equal(sanitizeStylePreset(saved.value).preset?.name, 'API Look'); assert.deepEqual(sanitizeStylePreset(saved.value).preset?.background, OCEAN.background);
+  assert.ok(fs.existsSync(path.join(SPDIR, 'api-look.json'))); assert.equal(fs.existsSync(path.join(ROOT, 'style-presets', 'api-look.json')), false, 'the real folder was not touched');
+  assert.deepEqual(fs.readdirSync(SPDIR).filter(f => f.endsWith('.tmp')), []);
+  assert.equal((await api('POST', '/api/style-presets', { name: 'API Look', preset: look })).status, 409, 'same name is refused');
+  assert.equal((await api('POST', '/api/style-presets', { name: 'API Look', preset: { ...look, look: { ...look.look, accent: '#000000' } }, overwrite: true })).status, 200);
+  assert.equal(sanitizeStylePreset((await api('GET', '/api/style-presets')).j.presets[0].value).preset?.look.accent, '#000000');
+  // refused: no name, a bad value, a scene-format body
+  assert.equal((await api('POST', '/api/style-presets', { name: '  ', preset: look })).status, 400);
+  assert.equal((await api('POST', '/api/style-presets', { name: 'Bad', preset: { ...look, look: { ...look.look, text: 'red' } } })).status, 400);
+  assert.equal((await api('POST', '/api/style-presets', { name: 'Scene', preset: sceneFormat() })).status, 400);
+  // delete: only style presets
+  assert.equal((await api('DELETE', '/api/style-presets/old-scene')).status, 409); assert.ok(fs.existsSync(path.join(SPDIR, 'old-scene.json')));
+  assert.equal((await api('DELETE', '/api/style-presets/api-look')).status, 200); assert.equal(fs.existsSync(path.join(SPDIR, 'api-look.json')), false);
+  assert.equal((await api('DELETE', '/api/style-presets/api-look')).status, 409);
+});
+
+test('API: bad files in presets/ never break the gallery, and saving a scene preset is gone', async () => {
+  const g = await api('GET', '/api/gallery');
+  assert.equal(g.status, 200); assert.ok(Array.isArray(g.j));
+  assert.deepEqual(g.j.filter((i: any) => i.kind === 'preset').map((i: any) => i.name), ['billiard-square']);
+  const list = await api('GET', '/api/presets'); assert.equal(list.status, 200); assert.deepEqual(list.j.map((p: any) => p.name), ['billiard-square']);
+  const post = await api('POST', '/api/presets', { name: 'x', sceneId: 'billiard', params: {} });
+  assert.notEqual(post.status, 200); assert.equal(fs.existsSync(path.join(PRDIR, 'x.json')), false);
 });

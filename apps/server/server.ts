@@ -24,12 +24,15 @@ import { patchVideo, type Video } from '../../packages/publish/index.ts';
 import { newVideoFor, hookFor } from '../../packages/publish/describe.ts';
 import { climaxSecFor, coverText } from '../../packages/publish/cover.ts';
 import { makeCovers } from './cover.ts';
-import { getTheme } from '../../packages/theme/index.ts';
+import { themeOf, sanitizeStylePreset, serializeStylePreset } from '../../packages/theme/index.ts';
+import { readStylePresets, saveStylePreset, deleteStylePreset } from '../../packages/theme/node.ts';
+import { slugify } from '../../packages/theme/editor.ts';
+import { toFile } from '../../packages/theme/style-preset.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
 const PORT = +(process.env.PORT || 5180);
 const CONCURRENCY = Math.max(1, +(process.env.JOBS || 1));
-const OUT = process.env.SIM_OUT_DIR ? path.resolve(process.env.SIM_OUT_DIR) : path.join(ROOT, 'output'), PRESETS = path.join(ROOT, 'presets'); // SIM_OUT_DIR: tests only
+const OUT = process.env.SIM_OUT_DIR ? path.resolve(process.env.SIM_OUT_DIR) : path.join(ROOT, 'output'), PRESETS = process.env.SIM_PRESETS_DIR ? path.resolve(process.env.SIM_PRESETS_DIR) : path.join(ROOT, 'presets'); // SIM_OUT_DIR, SIM_PRESETS_DIR: tests only
 const DATA = process.env.SIM_DATA_DIR ? path.resolve(process.env.SIM_DATA_DIR) : path.join(ROOT, 'data'); // video list, backups, thumbnails (never inside references/)
 fs.mkdirSync(OUT, { recursive: true }); fs.mkdirSync(PRESETS, { recursive: true });
 const videos = openStore(DATA, { lock: true }); // data/.lock keeps a second studio from writing; it opens read-only instead
@@ -192,7 +195,7 @@ async function buildCover(id: string, o: { t?: number; text?: string; noText?: b
   const mp4 = path.join(OUT, v.file);
   if (!v.file || !fs.existsSync(mp4)) throw new Error('The MP4 is not in output/ any more, so a frame cannot be taken.');
   const text = o.noText ? '' : coverText(o.text ?? v.coverText, v.title, hookFor(v.sceneId, v.params));
-  const r = await makeCovers({ mp4, id, outDir: THUMB_DIR, theme: getTheme(v.style), text, t: o.t, durationSec: v.durationSec || 30, climaxSec: climaxSecFor(v.sceneId, v.params) });
+  const r = await makeCovers({ mp4, id, outDir: THUMB_DIR, theme: themeOf({ ...v.params, style: v.style }), text, t: o.t, durationSec: v.durationSec || 30, climaxSec: climaxSecFor(v.sceneId, v.params) });
   return videos.mutate(vs => { const i = vs.findIndex(x => x.id === id); if (i < 0) throw new Error('This video is no longer in the list.'); vs[i] = patchVideo(vs[i], { thumbSec: r.t, thumbFile: r.thumbFile, coverFile: r.coverFile, ...(o.text !== undefined ? { coverText: o.text } : {}) }); return { videos: vs, result: vs[i] }; });
 }
 /** after a render: make the cover once, only when the owner has not chosen a thumbnail yet; failure is just logged */
@@ -258,6 +261,21 @@ function themeList() {
     return { id, name: t.name, icon: t.icon, concept: t.concept, bestFor: t.bestFor, swatch: [t.color.bg[0], ...t.palettes.cyclic.slice(0, 4), t.color.accent], raw, warnings: warnings[id] ?? [] };
   });
   return { themes: out, errors };
+}
+
+/** shipped scene presets (presets/*.json); unreadable files and files that do not name a known scene are left out */
+function scenePresets(): { name: string; j: { sceneId: string; params?: Record<string, unknown> } }[] {
+  const out: { name: string; j: { sceneId: string; params?: Record<string, unknown> } }[] = [];
+  for (const f of fs.readdirSync(PRESETS).filter(f => f.endsWith('.json')).sort()) {
+    try { const j = JSON.parse(fs.readFileSync(path.join(PRESETS, f), 'utf8')); if (j && typeof j.sceneId === 'string' && sceneById(j.sceneId)) out.push({ name: f.slice(0, -5), j }); }
+    catch (e) { console.warn(`[presets] ${f}: ignored (${e instanceof Error ? e.message : e})`); }
+  }
+  return out;
+}
+/** style presets for the studio: the value is exactly what the scene parameter `stylePreset` stores; problems = files that were ignored, with the reason */
+function stylePresetList() {
+  const { presets, problems } = readStylePresets();
+  return { presets: presets.map(f => ({ id: f.id, name: f.name, basedOn: f.basedOn, value: serializeStylePreset(f), swatch: [f.background.bg[0], ...f.look.palette.slice(0, 3), f.look.accent] })), problems };
 }
 
 // ---------------- http helpers ----------------
@@ -338,30 +356,36 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     json(res, 200, { ok: true, video: videoView(videos.get(v.id)!) }); return true;
   }
   if (p === '/api/scenes' && req.method === 'GET') { json(res, 200, SCENES.map(s => ({ meta: s.meta, schema: s.schema }))); return true; }
-  if (p === '/api/presets' && req.method === 'GET') {
-    const list = fs.readdirSync(PRESETS).filter(f => f.endsWith('.json')).sort().map(f => ({ name: f.slice(0, -5), ...JSON.parse(fs.readFileSync(path.join(PRESETS, f), 'utf8')) }));
-    json(res, 200, list); return true;
-  }
-  if (p === '/api/presets' && req.method === 'POST') {
-    const b = await readBody(req); const name = safeName(String(b.name ?? ''));
-    const scene = sceneById(String(b.sceneId)); if (!name || !scene) { json(res, 400, { error: 'name and a valid sceneId are required' }); return true; }
-    const { params } = validate(scene.schema, b.params ?? {});
-    fs.writeFileSync(path.join(PRESETS, name + '.json'), JSON.stringify({ sceneId: scene.meta.id, params }, null, 2) + '\n');
-    json(res, 200, { name }); return true;
-  }
+  // Scene presets (presets/*.json, shipped with the studio) are read-only here. A file that cannot be read or does not name a scene is skipped, never fatal.
+  if (p === '/api/presets' && req.method === 'GET') { json(res, 200, scenePresets().map(({ name, j }) => ({ name, ...j }))); return true; }
   if (p === '/api/gallery' && req.method === 'GET') {
     const items = SCENES.map(s => ({ kind: 'scene', name: s.meta.name, sceneId: s.meta.id, params: {} as Record<string, unknown> }));
-    for (const f of fs.readdirSync(PRESETS).filter(f => f.endsWith('.json')).sort()) {
-      const j = JSON.parse(fs.readFileSync(path.join(PRESETS, f), 'utf8'));
+    for (const { name, j } of scenePresets()) {
       const sc = sceneById(j.sceneId); if (!sc) continue;
       // a preset identical to the scene's defaults would only duplicate the scene card
       if (JSON.stringify(validate(sc.schema, j.params ?? {}).params) === JSON.stringify(validate(sc.schema, {}).params)) continue;
-      items.push({ kind: 'preset', name: f.slice(0, -5), sceneId: j.sceneId, params: j.params ?? {} });
+      items.push({ kind: 'preset', name, sceneId: j.sceneId, params: j.params ?? {} });
     }
     let missing = 0;
     const out = items.map(it => { const key = thumbKey(it.sceneId, it.params)!; const ready = fs.existsSync(path.join(THUMBS, key + '.png')); if (!ready) missing++; return { ...it, family: sceneById(it.sceneId)!.meta.family, thumb: `/thumbs/${key}.png`, ready }; });
     if (missing) ensureThumbs();
     json(res, 200, out); return true;
+  }
+  // Style presets (style-presets/<id>.json): a background + colour/font look that can be laid over any style in any scene.
+  if (p === '/api/style-presets' && req.method === 'GET') { json(res, 200, stylePresetList()); return true; }
+  if (p === '/api/style-presets' && req.method === 'POST') {
+    const b = await readBody(req), name = String(b.name ?? '').trim();
+    if (!name || name.length > 40) { json(res, 400, { error: 'Give the style preset a name of 1 to 40 characters.' }); return true; }
+    const id = slugify(name), { preset, warnings } = sanitizeStylePreset({ ...(b.preset ?? {}), id, name });
+    if (!preset) { json(res, 400, { error: warnings[0]?.replace(/^style preset: /, '') ?? 'The look could not be read.' }); return true; }
+    try { saveStylePreset(toFile(preset, String(b.basedOn ?? 'classic')), undefined, b.overwrite === true); }
+    catch (e) { json(res, 409, { error: e instanceof Error ? e.message : String(e), id }); return true; }
+    json(res, 200, { id, ...stylePresetList() }); return true;
+  }
+  const sp = /^\/api\/style-presets\/([\w-]+)$/.exec(p);
+  if (sp && req.method === 'DELETE') {
+    try { deleteStylePreset(sp[1]); } catch (e) { json(res, 409, { error: e instanceof Error ? e.message : String(e) }); return true; }
+    json(res, 200, stylePresetList()); return true;
   }
   if (p === '/api/themes' && req.method === 'GET') { json(res, 200, themeList()); return true; }
   // styles made in the style editor: themes/<id>.json with "custom": true. Shipped styles are never overwritten or deleted.

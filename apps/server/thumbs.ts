@@ -54,7 +54,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   }
   const jobs: [string, Record<string, unknown>][] = SCENES.map(s => [s.meta.id, {}]);
   const pdir = path.join(ROOT, 'presets');
-  for (const f of fs.readdirSync(pdir).filter(f => f.endsWith('.json'))) { const j = JSON.parse(fs.readFileSync(path.join(pdir, f), 'utf8')); jobs.push([j.sceneId, j.params ?? {}]); }
+  for (const f of fs.readdirSync(pdir).filter(f => f.endsWith('.json'))) {
+    try { const j = JSON.parse(fs.readFileSync(path.join(pdir, f), 'utf8')); if (typeof j.sceneId === 'string') jobs.push([j.sceneId, j.params ?? {}]); } catch (e) { console.warn(`[presets] ${f}: ignored (${e instanceof Error ? e.message : e})`); }
+  }
   for (const [id, p] of jobs) {
     const key = thumbKey(id, p); if (!key) continue;
     const had = fs.existsSync(path.join(THUMBS, key + '.png'));
