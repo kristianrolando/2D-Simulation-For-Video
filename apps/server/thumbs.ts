@@ -17,6 +17,7 @@ export const THUMBS = path.join(ROOT, 'output', 'thumbs');
 export function thumbKey(sceneId: string, params: Record<string, unknown>) {
   const s = sceneById(sceneId); if (!s) return null;
   const { params: p } = validate(s.schema, params);
+  if (p.stylePreset === '') delete p.stylePreset; // no preset: the key is what it was before presets existed (the thumbnails stay cached)
   const sig = customSig(String(p.style ?? '')); // '' for shipped styles: their cache keys stay as they were
   return createHash('sha1').update(JSON.stringify(sig ? [sceneId, p, 'v2', sig] : [sceneId, p, 'v2'])).digest('hex').slice(0, 16);
 }

@@ -20,6 +20,8 @@ export function commonSchema(o: { title: string; duration: number; answer?: stri
     style: { type: 'text', default: 'classic', group: 'Style', label: 'Style' },
     // the style's background settings (JSON of the values that differ from the style's defaults; '' = defaults)
     bgSettings: { type: 'text', default: '', group: 'Style', label: 'Background settings' },
+    // a style preset layered over the style (compact JSON copy of a style-presets/<id>.json look; '' = none). See packages/theme/index.ts
+    stylePreset: { type: 'text', default: '', group: 'Style', label: 'Style preset' },
     duration: { type: 'number', default: o.duration, min: 5, max: 90, step: 0.01, unit: 's', group: 'Timing', label: 'Video length', sim: true },
   };
 }

@@ -319,6 +319,104 @@ export function applyBackground(T: Theme, raw: unknown): Theme {
   applied.set(key, out); return out;
 }
 
+// ---------------- style presets (a look layered over any style) ----------------
+// A style preset is the background + colour/font look of a video, as plain values. It is a LAYER: the base style (themes/*.json)
+// stays the base, and the preset overrides only the tokens listed here (never juice, trails, motion, audio or scene parameters).
+// The scene parameter `stylePreset` holds a compact JSON copy of the preset, so renders, thumbnails, covers and the video list all
+// follow it without looking anything up. Values are the final tokens (not per-style `bgSettings` keys), so a preset works on every style.
+
+export interface StylePresetData {
+  id: string; name: string;
+  background: { bg: string[]; bgMode: 'linear' | 'radial'; bgAngle: number; bgCx: number; bgCy: number; wall: string; wallGlow: string; lineGlow: number;
+    texture: { kind: Theme['texture']['kind']; color: string; amount: number; spacing: number; vignette: number } };
+  look: { text: string; accent: string; muted: string; palette: string[]; font: { family: string; case: 'none' | 'upper' | 'lower'; align: 'center' | 'left' } };
+}
+
+/** WCAG relative luminance of #rrggbb (0..1) */
+export function relLuminance(hex: string): number {
+  const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+/** every font stack a style can use ends with a bundled font, so a render never falls back to a random system font */
+const BUNDLED_FONT_END = /DejaVu(SansBold|SansMonoBold|SansCondensedBold|SerifBold)$/;
+
+export interface SanitizedPreset { preset: StylePresetData | null; warnings: string[] }
+/** Strict reading of a style preset (JSON string or object): every field is checked. Anything invalid makes the whole preset
+ *  unusable (preset: null) with a message; nothing here throws. Extra fields (kind, version, basedOn, ...) are ignored. */
+export function sanitizeStylePreset(raw: unknown): SanitizedPreset {
+  const warnings: string[] = [];
+  const bad = (m: string): SanitizedPreset => { warnings.push(m); return { preset: null, warnings }; };
+  let o: any = raw;
+  if (raw === undefined || raw === null || raw === '') return { preset: null, warnings };
+  if (typeof raw === 'string') { try { o = JSON.parse(raw); } catch { return bad('style preset is not valid JSON (ignored)'); } }
+  if (!o || typeof o !== 'object' || Array.isArray(o)) return bad('style preset: expected an object (ignored)');
+  const num = (v: unknown, lo: number, hi: number) => typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi;
+  const colors = (v: unknown, lo: number, hi: number) => Array.isArray(v) && v.length >= lo && v.length <= hi && v.every(isColor);
+  const b = o.background, l = o.look, tx = b?.texture, f = l?.font;
+  const id = typeof o.id === 'string' ? o.id : '', name = typeof o.name === 'string' ? o.name : '';
+  if (!/^[a-z0-9][a-z0-9-]{1,31}$/.test(id)) return bad('style preset: invalid id (ignored)');
+  if (!name.trim() || name.length > 40) return bad('style preset: invalid name (ignored)');
+  if (!b || typeof b !== 'object' || !tx || !l || typeof l !== 'object' || !f) return bad('style preset: background and look sections are required (ignored)');
+  const checks: [boolean, string][] = [
+    [colors(b.bg, 2, 5), 'background.bg: 2 to 5 #rrggbb colours'], [ENUMS['color.bgMode'].includes(b.bgMode), 'background.bgMode'],
+    [num(b.bgAngle, -180, 180), 'background.bgAngle'], [num(b.bgCx, 0, 1), 'background.bgCx'], [num(b.bgCy, 0, 1), 'background.bgCy'],
+    [isColor(b.wall), 'background.wall'], [isColor(b.wallGlow), 'background.wallGlow'], [num(b.lineGlow, 0, 2), 'background.lineGlow'],
+    [ENUMS['texture.kind'].includes(tx.kind), 'background.texture.kind'], [isColor(tx.color), 'background.texture.color'], [num(tx.amount, 0, 1), 'background.texture.amount'],
+    [num(tx.spacing, 0, 200), 'background.texture.spacing'], [num(tx.vignette, 0, 1), 'background.texture.vignette'],
+    [isColor(l.text), 'look.text'], [isColor(l.accent), 'look.accent'], [isColor(l.muted), 'look.muted'], [colors(l.palette, 3, 8), 'look.palette: 3 to 8 colours'],
+    [typeof f.family === 'string' && f.family.length <= 200 && BUNDLED_FONT_END.test(f.family), 'look.font.family: must end with a bundled font'],
+    [ENUMS['font.case'].includes(f.case), 'look.font.case'], [ENUMS['font.align'].includes(f.align), 'look.font.align'],
+  ];
+  for (const [ok, m] of checks) if (!ok) return bad(`style preset: invalid ${m} (ignored)`);
+  const preset: StylePresetData = {
+    id, name: name.trim(),
+    background: { bg: b.bg.map((c: string) => c.toLowerCase()), bgMode: b.bgMode, bgAngle: b.bgAngle, bgCx: b.bgCx, bgCy: b.bgCy, wall: b.wall.toLowerCase(), wallGlow: b.wallGlow.toLowerCase(), lineGlow: b.lineGlow,
+      texture: { kind: tx.kind, color: tx.color.toLowerCase(), amount: tx.amount, spacing: tx.spacing, vignette: tx.vignette } },
+    look: { text: l.text.toLowerCase(), accent: l.accent.toLowerCase(), muted: l.muted.toLowerCase(), palette: l.palette.map((c: string) => c.toLowerCase()), font: { family: f.family, case: f.case, align: f.align } },
+  };
+  return { preset, warnings };
+}
+/** compact JSON of a preset: what the scene parameter `stylePreset` stores ('' = none). Key order is fixed, so equal presets give equal strings. */
+export function serializeStylePreset(p: StylePresetData): string {
+  const { id, name, background: b, look: l } = p;
+  return JSON.stringify({ id, name, background: { bg: b.bg, bgMode: b.bgMode, bgAngle: b.bgAngle, bgCx: b.bgCx, bgCy: b.bgCy, wall: b.wall, wallGlow: b.wallGlow, lineGlow: b.lineGlow,
+    texture: { kind: b.texture.kind, color: b.texture.color, amount: b.texture.amount, spacing: b.texture.spacing, vignette: b.texture.vignette } },
+    look: { text: l.text, accent: l.accent, muted: l.muted, palette: l.palette, font: { family: l.font.family, case: l.font.case, align: l.font.align } } });
+}
+/** the preset that describes a theme as it looks now (used by "Save current look as style preset") */
+export function captureStylePreset(T: Theme, id: string, name: string): StylePresetData {
+  const c = T.color, tx = T.texture, f = T.font;
+  return { id, name,
+    background: { bg: c.bg.slice(), bgMode: c.bgMode, bgAngle: c.bgAngle, bgCx: c.bgCx, bgCy: c.bgCy, wall: c.wall, wallGlow: c.wallGlow, lineGlow: T.line.glow,
+      texture: { kind: tx.kind, color: tx.color, amount: tx.amount, spacing: tx.spacing, vignette: tx.vignette } },
+    look: { text: c.text, accent: c.accent, muted: c.muted, palette: T.palettes.cyclic.slice(0, 8), font: { family: f.family, case: f.case, align: f.align } } };
+}
+
+const presetApplied = new WeakMap<Theme, Map<string, Theme>>();
+/** The theme with a style preset layered on top. No preset, or an unusable one = the theme itself (same object, so nothing changes).
+ *  A dark preset on a light style (or the other way round) also switches the blend, as the style editor does, so lines stay visible. */
+export function applyStylePreset(T: Theme, raw: unknown): Theme {
+  if (raw === undefined || raw === null || raw === '') return T;
+  const key = typeof raw === 'string' ? raw : JSON.stringify(raw);
+  let m = presetApplied.get(T); const hit = m?.get(key); if (hit) return hit;
+  const { preset: p } = sanitizeStylePreset(raw);
+  let out = T;
+  if (p) {
+    out = structuredClone(T);
+    const b = p.background, l = p.look;
+    Object.assign(out.color, { bg: b.bg.slice(), bgMode: b.bgMode, bgAngle: b.bgAngle, bgCx: b.bgCx, bgCy: b.bgCy, wall: b.wall, wallGlow: b.wallGlow, text: l.text, accent: l.accent, muted: l.muted });
+    out.line.glow = b.lineGlow; Object.assign(out.texture, b.texture);
+    out.palettes.cyclic = l.palette.slice(); out.palettes.timeline = l.palette.slice();
+    Object.assign(out.font, { family: l.font.family, case: l.font.case, align: l.font.align });
+    const dark = relLuminance(b.bg[0]) < 0.2;
+    if (dark !== T.dark) { out.blend = dark ? 'lighter' : 'source-over'; out.juice.blend = out.blend; }
+    out.dark = dark;
+  }
+  if (!m) presetApplied.set(T, m = new Map());
+  if (m.size > 32) m.clear();
+  m.set(key, out); return out;
+}
+
 // ---------------- registry ----------------
 
 const registry = new Map<string, Theme>([[CLASSIC.id, CLASSIC]]);
@@ -341,8 +439,8 @@ export function themeIds(): string[] { return [...registry.keys()]; }
 export function allThemes(): Theme[] { return [...registry.values()]; }
 /** theme by id; unknown ids fall back to CLASSIC (never throws) */
 export function getTheme(id: string | undefined | null): Theme { return (id && registry.get(id)) || CLASSIC; }
-/** the theme a scene instance should use: params.style (see commonSchema) */
-export function themeOf(P: Params): Theme { return applyBackground(getTheme(String(P.style ?? CLASSIC.id)), P.bgSettings); }
+/** the theme a scene instance should use: params.style, then the background settings, then the style preset layer (see commonSchema) */
+export function themeOf(P: Params): Theme { return applyStylePreset(applyBackground(getTheme(String(P.style ?? CLASSIC.id)), P.bgSettings), P.stylePreset); }
 
 // ---------------- helpers for scenes ----------------
 

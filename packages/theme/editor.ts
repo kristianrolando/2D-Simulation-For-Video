@@ -2,7 +2,7 @@
 // it. Nothing here touches the disk or the DOM, so it runs in the studio, the server and the tests alike.
 // A style made here is an ordinary themes/<id>.json file (plus "custom": true), so it renders, previews and gets
 // thumbnails exactly like the shipped ones. The video engine, the scenes and the shipped styles are not touched.
-import { resolveTheme, CLASSIC, type Theme } from './index.ts';
+import { resolveTheme, CLASSIC, relLuminance as lum, type Theme } from './index.ts';
 
 /** font stacks the editor offers. Every stack ends with a bundled font, so a render never falls back to a random system font. */
 export const FONT_CHOICES: { id: string; label: string; family: string }[] = [
@@ -32,7 +32,6 @@ export interface StyleEdit {
 }
 
 const HEX = /^#[0-9a-f]{6}$/i;
-const lum = (hex: string) => { const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
 /** WCAG contrast ratio of two #rrggbb colours */
 export function contrast(a: string, b: string): number { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
 const mix = (a: string, b: string, t: number) => '#' + [1, 3, 5].map(i => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('');

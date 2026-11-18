@@ -4,6 +4,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { registerThemes } from './index.ts';
 import { validId } from './editor.ts';
+import { checkStylePresetFile, type StylePresetFile } from './style-preset.ts';
 
 /** the themes folder; SIM_THEME_DIR points tests (and anyone who wants a private folder) somewhere else */
 export const THEME_DIR = process.env.SIM_THEME_DIR ? path.resolve(process.env.SIM_THEME_DIR) : path.resolve(import.meta.dirname, '../../themes');
@@ -55,4 +56,44 @@ export function deleteCustomTheme(id: string, dir = THEME_DIR): void {
   if (!fs.existsSync(fileOf(id, dir))) throw new Error('This style no longer exists.');
   if (readRaw(id, dir)?.custom !== true) throw new Error('Only styles made in the editor can be deleted.');
   fs.rmSync(fileOf(id, dir));
+}
+
+// ---------------- style presets (style-presets/<id>.json) ----------------
+/** the style presets folder; SIM_STYLE_PRESET_DIR points tests (and the test studio) somewhere else */
+export const STYLE_PRESET_DIR = process.env.SIM_STYLE_PRESET_DIR ? path.resolve(process.env.SIM_STYLE_PRESET_DIR) : path.resolve(import.meta.dirname, '../../style-presets');
+export interface StylePresetProblem { file: string; message: string }
+/** Every usable style preset in the folder (name order) plus a message for each file that was ignored (broken JSON, a scene-format
+ *  file, a bad value). Never throws: a bad file can never stop the studio or a render. */
+export function readStylePresets(dir = STYLE_PRESET_DIR): { presets: StylePresetFile[]; problems: StylePresetProblem[] } {
+  const presets: StylePresetFile[] = [], problems: StylePresetProblem[] = [];
+  let names: string[] = []; try { names = fs.readdirSync(dir).filter(f => f.endsWith('.json')).sort(); } catch { return { presets, problems }; }
+  for (const f of names) {
+    let raw: unknown; try { raw = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); } catch (e) { problems.push({ file: f, message: `not valid JSON (${e instanceof Error ? e.message : e}); ignored` }); continue; }
+    const c = checkStylePresetFile(raw);
+    if (!c.ok) problems.push({ file: f, message: c.error });
+    else if (c.file.id + '.json' !== f) problems.push({ file: f, message: `the id "${c.file.id}" does not match the file name; ignored` });
+    else presets.push(c.file);
+  }
+  return { presets, problems };
+}
+/** Writes style-presets/<id>.json atomically (a temporary file, then a rename). Without `overwrite`, an existing file is never touched. */
+export function saveStylePreset(file: StylePresetFile, dir = STYLE_PRESET_DIR, overwrite = false): string {
+  if (!validId(file.id)) throw new Error('This style preset id cannot be used.');
+  const dest = path.join(dir, `${file.id}.json`), tmp = `${dest}.${process.pid}.tmp`;
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(tmp, JSON.stringify(file, null, 2) + '\n');
+  try {
+    if (overwrite) fs.renameSync(tmp, dest);
+    else { try { fs.linkSync(tmp, dest); } catch (e) { if ((e as NodeJS.ErrnoException).code === 'EEXIST') throw new Error('A style preset with this name already exists.'); throw e; } fs.rmSync(tmp); }
+  } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
+  return dest;
+}
+/** Deletes one style preset file (only inside the style presets folder, only a file that is a style preset). */
+export function deleteStylePreset(id: string, dir = STYLE_PRESET_DIR): void {
+  if (!validId(id)) throw new Error('Unknown style preset.');
+  const f = path.join(dir, `${id}.json`);
+  if (!fs.existsSync(f)) throw new Error('This style preset no longer exists.');
+  let ok = false; try { ok = checkStylePresetFile(JSON.parse(fs.readFileSync(f, 'utf8'))).ok; } catch { /* not a preset */ }
+  if (!ok) throw new Error('This file is not a usable style preset, so the studio leaves it alone.');
+  fs.rmSync(f);
 }
