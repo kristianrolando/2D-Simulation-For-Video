@@ -1,43 +1,61 @@
 # HANDOFF — Sim Studio
 
-Catatan singkat antar sesi. Perbarui di akhir tiap sesi kerja. Terakhir diperbarui: 2026-11-18.
+- format: cross-agent-handoff/1
+- task_status: partial
+- handoff: ready
+- writer: none
+- updated_at: 2026-11-18T19:10:00+0700
+- language: id
 
-## Apakah studio yang berjalan memuat kode terbaru?
+Satu-satunya checkpoint proyek ini. Perbarui di akhir tiap langkah kerja yang substansial, bukan hanya di akhir sesi.
 
-Jangan percaya catatan ini; tanyakan ke studio:
+## Project
+Identity: Sim Studio (`sim2d-studio`): studio lokal untuk membuat video simulasi 2D (scene, style, render, audio, publikasi ke YouTube) untuk channel Photon Lab.
+Map: pengantar dan cara pakai `README.md`; stack Node >= 23.6 (TypeScript dijalankan langsung), `package.json`; kode server `apps/server/`, inti `packages/`;
+dokumen `docs/` (`publishing.md`, `styles.md`, `ui-modes.md`, `youtube-upload-plan.md`); scene template `presets/`, style `themes/`, preset style `style-presets/`;
+tes `tests/`. Tidak ada backlog terpisah; daftar "Belum" di bawah adalah satu-satunya.
+
+## Task
+Goal and authorized scope: tidak ada tugas aktif. Kelanjutan: kerjakan "Next" di bawah atau permintaan pemilik berikutnya. Unggah ke YouTube, pasang ulang thumbnail, dan ubah channel hanya dengan persetujuan pemilik.
+Acceptance criteria: tiap fitur punya tesnya di `tests/` dan dokumennya di `docs/`; `npm run typecheck` dan `npm test` lulus.
+
+## State
+Verified (diperiksa 2026-11-18 19:07):
+- Fondasi: studio, scene, style, render, audio, juice, Videos, unggah YouTube. Teks publikasi + thumbnail (5 gaya judul, deskripsi, tag, pemeriksa kualitas, cover 9:16): `docs/publishing.md`.
+- Thumbnail Shorts: yang diunggah gambar tegak 1080×1920; tombol "Set the thumbnail again" untuk video lama.
+- Mode terang/gelap (hanya antarmuka): `docs/ui-modes.md`. Editor style (`themes/<id>.json`): `docs/styles.md` §4.
+- Antrean render tahan restart (`data/jobs.json`, status Stopped, Render again, `dev:watch`): `apps/server/job-store.ts`, `server.ts`, `worker.ts`; tes `tests/job-queue.test.ts`.
+- Preset style (lapisan tampilan di atas Style, `style-presets/<id>.json`, parameter scene `stylePreset`, tab Basic): `docs/styles.md` §5; kode `packages/theme/index.ts`, `packages/theme/style-preset.ts`, `/api/style-presets`; tes `tests/style-preset.test.ts`.
+  `presets/main-1.json` dihapus; tampilannya jadi preset style `Main-1`.
+- Pohon kerja git bersih di cabang `main`, commit terakhir `af0d5f7`.
+Unfinished / unknown:
+- Cek thumbnail `KYUpU2KtKUw` di YouTube Studio (sudah dipasang ulang dengan gambar 9:16; tampilan belum dilihat pemilik).
+- Video `60J5S2RCJ1Y` (Published) masih bergambar thumbnail lama; "Set the thumbnail again" tersedia tapi perlu persetujuan pemilik (50 unit kuota).
+- Render scene lain untuk mengisi peta scene × style.
+Decisions: lihat `docs/styles.md`, `docs/publishing.md` dan memori proyek. Aturan tetap:
+- Kredensial hanya di `~/Library/Application Support/Sim Studio/` (mode 600); tidak pernah di folder proyek, log, atau chat.
+- Tidak pernah menghapus video di YouTube.
+- `references/` (video kompetitor) tidak di git dan tidak diubah. `data/` dan `output/` tidak di git.
+- Mesin render, scene, dan style bawaan tidak diubah oleh fitur antarmuka/penerbitan.
+Writers / operations: tidak ada penulis lain teramati pada 19:07. Studio berjalan di `localhost:5180` (pid 77570, uptime 72 detik, `state: ready`, antrean 0, tidak ada render, `codeStale: false`).
+Apakah studio memuat kode terbaru? Jangan percaya catatan ini; tanyakan ke studio:
 
 ```bash
 curl -s localhost:5180/api/status
 ```
 
-`"codeStale": false` = kode terbaru. `true` = ada berkas server yang lebih baru dari saat studio menyala; restart (`Ctrl+C`, lalu `npm run dev`).
-Jangan restart saat ada render atau unggahan berjalan (lihat "Needs you" di Videos). Dengan `npm run dev:watch` restart terjadi otomatis;
-render yang berjalan menjadi **Stopped** dan bisa **Render again**.
+`"codeStale": false` = terbaru. `true` = restart (`Ctrl+C`, lalu `npm run dev`); jangan restart saat render atau unggahan berjalan.
+Dengan `npm run dev:watch` restart otomatis; render yang berjalan menjadi **Stopped** dan bisa **Render again**.
 
-## Selesai dan di-commit (cabang main)
+## Evidence
+- `npm run typecheck`: lulus (2026-11-18 19:08, pohon bersih `af0d5f7`).
+- `npm test`: 192 lulus, 0 gagal (sama waktunya). Cakupan: tes unit/integrasi `tests/*.test.ts`; tidak menguji tampilan UI, render nyata, atau YouTube sungguhan.
+- Status studio: `curl localhost:5180/api/status` → ready, `codeStale: false`.
 
-- Fondasi: studio, scene, style, render, audio, juice, Videos, unggah YouTube.
-- Teks publikasi + thumbnail (5 gaya judul, deskripsi, tag, pemeriksa kualitas, cover 9:16 yang diunggah). `docs/publishing.md`.
-- Mode terang/gelap (hanya antarmuka). `docs/ui-modes.md`.
-- Thumbnail Shorts: yang diunggah gambar tegak 1080×1920 (YouTube memotong ke 9:16); tombol "Set the thumbnail again" untuk video lama.
-- Editor style (style buatan sendiri → `themes/<id>.json`). `docs/styles.md` §4.
-- Antrean render tahan restart: `data/jobs.json`, status Stopped, Render again, worker satu grup proses, sapu sisa berkas, `dev:watch`.
-  Kode: `apps/server/job-store.ts`, `apps/server/server.ts`, `apps/server/worker.ts`. Tes: `tests/job-queue.test.ts`.
+## Next
+Pemilik: cek thumbnail `KYUpU2KtKUw` di YouTube Studio, lalu putuskan apakah thumbnail `60J5S2RCJ1Y` dipasang ulang. Agen: render scene lain (atas permintaan pemilik) untuk mengisi peta scene × style.
 
-- Preset style (lapisan tampilan di atas Style): `style-presets/<id>.json`, parameter scene `stylePreset`, UI di tab Basic. `docs/styles.md` §5.
-  `presets/main-1.json` (scene template salah konsep) dihapus; tampilannya dipindah ke preset style `Main-1`. Kode: `packages/theme/index.ts`,
-  `packages/theme/style-preset.ts`, `/api/style-presets`. Tes: `tests/style-preset.test.ts`. **Studio yang berjalan perlu restart** agar memuat ini.
-
-## Belum / perlu pemilik
-
-- Restart studio agar memuat kode terbaru (lihat atas).
-- Cek thumbnail `KYUpU2KtKUw` di YouTube Studio (sudah dipasang ulang dengan gambar 9:16; tampilan belum dilihat). Video `60J5S2RCJ1Y` (Published)
-  masih punya thumbnail lama; tombol "Set the thumbnail again" tersedia, perlu persetujuan (50 unit kuota).
-- Render scene lain untuk mengisi peta scene × style.
-
-## Aturan tetap
-
-- Kredensial hanya di `~/Library/Application Support/Sim Studio/` (mode 600); tidak pernah di folder proyek, log, atau chat.
-- Tidak pernah menghapus video di YouTube. Unggah, pasang ulang thumbnail, dan ubah channel hanya atas persetujuan pemilik.
-- `references/` (video kompetitor) tidak di git dan tidak diubah. `data/` dan `output/` tidak di git.
-- Mesin render, scene, dan style bawaan tidak diubah oleh fitur antarmuka/penerbitan.
+## Recent outcomes
+- 2026-11-18: preset style (`Main-1` jadi preset style), tes dan dokumen; commit `af0d5f7`.
+- 2026-11-18: antrean render tahan restart, status Stopped, Render again, `dev:watch`; commit `facd630`.
+- 2026-11-18: cross-agent handoff diinisialisasi; HANDOFF.md disesuaikan ke format checkpoint, ditambah `AGENTS.md` dan `CLAUDE.md`.
