@@ -13,8 +13,8 @@ npm run dev          # studio at http://127.0.0.1:5180
 
 In the studio the main path is one click: the studio opens on a ready scene with the default style, so **Render MP4** (or the **R** key) already works without changing anything.
 
-- **Pick.** The left gallery shows every scene and preset as a thumbnail (rendered once by the server, cached in `output/thumbs/`). Search by name or topic (`/` focuses the box, Enter opens the first match), or filter by category chip. Presets sit right after the scene they belong to (`↳ scene name`). `[` and `]` step through the list.
-- **Adjust.** The right panel has two tabs. **Basic** holds the scene's main options (the first group open, the rest one click away) and the six **Style** cards, each a thumbnail of *this* scene in that style (keys `1`–`6`). **Advanced** holds the background settings, timing, colours and trails, sound, effects (juice), "Reset scene options", "Save as preset" and the simulation check. The preview follows every change; press Space or ▶ to play with sound and drag the timeline to seek. **Preview: Auto** lowers preview quality when frames get slow; the final render is always full quality.
+- **Pick.** The left gallery shows every scene and preset as a thumbnail (rendered once by the server, cached in `output/thumbs/`). Search by name or topic (`/` focuses the box, Enter opens the first match), or filter by category chip. Scene presets (bundles of scene settings, read-only) sit right after the scene they belong to (`↳ scene name · scene preset`). `[` and `]` step through the list.
+- **Adjust.** The right panel has two tabs. **Basic** holds the scene's main options (the first group open, the rest one click away) and the six **Style** cards, each a thumbnail of *this* scene in that style (keys `1`–`6`). **Advanced** holds the background settings, timing, colours and trails, sound, effects (juice), "Reset scene options" and the simulation check. Under the style cards, **Style presets** lay a saved look (background, colours, font) over the chosen style in any scene; see [Style presets](#style-presets). The preview follows every change; press Space or ▶ to play with sound and drag the timeline to seek. **Preview: Auto** lowers preview quality when frames get slow; the final render is always full quality.
 - **Render.** The **Render MP4** button sits next to the transport controls, so it is always on screen. Below the preview a status strip shows what is happening (queued, preparing sound, rendering with percent and time left, finishing) and, when done, **Play**, **Show in folder** and **Texts & publish** (see Videos below). **All renders** lists the last renders, including those from earlier sessions. Files land in `output/` as `<scene>-<layout>-<style>-<timestamp>.mp4` together with a `.job.json`. Errors are explained in plain words with a next step (for example when ffmpeg is missing or the server stopped).
 
 Keyboard shortcuts (press `?` in the studio): Space play/pause, ←/→ frame (Shift: 1 s), `R` render, `V` videos, `/` search, `[` `]` previous/next simulation, `1`–`6` style, `M` sound, `D` preview statistics (hidden by default), `?` list.
@@ -52,7 +52,7 @@ The server loads its code once when it starts, so a code change needs a restart.
 | `npm run dev:watch` | Development sessions where the code changes often: the server restarts itself when a server file changes. |
 
 With `dev:watch`, **do not leave a render or an upload running while files are being edited**: a restart stops the render (you press Render
-again) and cuts an upload at its current step (you press Continue). `themes/`, `presets/` and `data/` are not watched, and changes to the
+again) and cuts an upload at its current step (you press Continue). `themes/`, `presets/`, `style-presets/` and `data/` are not watched, and changes to the
 studio page itself (`apps/studio/`) reload in the browser without a server restart. A banner at the top says when the running server is older than its files.
 
 ## Light and dark mode (interface only)
@@ -87,7 +87,7 @@ data/videos.damaged-*   a file that could not be read, kept untouched (also vide
 
 Saving writes a temporary file, flushes it to disk and renames it over `videos.json`, so a crash or full disk leaves the old file whole. A missing or damaged file never stops the studio: the bad file is set aside, the newest good backup is restored (or the list starts empty), and a yellow notice in the Videos view says what happened. To go back by hand, copy a file from `data/backups/` over `data/videos.json`. The studio never contacts YouTube and asks for no credentials.
 
-Save a configuration with **Save as preset…**; it is written to `presets/<name>.json`.
+Save a look with **Save style preset** (Basic tab, under the style cards); it is written to `style-presets/<id>.json`. The scene presets in `presets/` ship with the studio and are not written by the interface.
 
 To render from the command line:
 
@@ -217,6 +217,13 @@ node tools/style-evidence.ts
 ```
 (the second command measures every style against a reference frame).
 
+### Style presets
+A **style preset** is a saved look (background, colours, font) laid over *any* style in *any* scene; it is not a scene template
+and not a style of its own. In the studio: Basic tab, under the style cards, click a chip to apply it, **None** to remove it,
+**Save style preset** to save what you see now. It is stored in `style-presets/<id>.json` and copied into the scene parameter
+`stylePreset`, so the preview, MP4, thumbnails and cover all follow it. Without a preset everything renders exactly as before.
+Details, the file format and what it does not touch: `docs/styles.md` §5.
+
 ### Background settings (per style)
 Every style offers its own background controls in the studio (right panel, under the style cards): colour pickers,
 sliders and choices grouped with icons, a few colour presets that go together, and a Reset button. The preview
@@ -335,10 +342,11 @@ apps/studio         web UI (Vite): gallery with search, Basic/Advanced settings,
 apps/mac            macOS app: menubar.swift (menu bar icon), make_app.sh (builds Sim Studio.app), icon.py (draws the icon)
 apps/server         cover.ts (best frame by ffmpeg, cover and thumbnail drawing), youtube.ts (OAuth PKCE, secrets in Application Support, API, resumable upload), uploader.ts (one upload at a time, outside the render queue)
 apps/server         HTTP server (Vite middleware + API + SSE; status.ts = the light /api/status summary for the menu bar), render worker (Node + @napi-rs/canvas + ffmpeg), store.ts (atomic video list with backups, lock file), scan.ts (renders in output/ not yet in the list)
-tests/              mode.test.ts (interface mode: boot script, contrast, no stray colours, separation from the video), copywriter.test.ts (titles, descriptions, tags, quality checker, best frame, covers), physics.test.ts, determinism.test.ts, new-logic.test.ts, theme.test.ts, background.test.ts, ux.test.ts, publish.test.ts, templates.test.ts, status.test.ts, youtube.test.ts + fake-google.ts, golden-state.json
+tests/              mode.test.ts (interface mode: boot script, contrast, no stray colours, separation from the video), copywriter.test.ts (titles, descriptions, tags, quality checker, best frame, covers), physics.test.ts, determinism.test.ts, new-logic.test.ts, theme.test.ts, background.test.ts, style-preset.test.ts, ux.test.ts, publish.test.ts, templates.test.ts, status.test.ts, youtube.test.ts + fake-google.ts, golden-state.json
 assets/sfx/         sound library (manifest.json, requests.json, src/ originals)
 tools/              bench.ts (performance, --style), sheet.ts (contact sheet of a scene's frames), state-sig.ts (state checksum, to compare browser and Node), sfx.ts (sound library), style-sheet.ts / style-evidence.ts (style comparison), hash-frames.ts
-presets/            saved configurations (JSON)
+presets/            scene presets: bundles of scene settings, shipped with the studio (JSON)
+style-presets/      style presets: background + colours + font saved from the studio (JSON)
 output/             rendered MP4s + their job.json
 data/               video list, backups, thumbnails (created on first save)
 prototypes/         Phase-2 prototypes (kept for reference)

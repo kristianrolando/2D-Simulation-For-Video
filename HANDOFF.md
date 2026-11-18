@@ -24,13 +24,16 @@ render yang berjalan menjadi **Stopped** dan bisa **Render again**.
 - Antrean render tahan restart: `data/jobs.json`, status Stopped, Render again, worker satu grup proses, sapu sisa berkas, `dev:watch`.
   Kode: `apps/server/job-store.ts`, `apps/server/server.ts`, `apps/server/worker.ts`. Tes: `tests/job-queue.test.ts`.
 
+- Preset style (lapisan tampilan di atas Style): `style-presets/<id>.json`, parameter scene `stylePreset`, UI di tab Basic. `docs/styles.md` §5.
+  `presets/main-1.json` (scene template salah konsep) dihapus; tampilannya dipindah ke preset style `Main-1`. Kode: `packages/theme/index.ts`,
+  `packages/theme/style-preset.ts`, `/api/style-presets`. Tes: `tests/style-preset.test.ts`. **Studio yang berjalan perlu restart** agar memuat ini.
+
 ## Belum / perlu pemilik
 
 - Restart studio agar memuat kode terbaru (lihat atas).
 - Cek thumbnail `KYUpU2KtKUw` di YouTube Studio (sudah dipasang ulang dengan gambar 9:16; tampilan belum dilihat). Video `60J5S2RCJ1Y` (Published)
   masih punya thumbnail lama; tombol "Set the thumbnail again" tersedia, perlu persetujuan (50 unit kuota).
 - Render scene lain untuk mengisi peta scene × style.
-- `presets/main-1.json` (preset buatan pemilik) belum di-commit; commit bila ingin disimpan di riwayat.
 
 ## Aturan tetap
 

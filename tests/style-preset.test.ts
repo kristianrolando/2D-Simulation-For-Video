@@ -218,3 +218,11 @@ test('API: bad files in presets/ never break the gallery, and saving a scene pre
   const post = await api('POST', '/api/presets', { name: 'x', sceneId: 'billiard', params: {} });
   assert.notEqual(post.status, 200); assert.equal(fs.existsSync(path.join(PRDIR, 'x.json')), false);
 });
+
+test('the style presets that ship in style-presets/ are all valid, and the scene presets are untouched by them', () => {
+  const r = readStylePresets();
+  assert.deepEqual(r.problems, [], 'no ignored file in the real folder');
+  assert.ok(r.presets.some(p => p.id === 'main-1'));
+  const scene = fs.readdirSync(path.join(ROOT, 'presets')).filter(f => f.endsWith('.json'));
+  assert.equal(scene.length, 31); assert.equal(scene.includes('main-1.json'), false);
+});

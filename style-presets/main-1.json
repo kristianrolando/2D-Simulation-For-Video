@@ -1,0 +1,48 @@
+{
+  "kind": "style-preset",
+  "version": 1,
+  "id": "main-1",
+  "name": "Main-1",
+  "background": {
+    "bg": [
+      "#031c2e",
+      "#02111e",
+      "#000509"
+    ],
+    "bgMode": "linear",
+    "bgAngle": 0,
+    "bgCx": 0.5,
+    "bgCy": 0.5,
+    "wall": "#9cffe8",
+    "wallGlow": "#18d6b4",
+    "lineGlow": 0.75,
+    "texture": {
+      "kind": "grid",
+      "color": "#38e1e6",
+      "amount": 0.14,
+      "spacing": 36,
+      "vignette": 0.44
+    }
+  },
+  "look": {
+    "text": "#eef2ff",
+    "accent": "#ffd23f",
+    "muted": "#c8d2eb",
+    "palette": [
+      "#38e1e6",
+      "#4f8dff",
+      "#9b6bff",
+      "#e86cf0",
+      "#ff6f9a",
+      "#ff8a3d",
+      "#ffd23f",
+      "#9be36b"
+    ],
+    "font": {
+      "family": "DejaVuSansBold",
+      "case": "none",
+      "align": "center"
+    }
+  },
+  "basedOn": "classic"
+}

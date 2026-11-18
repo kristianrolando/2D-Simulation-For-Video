@@ -63,3 +63,63 @@ copied from the style you started with, so the result is a complete file that no
 
 Code: `packages/theme/editor.ts` (pure), `packages/theme/node.ts` (files), `apps/studio/style-editor.ts` (panel),
 `/api/themes` POST and DELETE in `apps/server/server.ts`. Tests: `tests/style-editor.test.ts`.
+
+## 5. Style presets (a look laid over any style)
+
+A **style preset** is a saved *look*: the background and the colours and font. It is a layer on top of the style you picked, not
+a style of its own: pick a style (Classic, Riso, a style you made...), then pick a preset and the preset overrides the look of
+that style. It works in every scene. Do not confuse it with a **scene preset** (the cards in the gallery marked
+"scene preset", `presets/*.json`): those are bundles of scene settings and are read-only in the studio.
+
+![The same three scenes with no preset, with Main-1 and with Amber Mono](styles/style-presets-sheet.png)
+
+*(Same three scenes, same counters: only the look changes. Made from the code with the presets above.)*
+
+**In the studio** (Basic tab, under the style cards, "Style presets"): click a chip to apply it to the scene on screen; **None**
+removes it. The choice carries over to the next scene you pick, like the style does. **Save style preset** stores what you see
+now (style + background settings + any preset) under the name you typed; a name that exists asks before replacing it. **Delete**
+removes the file of the active preset. While a preset is active the style's own Background controls are replaced by a note and a
+**Clear style preset** button, because the preset provides the background.
+
+**What a preset contains, and what it overrides**
+
+| Part | Tokens it overrides |
+|---|---|
+| Background | `color.bg` (2 to 5 colours), `bgMode`, `bgAngle`, `bgCx`, `bgCy`, `color.wall`, `color.wallGlow`, `line.glow`, `texture.kind/color/amount/spacing/vignette` |
+| Colours and font | `color.text`, `color.accent`, `color.muted`, ball palette (`palettes.cyclic` and `timeline`, 3 to 8 colours), `font.family/case/align` |
+
+It never touches juice, trails and balls, motion, audio, line and ball shapes, or any scene parameter (layout, length, counts, seed...).
+It stores final colour and font values, not the per-style `bgSettings` keys (those differ between styles, so they could not move
+from one style to another). If the look is dark and the style is light (or the other way round) the blend is switched the same
+way the style editor does it (`lighter` for dark, `source-over` for light), so lines stay visible. Font stacks must end with a
+bundled font.
+
+**How it reaches the video.** The scene parameter `stylePreset` holds a compact JSON copy of the preset (empty = none), exactly
+like `bgSettings`, so the preview, the render job, thumbnails, the cover (`themeOf(params)`) and the video list (`data/videos.json`)
+all follow it, and editing or deleting the file later does not change a video that was already rendered or can be rendered again.
+`themeOf` applies the layers in this order: style, background settings, style preset (the preset wins). With no preset the theme
+is the very same object as before, so the frames, the audio and the MP4 are byte-identical to the studio without this feature
+(checked: frame and audio hashes of 13 cases, and the MP4 of two renders).
+
+**The file.** `style-presets/<id>.json` (`SIM_STYLE_PRESET_DIR` points elsewhere; the tests use it):
+
+```json
+{ "kind": "style-preset", "version": 1, "id": "main-1", "name": "Main-1", "basedOn": "classic",
+  "background": { "bg": ["#031c2e", "#02111e", "#000509"], "bgMode": "linear", "bgAngle": 0, "bgCx": 0.5, "bgCy": 0.5,
+                  "wall": "#9cffe8", "wallGlow": "#18d6b4", "lineGlow": 0.75,
+                  "texture": { "kind": "grid", "color": "#38e1e6", "amount": 0.14, "spacing": 36, "vignette": 0.44 } },
+  "look": { "text": "#eef2ff", "accent": "#ffd23f", "muted": "#c8d2eb", "palette": ["#38e1e6", "..."],
+            "font": { "family": "DejaVuSansBold", "case": "none", "align": "center" } } }
+```
+
+- The id is the file name (`Violet Lab` becomes `violet-lab`). Files are written atomically (temporary file, then rename or
+  link), so a crash never leaves half a file, and an existing preset is only replaced when you confirm.
+- **Old or foreign files cannot stop the studio.** A file without `"kind": "style-preset"` (for example a scene-format file
+  with `sceneId` and `params`, the old "Save as preset"), broken JSON, an unknown version, a bad value or an id that does not match
+  the file name is ignored and listed under the chips ("style-presets/<file>: this is a scene preset ... ignored"). The same
+  goes for `presets/`: an unreadable file or a file naming an unknown scene is skipped by the gallery.
+- `basedOn` only records which style the look was captured from; the preset works on every style.
+
+Code: `packages/theme/index.ts` (`sanitizeStylePreset`, `applyStylePreset`, `captureStylePreset`, `themeOf`),
+`packages/theme/style-preset.ts` (file check), `packages/theme/node.ts` (folder), `apps/server/server.ts`
+(`/api/style-presets`), `apps/studio/main.ts` (the section). Tests: `tests/style-preset.test.ts`.
