@@ -57,7 +57,26 @@ export function factsFor(sceneId: string, params: Record<string, unknown>): Fact
   }
   // "{s}" is the plural ending for "ball{s}": empty for one ball, so it must exist as a (possibly empty) value
   if (sceneId === 'hammer-smash') v.s = Number(P.startBalls) === 1 ? '' : 's';
-  return { vars: v, numbers: [...new Set(nums)] };
+  const tag = variantTag(sceneId, P);
+  return { vars: v, numbers: [...new Set(nums)], ...(tag ? { tag } : {}) };
+}
+
+const OBJECT_WORDS: Record<string, string> = { square: 'squares', triangle: 'triangles', gem: 'gems', star: 'stars', mixed: 'mixed shapes' };   // 'ball' = the default, not worth a word
+const LAP_WORDS: Record<string, string> = { consecutive: 'consecutive', odd: 'odd', primes: 'prime', seeded: 'random' };
+const HIDDEN_WORDS: Record<string, string> = { circle: 'hidden circle', flower4: 'hidden four-petal flower', flower3: 'hidden three-petal flower', pulse: 'hidden pulse' };
+/** What makes this variant differ from the others of its scene, in a few true words (no digits). Only the two templates need it:
+ *  their rule/mode alone leaves dozens of videos with the same title. Everything here is read from the parameters. */
+export function variantTag(sceneId: string, P: Record<string, unknown>): string {
+  const obj = OBJECT_WORDS[String(P.objects)], c = String(P.container);
+  if (sceneId === 'hammer-smash') return `in ${/^[aeiou]/.test(c) ? 'an' : 'a'} ${c}${obj ? ` with ${obj}` : ''}`;
+  if (sceneId !== 'sync-lines') return '';
+  const mode = String(P.mode), laps = `${LAP_WORDS[String(P.laps)] ?? 'consecutive'} laps`, parts: string[] = [];
+  if (mode === 'orbits') { parts.push(`${c} track`, laps); if (P.direction === 'alternate' && c !== 'ring') parts.push('alternating directions'); }
+  else if (mode === 'lid') parts.push(`${c} track`, `${P.motion} motion`, laps);
+  else if (mode === 'slider') parts.push(`${c} frame`, HIDDEN_WORDS[String(P.hidden)] ?? 'hidden shape');
+  else parts.push(`${c} frame`);
+  if (obj && mode !== 'close') parts.push(obj);
+  return parts.join(', ');
 }
 
 export function suggestFor(sceneId: string, params: Record<string, unknown>, lang: SuggestLang = 'en', variant = 0): Suggestion | null {

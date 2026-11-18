@@ -47,6 +47,24 @@ curl -s localhost:5180/api/status
 `"codeStale": false` = terbaru. `true` = restart (`Ctrl+C`, lalu `npm run dev`); jangan restart saat render atau unggahan berjalan.
 Dengan `npm run dev:watch` restart otomatis; render yang berjalan menjadi **Stopped** dan bisa **Render again**.
 
+## Batch 245 video (percobaan 3 video selesai 2026-11-18 19:55; sisa 242 BELUM dijalankan, menunggu persetujuan pemilik)
+- Percobaan: `preset:billiard-golden-circle` (23 dtk, 9,9 MB), `preset:hammer-box-circle` (32 dtk, 111,6 MB), `preset:billiard-square` (22 dtk, 2,5 MB); semua `done`, tampilan Main-1 terlihat di frame.
+  Tercatat di `data/batch/state.json`; menjalankan ulang runner melewati ketiganya. Dua video billiard mendapat judul saran yang sama ("Will this billiard path ever close?").
+- Lingkup yang disetujui pemilik: semua scene + 31 preset scene + varian struktural + jenis objek hanya untuk hammer-smash, semua dengan preset style `Main-1` (di atas style `classic`).
+  Rencana: `data/batch/plan.json` (245 video; dibuat `npm run batch:plan`, kode `tools/batch-plan.ts`). Runner: `npm run batch:run` (`tools/batch-run.ts`); belum pernah menjalankan render.
+- Runner memakai antrean studio (`/api/jobs`), maksimal 2 video berjalan, tidak pernah dua hammer-smash bersamaan, jeda 1,6 dtk antar kiriman, berhenti jika 5 gagal berturut-turut,
+  menunggu bila beban CPU > 8 atau disk bebas < 40 GB; berkas `data/batch/PAUSE` menjeda; keadaan di `data/batch/state.json`, bisa dilanjutkan.
+- Agar 2 paralel sungguhan, studio harus dinyalakan `JOBS=2 npm run dev` (default 1). Setiap video juga masuk daftar Videos dan dibuatkan cover otomatis.
+- Perkiraan (dari 3 render uji): disk sekitar 12 GB (hammer-smash 94 × sekitar 90 MB), waktu sekitar 2 jam dengan 2 paralel (belum diukur).
+- Dua preset (`harmonograph-5-4` palet ember, `orbits-5-3` palet ice) membawa palet sendiri sehingga warnanya tidak sepenuhnya Main-1.
+
+- Batch selesai 2026-11-18: 245/245 video `done`, 0 gagal, sekitar 7,4 GB (`data/batch/state.json`, log `data/batch/run.log`).
+- Judul diperbaiki: sebelumnya hanya 37 judul berbeda untuk 249 video. Sekarang `facts.tag` (`variantTag` di `packages/publish/describe.ts`, dipakai `writeTitles` di `copywriter.ts`)
+  menambah " — <ciri varian>" (wadah, objek, jenis putaran, gerak, bentuk tersembunyi) pada judul hammer-smash dan sync-lines; tes di `tests/publish.test.ts`.
+  `node tools/batch-titles.ts --apply` menulis ulang judul + deskripsi 245 video batch (judul kembar sisa diganti ide judul lain) lewat `PATCH /api/videos/:id`; hasil: 249 judul berbeda untuk 249 video.
+  Judul lama disimpan di `data/batch/old-titles.json`; batalkan dengan `node tools/batch-titles.ts --undo`. Cover tidak dibuat ulang (teks cover diambil dari bagian sebelum " — ").
+  Studio yang berjalan memakai kode lama; restart agar render berikutnya memakai penulis judul baru.
+
 ## Evidence
 - `npm run typecheck`: lulus (2026-11-18 19:08, pohon bersih `af0d5f7`).
 - `npm test`: 192 lulus, 0 gagal (sama waktunya). Cakupan: tes unit/integrasi `tests/*.test.ts`; tidak menguji tampilan UI, render nyata, atau YouTube sungguhan.

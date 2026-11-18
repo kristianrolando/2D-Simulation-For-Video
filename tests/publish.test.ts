@@ -333,3 +333,29 @@ test('lock: garbage lock files and an unwritable folder do not crash; a damaged 
   assert.equal(fs.readFileSync(path.join(dd, 'videos.json'), 'utf8'), '{broken', 'the damaged file was not moved or replaced');
   assert.equal(fs.readdirSync(dd).some(f => f.startsWith('videos.damaged')), false);
 });
+
+// ---------------- titles of template variants ----------------
+test('hammer-smash and sync-lines: variants of one rule/mode get different titles, with the hook first and no new numbers', async () => {
+  const { variantTag, topicFor, factsFor } = await import('../packages/publish/describe.ts');
+  const { checkQuality } = await import('../packages/publish/quality.ts');
+  const hammer = ['circle', 'square', 'octagon', 'triangle', 'ring'].flatMap(container => ['ball', 'star', 'gem'].map(objects => ({ rule: 'box', container, objects })));
+  const sync = [
+    ...['circle', 'square', 'ring'].flatMap(container => ['consecutive', 'odd', 'primes'].map(laps => ({ mode: 'lid', container, laps, motion: 'gravity' }))),
+    ...['circle', 'square'].flatMap(container => ['circle', 'flower4', 'pulse'].map(hidden => ({ mode: 'slider', container, hidden }))),
+  ];
+  for (const [sceneId, list] of [['hammer-smash', hammer], ['sync-lines', sync]] as const) {
+    const titles = new Set<string>();
+    for (const params of list) {
+      const sug = suggestFor(sceneId, params)!;
+      titles.add(sug.title);
+      assert.ok(sug.title.length <= LIMITS.title && !/\d/.test(variantTag(sceneId, params)), `${sceneId}: tag has no digits, title fits`);
+      assert.match(sug.title, / — /, `${sceneId}: the tag follows the hook`);
+      const v = { ...newVideoFor(sceneId, params)!, status: 'rendered' as const, file: 'x.mp4', thumbFile: 'x.png' };
+      const bad = checkQuality(v, { topic: topicFor(sceneId, params), facts: factsFor(sceneId, params) }).filter(q => q.severity !== 'info');
+      assert.deepEqual(bad, [], `${sceneId}: no warnings for ${JSON.stringify(params)}`);
+    }
+    assert.ok(titles.size >= list.length * 0.9, `${sceneId}: ${titles.size} different titles for ${list.length} variants`);
+  }
+  assert.equal(variantTag('galton-board', {}), '', 'other scenes keep their titles');
+  assert.equal(suggestFor('galton-board', {})!.title.includes(' — '), false);
+});

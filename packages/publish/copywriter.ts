@@ -5,7 +5,12 @@ import { LIMITS, parseTags, parseHashtags, tagsLength } from './index.ts';
 import { TITLE_STYLES, TITLE_STYLE_LABEL, type Topic, type TitleStyle } from './topics.ts';
 
 /** what the video's parameters say, in words and numbers. `vars` fill {placeholders}; `numbers` are the only numbers a title may use. */
-export interface Facts { vars: Record<string, string>; numbers: number[] }
+export interface Facts {
+  vars: Record<string, string>; numbers: number[];
+  /** a short, true description of what makes THIS variant differ from its siblings (container, objects, rule of laps...), no digits.
+   *  When present, every title gets " — <tag>" after its hook, so videos of one scene do not share a title. */
+  tag?: string;
+}
 export interface CopyInput {
   sceneId: string; sceneName: string; sceneDescription: string; family: string;
   /** the question or hook shown on screen */
@@ -50,7 +55,10 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
  *  Each is ≤ 100 characters, puts the hook first, contains the topic keyword, and uses only numbers from the video. */
 export function writeTitles(i: CopyInput): TitleIdea[] {
   const r = rng(hash32(`${i.sceneId}|${i.seed}|${i.styleName}|titles`));
-  const usable = (style: TitleStyle) => i.topic.titles[style].map(t => fill(t, i.facts.vars)).filter((t): t is string => !!t && t.length <= LIMITS.title && !/[<>]/.test(t));
+  // the variant tag goes after the hook (the cover reads the part before " — "); a title that would not fit with it (and room for an emoji) is not used
+  const tag = i.facts.tag?.trim(), emojiRoom = tag ? 2 : 0;
+  const usable = (style: TitleStyle) => i.topic.titles[style].map(t => fill(t, i.facts.vars)).map(t => (t && tag ? `${t} — ${tag}` : t))
+    .filter((t): t is string => !!t && t.length + emojiRoom <= LIMITS.title && !/[<>]/.test(t));
   const out: TitleIdea[] = [], seen = new Set<string>();
   const add = (text: string, style: TitleStyle) => { const k = text.toLowerCase(); if (!seen.has(k)) { seen.add(k); out.push({ text, style, label: TITLE_STYLE_LABEL[style] }); return true; } return false; };
   for (const style of TITLE_STYLES) { const u = usable(style); if (u.length) add(pick(r, u), style); }
