@@ -1,6 +1,6 @@
 // A tiny, cheap summary of what the studio is doing, for the menu bar icon (GET /api/status, localhost only).
 // Pure: the server hands in its job list; nothing here touches the disk. No parameters, paths or texts leave the machine.
-export interface StatusJob { id: string; sceneId: string; status: 'queued' | 'running' | 'done' | 'error'; progress: { frame: number; frames: number }; created: number; started?: number; finished?: number }
+export interface StatusJob { id: string; sceneId: string; status: 'queued' | 'running' | 'done' | 'error' | 'stopped'; progress: { frame: number; frames: number }; created: number; started?: number; finished?: number }
 export interface Status {
   app: 'sim-studio';
   /** ready: nothing running · rendering: a job is running · queued: waiting for a worker */

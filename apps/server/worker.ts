@@ -3,6 +3,10 @@
 import fs from 'node:fs';
 import { renderJob, type Job } from './render-job.ts';
 
+// If the studio that started this worker dies without stopping it (kill -9, a crash), do not keep rendering as an orphan.
+const parent = process.ppid;
+setInterval(() => { try { process.kill(parent, 0); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'EPERM') process.exit(75); } }, 2000).unref();
+
 const job: Job = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const send = (m: unknown) => process.stdout.write(JSON.stringify(m) + '\n');
 try {

@@ -16,6 +16,7 @@ import { saveCustomTheme, deleteCustomTheme } from '../../packages/theme/node.ts
 import { openStore, ReadOnlyError } from './store.ts';
 import { findUntrackedRenders } from './scan.ts';
 import { buildStatus, isLoopback, isCodeStale } from './status.ts';
+import { openJobStore, isOurWorker, killGroup, processAlive, strayRequests, tempFilesOf, partialFilesOf, removeFiles, isComplete, STOPPED_NOTE, type JobRecord } from './job-store.ts';
 import * as yt from './youtube.ts';
 import { createUploader } from './uploader.ts';
 import { uploadProblems, consentKey, fileSig, MIN_LEAD_MIN, uploadThumbName, thumbProblem, type UploadOptions, type FileFacts } from '../../packages/publish/index.ts';
@@ -32,8 +33,8 @@ const OUT = process.env.SIM_OUT_DIR ? path.resolve(process.env.SIM_OUT_DIR) : pa
 const DATA = process.env.SIM_DATA_DIR ? path.resolve(process.env.SIM_DATA_DIR) : path.join(ROOT, 'data'); // video list, backups, thumbnails (never inside references/)
 fs.mkdirSync(OUT, { recursive: true }); fs.mkdirSync(PRESETS, { recursive: true });
 const videos = openStore(DATA, { lock: true }); // data/.lock keeps a second studio from writing; it opens read-only instead
-for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => { videos.close(); process.exit(0); });
-process.on('exit', () => videos.close());
+for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => { stopWorkers(); videos.close(); process.exit(0); });
+process.on('exit', () => { stopWorkers(); videos.close(); });
 const THUMB_DIR = path.join(DATA, 'thumbnails');
 
 // ---------------- YouTube (docs/youtube-upload-plan.md) ----------------
@@ -68,7 +69,7 @@ const ytPage = (title: string, text: string) => `<!doctype html><meta charset="u
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 // ---------------- jobs ----------------
-interface JobRec { id: string; sceneId: string; params: Record<string, unknown>; status: 'queued' | 'running' | 'done' | 'error'; progress: { frame: number; frames: number; fps: number; phase: string }; out: string; report?: unknown; error?: string; created: number; started?: number; finished?: number; size?: number }
+interface JobRec { id: string; sceneId: string; params: Record<string, unknown>; status: 'queued' | 'running' | 'done' | 'error' | 'stopped'; progress: { frame: number; frames: number; fps: number; phase: string }; out: string; report?: unknown; error?: string; created: number; started?: number; finished?: number; size?: number; pid?: number; note?: string; retriedBy?: string }
 const jobs: JobRec[] = [];
 /** Studio renders from earlier sessions (output/<scene>-...-<timestamp>.mp4 + .job.json) come back as finished jobs, so "where is my video?" survives a restart. */
 function loadHistory(keep = 5) {
@@ -78,14 +79,21 @@ function loadHistory(keep = 5) {
   for (const { f, st } of found) {
     try {
       const id = f.slice(0, -4), rec = JSON.parse(fs.readFileSync(path.join(OUT, id + '.job.json'), 'utf8'));
-      if (!sceneById(rec.sceneId)) continue;
+      if (!sceneById(rec.sceneId) || jobs.some(x => x.id === id)) continue;
       jobs.push({ id, sceneId: rec.sceneId, params: rec.params ?? {}, status: 'done', progress: { frame: 1, frames: 1, fps: 0, phase: 'done' }, out: path.join(OUT, f), created: st.mtimeMs, finished: st.mtimeMs, size: st.size });
     } catch { /* unreadable record: skip */ }
   }
 }
 const listeners = new Set<http.ServerResponse>();
 const broadcast = (j: JobRec) => { const s = `data: ${JSON.stringify(publicJob(j))}\n\n`; for (const r of listeners) r.write(s); };
-const publicJob = (j: JobRec) => ({ ...j, out: '/output/' + path.basename(j.out), file: path.relative(ROOT, j.out), abs: j.out });
+const publicJob = ({ pid: _pid, ...j }: JobRec) => ({ ...j, out: '/output/' + path.basename(j.out), file: path.relative(ROOT, j.out), abs: j.out });
+
+// ---------------- the queue on disk (data/jobs.json) ----------------
+const WORKER = path.join(ROOT, 'apps/server/worker.ts');
+const jobStore = openJobStore(DATA, { canWrite: () => !videos.readOnly });
+const toRecord = (j: JobRec): JobRecord => ({ id: j.id, sceneId: j.sceneId, params: j.params, style: String(j.params.style ?? 'classic'), status: j.status, created: j.created, started: j.started, finished: j.finished,
+  out: path.basename(j.out), pid: j.pid, progress: j.progress, report: j.report, error: j.error, size: j.size, note: j.note, retriedBy: j.retriedBy });
+const saveJobs = () => jobStore.save(jobs.map(toRecord));
 
 function pump() {
   while (jobs.filter(j => j.status === 'running').length < CONCURRENCY) {
@@ -93,14 +101,16 @@ function pump() {
     j.status = 'running'; j.started = Date.now(); broadcast(j);
     const jobFile = j.out.replace(/\.mp4$/, '') + '.request.json';
     fs.writeFileSync(jobFile, JSON.stringify({ sceneId: j.sceneId, params: j.params, out: j.out }));
-    const child = spawn(process.execPath, [path.join(ROOT, 'apps/server/worker.ts'), jobFile], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+    // `detached` = the worker leads its own process group, so it and its ffmpeg can be stopped together (see stopWorkers / recoverJobs)
+    const child = spawn(process.execPath, [WORKER, jobFile], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+    j.pid = child.pid; saveJobs();
     let buf = '', err = '';
     child.stdout.on('data', d => {
       buf += d; let i;
       while ((i = buf.indexOf('\n')) >= 0) {
         const line = buf.slice(0, i); buf = buf.slice(i + 1);
         try { const m = JSON.parse(line);
-          if (m.type === 'progress') { j.progress = m; broadcast(j); }
+          if (m.type === 'progress') { const first = !j.progress.frames && m.frames > 0; j.progress = m; broadcast(j); if (first) saveJobs(); } // the frame count is what lets a restart tell a finished MP4 from a half-written one
           else if (m.type === 'done') { j.report = m.report; }
           else if (m.type === 'error') { j.error = m.message; }
         } catch { /* ignore non-JSON */ }
@@ -108,15 +118,66 @@ function pump() {
     });
     child.stderr.on('data', d => { err += d; });
     child.on('close', code => {
+      if (j.status === 'stopped') return; // the studio is shutting down and has already recorded this
       fs.rmSync(jobFile, { force: true });
-      j.finished = Date.now();
+      j.finished = Date.now(); j.pid = undefined;
       j.status = code === 0 && !j.error ? 'done' : 'error';
       if (j.status === 'done') try { j.size = fs.statSync(j.out).size; } catch { /* file vanished */ }
       if (j.status === 'error' && !j.error) j.error = err.trim().split('\n').slice(-3).join(' | ') || `worker exited with ${code}`;
-      trackJob(j);
+      trackJob(j); saveJobs();
       broadcast(j); pump();
     });
   }
+}
+let stopped = false;
+/** Shutdown (SIGTERM, SIGINT, normal exit): stop every render worker with its ffmpeg, remember the jobs as Stopped, remove what a
+ *  half-finished render leaves behind. Workers are killed outright: a render holds nothing worth saving, and a gentle stop would
+ *  let ffmpeg close a half-written MP4 so that it looks finished. Runs once. */
+function stopWorkers() {
+  if (stopped || typeof jobs === 'undefined') return; stopped = true;
+  const open = jobs.filter(j => j.status === 'running' || j.status === 'queued'); if (!open.length) return;
+  for (const j of open) {
+    const was = j.status; if (j.pid) killGroup(j.pid, 'SIGKILL');
+    j.status = 'stopped'; j.note = STOPPED_NOTE; j.finished = Date.now(); j.pid = undefined;
+    removeFiles(tempFilesOf(OUT, path.basename(j.out))); if (was === 'running') removeFiles(partialFilesOf(OUT, path.basename(j.out)));
+    try { trackJob(j); } catch { /* the video list is safe on its own */ }
+  }
+  saveJobs();
+}
+/** At start (only the studio that holds the data lock does this): jobs left Running or Queued by a studio that stopped become Stopped,
+ *  an orphan worker of ours is killed, half-finished files are removed, and a render that did finish is recognised as done. */
+async function recoverJobs() {
+  const recs = jobStore.load(); if (jobStore.notice()) console.warn('render list:', jobStore.notice());
+  const owner = !videos.readOnly;
+  for (const r of recs) {
+    const { style: _style, ...rest } = r;
+    const j: JobRec = { ...rest, out: path.join(OUT, r.out) };
+    if (r.status === 'running' || r.status === 'queued') {
+      if (!owner) continue; // another studio owns the queue and may be rendering right now: leave its jobs alone
+      const was = r.status;
+      if (j.pid && isOurWorker(j.pid, WORKER, j.id)) { killGroup(j.pid, 'SIGKILL'); for (let i = 0; i < 20 && processAlive(j.pid); i++) await new Promise(ok => setTimeout(ok, 100)); console.log(`render list: stopped the leftover worker of ${j.id}`); }
+      j.pid = undefined; removeFiles(tempFilesOf(OUT, r.out));
+      const facts = was === 'running' ? await probe(j.out) : null;
+      if (facts && facts.exists && isComplete(facts.durationSec, j.progress.frames)) { // it finished just before the studio stopped
+        j.status = 'done'; j.size = facts.sizeBytes; j.finished = facts.mtimeMs; j.progress = { ...j.progress, frame: j.progress.frames, phase: 'done' };
+      } else {
+        if (was === 'running' && !(facts?.exists && facts.durationSec > 0 && !j.progress.frames)) removeFiles(partialFilesOf(OUT, r.out)); // unreadable or too short; a readable MP4 of unknown length is kept
+        j.status = 'stopped'; j.note = STOPPED_NOTE; j.finished = j.finished ?? Date.now();
+      }
+      trackJob(j);
+    }
+    jobs.push(j);
+  }
+  if (owner) { const n = removeFiles(strayRequests(OUT)); if (n) console.log(`render list: removed ${n} leftover request file${n === 1 ? '' : 's'}`); saveJobs(); }
+}
+/** a new render job from a scene and parameters (used by "Render" and "Render again") */
+function enqueue(scene: NonNullable<ReturnType<typeof sceneById>>, input: Record<string, unknown>) {
+  const { params, errors } = validate(scene.schema, input);
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const name = `${scene.meta.id}-${safeName(String(params.layout ?? '')) || 'render'}-${safeName(String(params.style ?? 'classic')) || 'classic'}-${stamp}`.replace(/--+/g, '-');
+  const j: JobRec = { id: name, sceneId: scene.meta.id, params, status: 'queued', progress: { frame: 0, frames: 0, fps: 0, phase: 'queued' }, out: path.join(OUT, name + '.mp4'), created: Date.now() };
+  jobs.push(j); trackJobStart(j); saveJobs(); broadcast(j); pump();
+  return { j, errors };
 }
 
 // ---------------- video tracking (the render engine is untouched; this only records what the studio renders) ----------------
@@ -328,11 +389,20 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
   if (p === '/api/jobs' && req.method === 'POST') {
     const b = await readBody(req); const scene = sceneById(String(b.sceneId));
     if (!scene) { json(res, 400, { error: 'unknown scene' }); return true; }
-    const { params, errors } = validate(scene.schema, b.params ?? {});
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const name = `${scene.meta.id}-${safeName(String(params.layout ?? '')) || 'render'}-${safeName(String(params.style ?? 'classic')) || 'classic'}-${stamp}`.replace(/--+/g, '-');
-    const j: JobRec = { id: name, sceneId: scene.meta.id, params, status: 'queued', progress: { frame: 0, frames: 0, fps: 0, phase: 'queued' }, out: path.join(OUT, name + '.mp4'), created: Date.now() };
-    jobs.push(j); trackJobStart(j); broadcast(j); pump();
+    const { j, errors } = enqueue(scene, b.params ?? {});
+    json(res, 200, { ...publicJob(j), warnings: errors }); return true;
+  }
+  // "Render again": a stopped or failed job runs again from its saved scene and parameters (renders are deterministic: same settings, same video)
+  const ag = /^\/api\/jobs\/([\w.-]+)\/again$/.exec(p);
+  if (ag && req.method === 'POST') {
+    const old = jobs.find(x => x.id === ag[1]);
+    if (!old) { json(res, 404, { error: 'This render is no longer in the list.' }); return true; }
+    if (old.status !== 'stopped' && old.status !== 'error') { json(res, 409, { error: 'Only a stopped or failed render can be run again.' }); return true; }
+    const prev = old.retriedBy ? jobs.find(x => x.id === old.retriedBy) : undefined;
+    if (prev && prev.status !== 'error' && prev.status !== 'stopped') { json(res, 409, { error: 'This render was already started again.' }); return true; }
+    const scene = sceneById(old.sceneId); if (!scene) { json(res, 400, { error: 'unknown scene' }); return true; }
+    const { j, errors } = enqueue(scene, old.params);
+    old.retriedBy = j.id; saveJobs(); broadcast(old);
     json(res, 200, { ...publicJob(j), warnings: errors }); return true;
   }
   if (p === '/api/reveal' && req.method === 'POST') {
@@ -422,6 +492,7 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
 }
 
 // ---------------- server ----------------
+await recoverJobs();
 loadHistory();
 const vite = await createVite({ root: path.join(ROOT, 'apps/studio'), configFile: false, appType: 'spa', logLevel: 'warn',
   server: { middlewareMode: true, fs: { allow: [ROOT] }, hmr: { port: PORT + 1 } } });
