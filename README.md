@@ -30,6 +30,31 @@ YouTube crops a Short's custom thumbnail to 9:16 around the centre, so the studi
 (`<id>-cover.jpg`), never the wide 1280×720 one. A video already uploaded with the wide picture is flagged in Videos, and
 **Set the thumbnail again** fixes it after your approval (50 quota units). Details: `docs/publishing.md`.
 
+## Restarting the studio safely (`dev` and `dev:watch`)
+
+The server loads its code once when it starts, so a code change needs a restart. The render queue survives that:
+
+- **`data/jobs.json`** keeps every render (scene, settings, style, status, times, result; no credentials). It is written atomically with
+  backups, like the video list, and a damaged or missing file never stops the studio from starting (the bad file is kept aside and the
+  newest good copy is used).
+- A render that was **running or queued** when the studio stopped comes back as **⏸ Stopped**, with a **Render again** button. Renders are
+  deterministic, so Render again just runs the same scene and settings again (same video), instead of resuming half way.
+- **No orphans, no leftovers.** Each render worker runs in its own process group and is stopped together with its ffmpeg when the studio
+  stops (SIGTERM, Ctrl+C, a restart by `node --watch`). If the studio is killed outright, the worker notices within about 2 seconds and
+  exits; at the next start a worker that is still alive is stopped only if `ps` shows it is our own worker for that job. Request files,
+  temp audio and half-written MP4s of interrupted renders are removed; a render that did finish just before the stop is recognised as done.
+- A second studio on the same data folder is read-only and never touches the first one's jobs.
+- YouTube uploads and the video list were already restart-safe (stages are recorded, **Continue** resumes); that is unchanged.
+
+| Command | Use it for |
+|---|---|
+| `npm run dev` | Normal work: rendering and uploading. Restarts only when you do it. |
+| `npm run dev:watch` | Development sessions where the code changes often: the server restarts itself when a server file changes. |
+
+With `dev:watch`, **do not leave a render or an upload running while files are being edited**: a restart stops the render (you press Render
+again) and cuts an upload at its current step (you press Continue). `themes/`, `presets/` and `data/` are not watched, and changes to the
+studio page itself (`apps/studio/`) reload in the browser without a server restart. A banner at the top says when the running server is older than its files.
+
 ## Light and dark mode (interface only)
 
 The top-right corner has three small buttons: **Auto** (follow the system, the default), **Light** and **Dark**. The choice is remembered and applied before the page is drawn, so there is no flash on reload. It changes only the studio's own panels, text, buttons, tables, badges and dialogs: **the video preview, the rendered MP4, thumbnails and the style themes (`themes/*.json`) are never affected**. Colours are CSS tokens at the top of `apps/studio/style.css`; all text meets WCAG AA (4.5:1) in both modes, checked by `tests/mode.test.ts`. Details, numbers and screenshots: `docs/ui-modes.md`.
