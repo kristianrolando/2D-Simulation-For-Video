@@ -386,3 +386,17 @@ button.icon .ico-slot { vertical-align: 0; }
   button, select, input, textarea { min-height: 36px; }
   .tabs { top: -14px; }
 }
+
+/* style editor: a panel beside the preview, not a blocking dialog */
+dialog.side { position: fixed; inset: 56px 16px auto auto; width: 340px; max-height: calc(100vh - 80px); overflow-y: auto; overflow-x: hidden; box-sizing: border-box; margin: 0; padding: 14px 16px; box-shadow: 0 8px 30px var(--scrim); z-index: 30; }
+dialog.side fieldset { min-width: 0; border: 1px solid var(--line); border-radius: var(--r-sm); margin: 0 0 10px; padding: 6px 10px 8px; }
+dialog.side legend { color: var(--muted); font-size: var(--fs-xs); padding: 0 4px; }
+.edrow { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 8px; margin: 5px 0; font-size: var(--fs-sm, 13px); }
+.edrow input[type=color] { width: 44px; height: 28px; padding: 0; border: 1px solid var(--field-line); border-radius: var(--r-sm); background: none; }
+.edrow input[type=text], .edrow select { width: 100%; min-width: 0; }
+.edslide { display: flex; gap: 8px; align-items: center; } .edslide input { flex: 1; min-width: 0; } .edslide .v { min-width: 34px; text-align: right; color: var(--muted); }
+.edpal { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.edpal input[type=color] { width: 26px; height: 26px; } .edpal button { padding: 0 8px; min-width: 26px; }
+dialog.side .hints { margin: 6px 0; padding-left: 18px; color: var(--warn-ink); font-size: var(--fs-xs); }
+#styleTools { margin-top: 6px; gap: 6px; flex-wrap: wrap; }
+@media (max-width: 760px) { dialog.side { inset: 8px; width: auto; max-height: calc(100vh - 16px); } }

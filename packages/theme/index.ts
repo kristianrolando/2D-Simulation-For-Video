@@ -335,6 +335,8 @@ export function registerThemes(list: unknown[]): Record<string, string[]> {
   }
   return report;
 }
+/** forget a style (a custom style whose file was deleted); the built-in classic stays */
+export function unregisterTheme(id: string): void { if (id !== CLASSIC.id) registry.delete(id); }
 export function themeIds(): string[] { return [...registry.keys()]; }
 export function allThemes(): Theme[] { return [...registry.values()]; }
 /** theme by id; unknown ids fall back to CLASSIC (never throws) */

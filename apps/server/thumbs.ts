@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 import { validate, type Ctx, type Env } from '../../packages/core/index.ts';
 import { sceneById, SCENES } from '../../packages/scenes/index.ts';
 import { themeIds } from '../../packages/theme/index.ts';
+import { customSig } from '../../packages/theme/node.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
 export const THUMBS = path.join(ROOT, 'output', 'thumbs');
@@ -16,7 +17,8 @@ export const THUMBS = path.join(ROOT, 'output', 'thumbs');
 export function thumbKey(sceneId: string, params: Record<string, unknown>) {
   const s = sceneById(sceneId); if (!s) return null;
   const { params: p } = validate(s.schema, params);
-  return createHash('sha1').update(JSON.stringify([sceneId, p, 'v2'])).digest('hex').slice(0, 16);
+  const sig = customSig(String(p.style ?? '')); // '' for shipped styles: their cache keys stay as they were
+  return createHash('sha1').update(JSON.stringify(sig ? [sceneId, p, 'v2', sig] : [sceneId, p, 'v2'])).digest('hex').slice(0, 16);
 }
 
 export function renderThumb(sceneId: string, params: Record<string, unknown>): string | null {

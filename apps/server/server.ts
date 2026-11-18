@@ -10,7 +10,9 @@ import { validate } from '../../packages/core/index.ts';
 import { SCENES, sceneById } from '../../packages/scenes/index.ts';
 import { thumbKey, THUMBS } from './thumbs.ts';
 import { readThemeFiles } from '../../packages/theme/node.ts';
-import { registerThemes, resolveTheme, themeIds } from '../../packages/theme/index.ts';
+import { registerThemes, resolveTheme, themeIds, unregisterTheme } from '../../packages/theme/index.ts';
+import { checkCustomFile, validId } from '../../packages/theme/editor.ts';
+import { saveCustomTheme, deleteCustomTheme } from '../../packages/theme/node.ts';
 import { openStore, ReadOnlyError } from './store.ts';
 import { findUntrackedRenders } from './scan.ts';
 import { buildStatus, isLoopback, isCodeStale } from './status.ts';
@@ -301,6 +303,19 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     json(res, 200, out); return true;
   }
   if (p === '/api/themes' && req.method === 'GET') { json(res, 200, themeList()); return true; }
+  // styles made in the style editor: themes/<id>.json with "custom": true. Shipped styles are never overwritten or deleted.
+  if (p === '/api/themes' && req.method === 'POST') {
+    const b = await readBody(req), c = checkCustomFile(b.theme);
+    if (!c.ok) { json(res, 400, { error: c.error }); return true; }
+    try { saveCustomTheme(c.raw); } catch (e) { json(res, 409, { error: e instanceof Error ? e.message : String(e) }); return true; }
+    registerThemes([c.raw]); json(res, 200, { id: c.raw.id, ...themeList() }); return true;
+  }
+  const tm = /^\/api\/themes\/([\w-]+)$/.exec(p);
+  if (tm && req.method === 'DELETE') {
+    if (!validId(tm[1])) { json(res, 400, { error: 'Unknown style.' }); return true; }
+    try { deleteCustomTheme(tm[1]); } catch (e) { json(res, 409, { error: e instanceof Error ? e.message : String(e) }); return true; }
+    unregisterTheme(tm[1]); json(res, 200, themeList()); return true;
+  }
   if (p === '/api/style-thumbs' && req.method === 'GET') {
     const scene = sceneById(String(url.searchParams.get('sceneId'))); if (!scene) { json(res, 400, { error: 'unknown scene' }); return true; }
     let params: Record<string, unknown> = {}; try { params = JSON.parse(url.searchParams.get('params') ?? '{}'); } catch { /* defaults */ }

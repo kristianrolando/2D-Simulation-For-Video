@@ -36,3 +36,30 @@ Setiap style berbeda di 6–7 dari 7 sumbu, baik dari referensi maupun satu sama
 ## 3. Bukti perbedaan
 
 Dihasilkan oleh `node tools/style-evidence.ts` (tabel: `docs/styles/focal-reflection-evidence.md`, gambar: `docs/styles/focal-reflection-vs-reference.png`) dan dijaga oleh `tests/theme.test.ts` (selisih piksel rata-rata antar-style > 12/255 pada dua scene). Lembar per scene: `docs/styles/<scene>-sheet.png`.
+
+
+## 4. Style editor (styles made in the studio)
+
+In the Style section of the studio: **＋ New style from this one** starts from the style that is selected; **Edit this style**
+appears for styles you made. A panel opens beside the preview and the preview redraws as you change things. You can set the name,
+icon and description, the colours (two background colours, gradient type, text, accent, secondary text, walls and lines, 3 to 8 ball
+colours), the font (seven stacks that all end with a bundled font), capitals and alignment, and the look (line style and glow,
+ball style, texture and its strength, spark shape). Everything not listed (motion, juice, audio, the background controls) is
+copied from the style you started with, so the result is a complete file that no longer depends on it.
+
+- **Save** writes `themes/<id>.json` with `"custom": true` and `"basedOn"`. The style is listed at once (no restart), works in every
+  scene, and its thumbnails and covers follow it. The id comes from the name (`Violet Lab` → `violet-lab`).
+- **Shipped styles are protected.** A file without `"custom": true` is never overwritten or deleted by the editor, and `classic`
+  cannot be replaced. The server refuses such requests (409).
+- **Delete** (own styles only) removes the file. Videos already rendered keep their look; entries in Videos that used it fall back to
+  Classic Neon.
+- **Hints, not blocks:** the editor warns when the text colour has less than 4.5:1 contrast on the background, when the accent is close
+  to the background, or when a ball colour would disappear. It only blocks a missing name or an invalid colour.
+- A light background cannot use additive light: when you change the background from dark to light (or back), the editor switches the
+  blend (`lighter` ↔ `source-over`) for you.
+- While the panel is open the preview shows a draft and **Render MP4 is paused** (a message says so), so a draft is never rendered.
+- You can still write a style file by hand; the editor only automates the common case. `SIM_THEME_DIR` points the studio at another
+  themes folder (the tests use it).
+
+Code: `packages/theme/editor.ts` (pure), `packages/theme/node.ts` (files), `apps/studio/style-editor.ts` (panel),
+`/api/themes` POST and DELETE in `apps/server/server.ts`. Tests: `tests/style-editor.test.ts`.

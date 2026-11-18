@@ -19,7 +19,12 @@ In the studio the main path is one click: the studio opens on a ready scene with
 
 Keyboard shortcuts (press `?` in the studio): Space play/pause, ←/→ frame (Shift: 1 s), `R` render, `V` videos, `/` search, `[` `]` previous/next simulation, `1`–`6` style, `M` sound, `D` preview statistics (hidden by default), `?` list.
 
-#### Shorts thumbnail (what YouTube gets)
+#### Your own styles
+
+**＋ New style from this one** (Style section) opens an editor beside the preview: colours, font, line, ball and texture. Save writes
+`themes/<id>.json`, usable in every scene at once; shipped styles cannot be overwritten. Details: `docs/styles.md` §4.
+
+### Shorts thumbnail (what YouTube gets)
 
 YouTube crops a Short's custom thumbnail to 9:16 around the centre, so the studio uploads the tall **1080×1920** picture
 (`<id>-cover.jpg`), never the wide 1280×720 one. A video already uploaded with the wide picture is flagged in Videos, and

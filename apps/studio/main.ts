@@ -5,7 +5,8 @@ import { SCENES } from '../../packages/scenes/index.ts';
 import { Player, type Quality } from './player.ts';
 import { benchScene } from './bench.ts';
 import { setSampleBank, parseWav, type Manifest } from '../../packages/audio/bank.ts';
-import { registerThemes, getTheme, sanitizeBackground, serializeBackground } from '../../packages/theme/index.ts';
+import { registerThemes, unregisterTheme, getTheme, sanitizeBackground, serializeBackground } from '../../packages/theme/index.ts';
+import { openStyleEditor } from './style-editor.ts';
 import { initVideos } from './videos.ts';
 import { catColor } from './mode.ts';
 import { initModeSwitch } from './mode-ui.ts';
@@ -197,6 +198,41 @@ function markStyle() {
   [...$('styles').children].forEach((b, i) => { const on = themes[i]?.id === params.style; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); });
   const t = themes.find(x => x.id === params.style);
   $('styleInfo').innerHTML = t ? `<b>${styleIcon(t.id, t.icon)} ${t.name}</b> — ${t.concept}<br><i>Best for:</i> ${t.bestFor}` : '';
+  renderStyleTools(t);
+}
+// ---------------- style editor (new style from the selected one; edit or delete one you made) ----------------
+/** while the editor is open the preview shows a draft style; this is the style to go back to */
+let draftBase: string | null = null;
+const isCustom = (t: ThemeInfo | undefined) => (t?.raw as { custom?: boolean } | undefined)?.custom === true;
+function renderStyleTools(t: ThemeInfo | undefined) {
+  const box = $('styleTools'); box.replaceChildren(); if (!t) return;
+  const hooks = { preview: previewDraft, saved: afterStyleSaved, removed: afterStyleRemoved, existingIds: () => themes.map(x => x.id) };
+  const add = el('button', { type: 'button', title: `Start a new style from “${t.name}”. The shipped styles stay as they are.` }, '＋ New style from this one') as HTMLButtonElement;
+  add.onclick = () => openStyleEditor({ id: t.id, name: t.name, raw: t.raw }, false, hooks);
+  box.append(add);
+  if (isCustom(t)) { const edit = el('button', { type: 'button' }, 'Edit this style') as HTMLButtonElement; edit.onclick = () => openStyleEditor({ id: t.id, name: t.name, raw: t.raw }, true, hooks); box.append(edit); }
+}
+/** show a draft style in the real preview without choosing it: nothing is stored, and it cannot be rendered while open */
+async function previewDraft(raw: Record<string, unknown> | null) {
+  if (raw) {
+    registerThemes([{ ...raw, id: '__draft' }]);
+    await document.fonts.load(`40px ${getTheme('__draft').font.family}`).catch(() => null);
+    if (draftBase === null) draftBase = String(params.style);
+    params = { ...params, style: '__draft' };
+  } else if (draftBase !== null) { params = { ...params, style: draftBase }; draftBase = null; }
+  else return;
+  clearTimeout(reloadTimer); reloadTimer = window.setTimeout(() => { player.load(scene, params, player.frame > 0); }, 120);
+}
+async function afterStyleSaved(id: string) {
+  if (draftBase !== null) { params = { ...params, style: draftBase }; draftBase = null; }
+  unregisterTheme('__draft'); await loadThemes();
+  currentStyle = id; store.set('studio.style', id); params = { ...params, style: id, bgSettings: loadBg(id) };
+  changed('style'); await renderStyles(); renderBg();
+}
+async function afterStyleRemoved(id: string) {
+  draftBase = null; unregisterTheme('__draft'); unregisterTheme(id); await loadThemes();
+  currentStyle = 'classic'; store.set('studio.style', 'classic'); params = { ...params, style: 'classic', bgSettings: loadBg('classic') };
+  changed('style'); await renderStyles(); renderBg();
 }
 
 $('savePreset').onsubmit = async (e) => {
@@ -518,7 +554,9 @@ document.addEventListener('click', (e) => { const pop = $('rhist'); if (!pop.hid
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('rhist').hidden) { $('rhist').hidden = true; rsHist.setAttribute('aria-expanded', 'false'); } });
 
 $('render').onclick = async () => {
-  const btn = $<HTMLButtonElement>('render'); if (btn.disabled) return; btn.disabled = true;
+  const btn = $<HTMLButtonElement>('render'); if (btn.disabled) return;
+  if (draftBase !== null) { note('The style editor is open. Save or cancel the style first, then render.'); return; }
+  btn.disabled = true;
   const label = btn.firstChild!; const old = label.textContent; label.textContent = 'Queuing… ';
   try {
     const r = await fetch('/api/jobs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sceneId: scene.meta.id, params }) });
