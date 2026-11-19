@@ -173,12 +173,13 @@ export function youtubePanel(v: Video & { fileExists: boolean; thumbUrl: string;
   }
 
   // uploaded by hand, or the channel's uploads are off: the manual helper instead of the upload form
-  if (v.uploadedManually || (target && !target.uploadEnabled)) {
-    if (target && !target.uploadEnabled && !v.uploadedManually) box.append(el('p', { className: 'msg' }, `Upload from Sim Studio is off for ${target.name}: upload this video by hand in YouTube Studio. `, settingsBtn));
+  if (v.uploadedManually || isManualChannel(v) || (target && !target.uploadEnabled)) {
+    if (isManualChannel(v) && !v.uploadedManually) box.append(el('p', { className: 'msg' }, `${v.channel} is a channel added by hand: the studio never uploads to it. Upload this video by hand in YouTube Studio.`));
+    else if (target && !target.uploadEnabled && !v.uploadedManually) box.append(el('p', { className: 'msg' }, `Upload from Sim Studio is off for ${target.name}: upload this video by hand in YouTube Studio. `, settingsBtn));
     box.append(manualUpload(v, h)); return box;
   }
   if (!s?.connections.length) { box.append(el('p', { className: 'msg' }, 'YouTube is not connected yet. Add the client file and connect a channel (about 5 minutes, once).'), settingsBtn, manualUpload(v, h)); return box; }
-  if (!target) { box.append(el('p', { className: 'msg' }, `This video is for ${v.channel}, which is not connected to Sim Studio. Connect it in YouTube settings, or upload by hand.`), settingsBtn, manualUpload(v, h)); return box; }
+  if (!target) { box.append(el('p', { className: 'msg' }, isManualChannel(v) ? `${v.channel} is a channel added by hand: the studio never uploads to it. Upload this video by hand.` : `This video is for ${v.channel}, which is not connected to Sim Studio. Connect it in YouTube settings, or upload by hand.`), settingsBtn, manualUpload(v, h)); return box; }
   if (!target.connected) { box.append(el('p', { className: 'msg bad' }, `${target.name}: ${target.disconnected || 'not connected'}`), settingsBtn, manualUpload(v, h)); return box; }
   if (v.status !== 'rendered') { box.append(el('p', { className: 'msg' }, v.status === 'draft' ? 'Uploading becomes possible when the render has finished (status Rendered).' : 'Only videos with status Rendered can be uploaded (set the status back to Rendered if this one is not on YouTube yet).')); return box; }
 
@@ -211,16 +212,21 @@ export function youtubePanel(v: Video & { fileExists: boolean; thumbUrl: string;
 }
 
 /** Which channel this video is for: a menu while it can still change (one connected channel = just the name). */
+/** channels added by hand (names only), set by the Videos page from the studio's settings */
+let manualList: string[] = [];
+export const setManualChannels = (l: string[]) => { manualList = l; };
+export const isManualChannel = (v: Pick<Video, 'channel' | 'channelId'>) => !v.channelId && manualList.includes(v.channel);
 export function channelPicker(v: Video, h: Pick<PanelHooks, 'refresh' | 'flush' | 'readOnly'>): HTMLElement {
   const all = state?.connections ?? [], cur = connOf(v);
   const locked = channelLocked(v);
-  if (all.length < 2 || locked || h.readOnly) return el('p', { className: 'msg' }, `For channel `, el('b', {}, v.channel || 'Photon Lab'), locked && all.length > 1 ? ` · ${locked}` : '');
+  if (all.length + manualList.length < 2 || locked || h.readOnly) return el('p', { className: 'msg' }, `For channel `, el('b', {}, v.channel || 'Photon Lab'), locked && all.length > 1 ? ` · ${locked}` : '');
   const sel = el('select') as HTMLSelectElement; sel.setAttribute('aria-label', 'Channel for this video');
   for (const c of all) sel.append(el('option', { value: c.id, textContent: `${c.name}${c.uploadEnabled ? '' : ' (uploads by hand)'}`, selected: c.id === cur?.id }));
-  if (!cur) sel.prepend(el('option', { value: '', textContent: `${v.channel} (not connected)`, selected: true }));
+  for (const m of manualList.filter(m => !all.some(c => c.name === m))) sel.append(el('option', { value: `manual:${m}`, textContent: `${m} (added by hand)`, selected: !cur && v.channel === m && !v.channelId }));
+  if (!cur && !isManualChannel(v)) sel.prepend(el('option', { value: '', textContent: `${v.channel} (not connected)`, selected: true }));
   const msg = el('span', { className: 'msg' });
   sel.onchange = async () => {
-    try { await h.flush(); await call(`/api/videos/${v.id}/channel`, 'PUT', { channelId: sel.value }); await h.refresh(); }
+    try { await h.flush(); await call(`/api/videos/${v.id}/channel`, 'PUT', sel.value.startsWith('manual:') ? { channelName: sel.value.slice(7) } : { channelId: sel.value }); await h.refresh(); }
     catch (e) { msg.textContent = (e as Error).message; msg.className = 'msg bad'; }
   };
   return el('div', { className: 'row' }, el('label', {}, 'For channel '), sel, msg);

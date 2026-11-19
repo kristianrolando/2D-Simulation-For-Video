@@ -49,3 +49,14 @@
 .vnotice .vnbody { flex: 1 1 260px; }
 .vnotice .vhelp { color: inherit; font-size: var(--fs-sm); }
 @media (max-width: 900px) { #vview[data-step=detail] .vchannels, #vview[data-step=detail] .vactive { display: none; } .vcard { flex: 1 1 140px; } }
+
+/* ---- picking several videos ---- */
+#vList .vsel { display: flex; align-items: center; gap: 8px; }
+#vList .vsel .vrow { flex: 1 1 auto; min-width: 0; }
+#vList .vsel input[type=checkbox] { flex: none; width: 18px; height: 18px; margin: 0; }
+.vbulk { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 10px; border: 1px solid var(--field-line); border-radius: var(--r-md); background: var(--panel2); font-size: var(--fs-sm); }
+.vbulk[hidden] { display: none; }
+.vbulk button { margin: 0; }
+.vbulk :focus-visible, #vSelect:focus-visible, #vList .vsel input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.vcards .link { align-self: center; }
+@media (max-width: 760px) { .vnotice.info { flex-wrap: wrap; } .vnotice .vnbody { flex-basis: 100%; } }

@@ -130,12 +130,14 @@
       <select id="vStyle" aria-label="Filter by style"></select>
       <select id="vSort" aria-label="Sort videos"></select>
       <button id="vSortDir" type="button" class="iconbtn" aria-label="Sort direction: normal" title="Turn the sort order around"></button>
+      <button id="vSelect" type="button" aria-pressed="false" title="Pick several videos to mark them as uploaded by hand or to export them">Select…</button>
       <details class="menu" id="vExport"><summary>More</summary>
         <div class="menu-body">
           <label class="sel" title="Language of the suggested title, description and tags (interface stays English)">Suggestions <select id="vLang"><option value="en">English</option><option value="id">Indonesian</option></select></label>
           <button id="vCsv" type="button" class="link" title="The videos of the chosen format as a spreadsheet">Spreadsheet (CSV)</button>
           <a href="/api/videos/export?format=json" download title="Everything in the list, Shorts and long videos">Backup copy of all videos (JSON)</a>
           <button id="vYt" type="button" class="link">YouTube settings…</button>
+          <button id="vAddChan" type="button" class="link" title="A channel that is not connected to YouTube here (for example a friend's): videos can be marked for it, the studio never uploads to it">Add a channel by hand…</button>
           <button id="vChanAll" type="button" class="link" title="Put every video now shown in the list on one channel (scheduled, published or uploaded videos keep theirs)">Channel for the videos shown…</button>
           <button id="vData" type="button" class="link">Open data folder</button>
         </div>
@@ -150,6 +152,7 @@
     <div class="vbody">
       <div class="vcol">
         <div id="vNeeds" class="needs" role="status" hidden></div>
+        <div id="vBulk" class="vbulk" hidden></div>
         <details id="vCoverage"><summary id="vCovSummary"></summary><div id="vMatrix"></div></details>
         <div id="vList" role="list"></div>
       </div>

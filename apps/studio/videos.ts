@@ -17,10 +17,10 @@ import {
   FORMATS, FORMAT_LABEL, FORMAT_HINT, SORTS, SORT_LABEL, NO_FILTERS, formatCounts, formatOf, inFormat, statusCountsIn, parseHash, formatHash, writeFormat, startNav, browserStore, readSort,
   bannerVisible, bannerText, bannerHelp, addConfirmText, dismissBanner, readDismissed, sortVideos, optionsOf, channelOf, readReverse, writeReverse, type Format, type Mode, type Sort,
 } from './videos-nav.ts';
-import { rows as rowsFor, chipCounts, channelChoices, channelCards, channelFacts, summaryLine, activeLine, hasActive, validChannel, loadView, saveView, NO_CHANNEL, type ViewState, type ViewCtx } from './videos-view.ts';
+import { rows as rowsFor, NO_VIEW, bulkCsv, planBulkMark, chipCounts, channelChoices, channelCards, channelFacts, summaryLine, activeLine, hasActive, validChannel, loadView, saveView, NO_CHANNEL, type ViewState, type ViewCtx } from './videos-view.ts';
 import { toCsv } from '../../packages/publish/index.ts';
 import './videos-nav.css';
-import { youtubePanel, openYoutubeSettings, loadYt, ytState, channelPicker, manualUpload } from './youtube-ui.ts';
+import { youtubePanel, openYoutubeSettings, loadYt, ytState, channelPicker, manualUpload, setManualChannels } from './youtube-ui.ts';
 import type { SceneModule } from '../../packages/core/index.ts';
 
 type VideoView = Video & { fileExists: boolean; thumbUrl: string; coverUrl: string; thumbProblem?: string };
@@ -58,13 +58,14 @@ export function initVideos(deps: VideosDeps) {
   const sceneName = (id: string) => id === 'compilation' ? 'Long video' : deps.scenes.find(s => s.meta.id === id)?.meta.name ?? id;
   const styleName = (id: string) => getTheme(id).name;
   const autoTried = new Set<string>(); // videos whose cover was already tried (or that were opened for you, so nothing is made behind your back)
+  let selecting = false, lastMarked: string[] = []; const picked = new Set<string>();
   const view = $('vview'), save = { timer: 0, pending: {} as Record<string, unknown>, id: '', state: '' };
 
   // ---------- data ----------
   async function refresh() {
     try {
       const r = await call<{ videos: VideoView[]; notice: { level: string; text: string } | null; untracked: number; untrackedFiles?: string[]; dataDir: string; readOnly: boolean; readOnlyReason: string; settings: { suggestLang: 'en' | 'id'; manualChannels?: string[] } }>('/api/videos');
-      videos = r.videos.map(fix); untracked = r.untracked; untrackedFiles = r.untrackedFiles ?? []; dataDir = r.dataDir; loaded = true; readOnly = r.readOnly; readOnlyReason = r.readOnlyReason; lang = r.settings.suggestLang; manual = r.settings.manualChannels ?? [];
+      videos = r.videos.map(fix); untracked = r.untracked; untrackedFiles = r.untrackedFiles ?? []; dataDir = r.dataDir; loaded = true; readOnly = r.readOnly; readOnlyReason = r.readOnlyReason; lang = r.settings.suggestLang; manual = r.settings.manualChannels ?? []; setManualChannels(manual);
       if (r.notice) banner(r.notice.text);
       await loadYt();
     } catch (e) { banner((e as Error).message); }
@@ -131,7 +132,7 @@ export function initVideos(deps: VideosDeps) {
     for (const [id, k] of [['vModeList', 'list'], ['vModeCal', 'calendar'], ['vModeCompile', 'build']] as const) $(id).setAttribute('aria-pressed', String(m === k));
     $('vBar').hidden = m !== 'list'; // search, filters and sorting belong to the list
     if (m === 'calendar') void calendar.show(); if (m === 'build') compile.show(); else void compile.hide(); if (m === 'list') void refresh(); // long videos finish while another page is open
-    renderBanner(); if (push) syncHash();
+    renderChannels(); renderActive(); renderBanner(); if (push) syncHash();
   }
   function setFormat(f: Format, push = true) {
     format = f; writeFormat(store, f);
@@ -225,16 +226,75 @@ export function initVideos(deps: VideosDeps) {
   $('vReset').onclick = clearFilters;
   searchBox.value = query; // a remembered search
   const impBtn = $('vAddAll') as HTMLButtonElement;
+  // ---------- picking several videos: mark them as uploaded by hand, or export them ----------
+  const download = (text: string, name: string) => {
+    const a = el('a', { href: URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' })), download: name }) as HTMLAnchorElement;
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  const stamp = () => `${channelF ? (channelF === NO_CHANNEL ? 'no-channel' : channelF).toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'all'}-${new Date().toISOString().slice(0, 10)}`;
+  function renderBulk(list: VideoView[]) {
+    const bar = $('vBulk'); bar.hidden = !selecting || mode !== 'list';
+    $('vSelect').setAttribute('aria-pressed', String(selecting)); $('vSelect').textContent = selecting ? 'Done selecting' : 'Select…';
+    if (bar.hidden) return;
+    const all = el('input', { type: 'checkbox', checked: list.length > 0 && picked.size === list.length }) as HTMLInputElement; all.setAttribute('aria-label', `Select all ${list.length} shown`);
+    all.onchange = () => { picked.clear(); if (all.checked) for (const v of list) picked.add(v.id); renderList(); };
+    const chosen = list.filter(v => picked.has(v.id)), btn = (label: string, fn: () => void | Promise<void>, off = false, cls = '') => { const b = el('button', { type: 'button', className: cls, disabled: off }, label) as HTMLButtonElement; b.onclick = () => { void Promise.resolve(fn()).catch(e => banner((e as Error).message)); }; return b; };
+    const undoable = chosen.filter(v => v.uploadedManually && !v.youtube?.videoId);
+    bar.replaceChildren(
+      el('label', { className: 'chk' }, all, ` Select all ${list.length.toLocaleString('en-US')} shown`), el('span', { className: 'msg', id: 'vPicked' }, `${picked.size.toLocaleString('en-US')} selected`),
+      btn(picked.size ? `Mark ${picked.size.toLocaleString('en-US')} as uploaded by hand…` : 'Mark as uploaded by hand…', markPicked, readOnly || !picked.size, 'primary'),
+      btn(undoable.length || lastMarked.length ? `Undo the mark (${(undoable.length || lastMarked.length).toLocaleString('en-US')})…` : 'Undo the mark…', undoPicked, readOnly || !(undoable.length || lastMarked.length)),
+      btn(picked.size ? `Export ${picked.size.toLocaleString('en-US')} selected (CSV)` : 'Export selected (CSV)', () => download(bulkCsv(chosen), `videos-selected-${stamp()}.csv`), !picked.size),
+      btn(`Export all ${list.length.toLocaleString('en-US')} shown (CSV)`, () => download(bulkCsv(list), `videos-shown-${stamp()}.csv`), !list.length));
+  }
+  /** "uploaded by hand" for the picked videos: one confirmation with the number and the channels; Scheduled, Published and uploaded videos are skipped and said so */
+  async function markPicked() {
+    await flush();
+    const plan = planBulkMark(videos, [...picked]);
+    if (!plan.ok.length) { banner(`Nothing to mark: ${plan.skipped.length} of the picked videos are Scheduled, Published, uploaded or not rendered.`); return; }
+    const by: Record<string, number> = {}; for (const v of plan.ok) by[channelOf(v)] = (by[channelOf(v)] ?? 0) + 1;
+    const where = Object.entries(by).map(([c, n]) => `${n.toLocaleString('en-US')} for ${c}`).join(', ');
+    if (!confirm(`Mark ${plan.ok.length.toLocaleString('en-US')} video${plan.ok.length === 1 ? '' : 's'} as uploaded by hand (${where})?\n\nTheir status becomes Published, today's date. Nothing is sent to YouTube, and the studio will not upload them.${plan.skipped.length ? `\n${plan.skipped.length} picked video${plan.skipped.length === 1 ? ' is' : 's are'} left alone (Scheduled, Published, uploaded or not rendered).` : ''}\n\nYou can undo it right after.`)) return;
+    const r = await call<{ changed: number; skipped: { id: string }[] }>('/api/videos/manual-bulk', send('POST', { ids: plan.ok.map(v => v.id) }));
+    lastMarked = plan.ok.map(v => v.id); banner(`Marked ${r.changed.toLocaleString('en-US')} video${r.changed === 1 ? '' : 's'} as uploaded by hand${r.skipped.length ? `; ${r.skipped.length} left alone` : ''}. "Undo the mark" takes it back.`);
+    await refresh();
+  }
+  async function undoPicked() {
+    await flush();
+    const own = videos.filter(v => picked.has(v.id) && v.uploadedManually && !v.youtube?.videoId).map(v => v.id), ids = own.length ? own : lastMarked;
+    if (!ids.length || !confirm(`Set ${ids.length.toLocaleString('en-US')} video${ids.length === 1 ? '' : 's'} back to Rendered? The videos on YouTube are not touched.`)) return;
+    const r = await call<{ changed: number }>('/api/videos/manual-bulk/undo', send('POST', { ids }));
+    lastMarked = []; banner(`${r.changed.toLocaleString('en-US')} video${r.changed === 1 ? '' : 's'} back to Rendered.`); await refresh();
+  }
+  $('vSelect').onclick = () => { selecting = !selecting; if (!selecting) picked.clear(); renderList(); };
+  /** a channel that is not connected here: only its name is stored (settings of the list file), nothing is sent anywhere */
+  async function addChannelByHand() {
+    ($('vExport') as HTMLDetailsElement).open = false;
+    const name = prompt('Name of the channel to add (it is not connected to YouTube here; the studio never uploads to it). Videos can then be marked for it:');
+    if (!name?.trim()) return;
+    try { await call('/api/channels/manual', send('POST', { name })); banner(`Added ${name.trim()}. Pick it in the channel menu, or put videos on it with "Channel for the videos shown…" or the "For channel" menu of a video.`); await refresh(); }
+    catch (e) { banner((e as Error).message); }
+  }
+  $('vAddChan').onclick = () => { void addChannelByHand(); };
+
   /** the one line under the toolbar: what is on, how many rows that gives, and the one-click way out (only when something is on) */
-  function renderActive(shown: number) {
-    const box = $('vActive'), on = hasActive(viewState(), focus);
+  function renderActive(shown?: number) {
+    const box = $('vActive');
+    // the calendar only knows the channel (its other filters belong to the list); the builder has none of them
+    const st = mode === 'calendar' ? { ...NO_VIEW, channel: channelF } : viewState(), fc = mode === 'calendar' ? '' : focus, on = hasActive(st, fc);
     box.hidden = !on || mode === 'build';
-    if (!on) return;
-    (box.firstElementChild as HTMLElement).textContent = `${shown.toLocaleString('en-US')} of ${inFormat(videos, format).length.toLocaleString('en-US')} shown · ${activeLine(viewState(), viewCtx(), focus)}`;
+    if (box.hidden) return;
+    const total = mode === 'calendar' ? '' : `${(shown ?? rowsFor(videos, viewState(), viewCtx()).length).toLocaleString('en-US')} of ${inFormat(videos, format).length.toLocaleString('en-US')} shown · `;
+    (box.firstElementChild as HTMLElement).textContent = `${total}${activeLine(st, viewCtx(), fc)}`;
   }
   /** the channel strip: one line for the chosen channel (or all), and a card per channel to compare them; a click on a card filters to it */
+  let stripSet = false;
   function renderChannels() {
     const box = $<HTMLDetailsElement>('vChannels'), cards = $('vCards');
+    if (!stripSet) { // open on a wide screen, closed on a phone (the summary line stays); what you choose is remembered
+      stripSet = true; box.open = secOpen('vchannels', wide());
+      box.querySelector('summary')!.addEventListener('click', () => setTimeout(() => { try { localStorage.setItem('studio.sec.vchannels', box.open ? '1' : '0'); } catch { /* not remembered */ } }, 0)); // only YOUR click counts as a choice
+    }
     const { choices } = channelChoices(videos, knownChannels(), viewState(), viewCtx());
     box.hidden = mode === 'build' || !loaded || choices.length < 2;
     if (box.hidden) return;
@@ -251,6 +311,12 @@ export function initVideos(deps: VideosDeps) {
       b.onclick = () => { channelF = on ? '' : f.key; render(); if (mode === 'calendar') calendar.render(); };
       cards.append(b);
     }
+    for (const c of choices.filter(c => c.kind === 'manual' && !videos.some(v => v.channel === c.name))) { // a channel added by hand that no video carries can be taken off the list again
+      const r = el('button', { type: 'button', className: 'link vremove', title: 'Take it off the list (no video carries it)' }, `Remove ${c.name} (no videos)`) as HTMLButtonElement;
+      r.onclick = async () => { try { await call('/api/channels/manual/remove', send('POST', { name: c.name })); await refresh(); } catch (e) { banner((e as Error).message); } };
+      cards.append(r);
+    }
+    cards.append(Object.assign(el('button', { type: 'button', className: 'link vaddchan' }, '+ Add a channel by hand…'), { onclick: () => { void addChannelByHand(); } }));
   }
   /** renders in output/ that are not in the list: say how many, ask before adding, add exactly the files that were counted */
   function renderBanner() {
@@ -282,12 +348,14 @@ export function initVideos(deps: VideosDeps) {
   // several videos at once: every video the list shows now (same filters), after a confirmation that names the channel
   $('vChanAll').onclick = async () => {
     ($('vExport') as HTMLDetailsElement).open = false;
-    const conns = ytState()?.connections ?? [];
-    if (conns.length < 2) { banner('Only one channel is connected. Connect another one in YouTube settings first.'); return; }
+    const conns = ytState()?.connections ?? [], byHand = manual.filter(m => !conns.some(c => c.name === m));
+    const choices = [...conns.map(c => ({ name: c.name, body: { channelId: c.id } })), ...byHand.map(m => ({ name: m, body: { channelName: m } }))];
+    if (choices.length < 2) { banner('Only one channel is known. Connect another in YouTube settings, or add one by hand (More → Add a channel by hand).'); return; }
     const shown = [...$('vList').querySelectorAll<HTMLElement>('.vrow')].map(r => r.dataset.id!).filter(Boolean);
-    const pick = prompt(`Put the ${shown.length} videos shown on which channel? Type its number:\n${conns.map((c, i) => `${i + 1}. ${c.name}`).join('\n')}\n\nScheduled, published or uploaded videos keep their channel.`);
-    const c = conns[Number(pick) - 1]; if (!c) return;
-    try { const r = await call<{ changed: number; skipped: unknown[] }>('/api/videos/channel', send('PUT', { ids: shown, channelId: c.id })); banner(`${r.changed} video${r.changed === 1 ? '' : 's'} now for ${c.name}${r.skipped.length ? `; ${r.skipped.length} kept their channel` : ''}.`); await refresh(); }
+    const pick = prompt(`Put the ${shown.length} videos shown on which channel? Type its number:\n${choices.map((c, i) => `${i + 1}. ${c.name}`).join('\n')}\n\nScheduled, published or uploaded videos keep their channel.`);
+    const c = choices[Number(pick) - 1]; if (!c) return;
+    if (!confirm(`Put ${shown.length} video${shown.length === 1 ? '' : 's'} on ${c.name}?`)) return;
+    try { const r = await call<{ changed: number; skipped: unknown[] }>('/api/videos/channel', send('PUT', { ids: shown, ...c.body })); banner(`${r.changed} video${r.changed === 1 ? '' : 's'} now for ${c.name}${r.skipped.length ? `; ${r.skipped.length} kept their channel` : ''}.`); await refresh(); }
     catch (e) { banner((e as Error).message); }
   };
   $('vData').onclick = async () => { try { await call('/api/videos/reveal-data', send('POST')); } catch (e) { banner((e as Error).message); } };
@@ -333,7 +401,8 @@ export function initVideos(deps: VideosDeps) {
   function renderList() {
     const box = $('vList'), inF = inFormat(videos, format);
     const list = sortVideos(rowsFor(videos, viewState(), viewCtx()), sortBy, reverse);
-    box.replaceChildren(); renderNeeds(); renderActive(list.length); if (loaded) saveView(store, viewState());
+    for (const id of [...picked]) if (!list.some(v => v.id === id)) picked.delete(id); // a selection only ever holds videos that are shown
+    box.replaceChildren(); renderNeeds(); renderActive(list.length); renderBulk(list); if (loaded) saveView(store, viewState());
     if (!loaded) { box.append(el('p', { className: 'empty' }, 'Loading videos…')); return; }
     const toBuild = () => { const b = el('button', { type: 'button', className: 'primary vshortcut', title: 'Join Shorts into a long 16:9 video' }, 'Build long video →'); b.onclick = () => setMode('build'); return b; };
     if (!videos.length) {
@@ -361,7 +430,11 @@ export function initVideos(deps: VideosDeps) {
         el('span', { className: 'vm' }, `${v.kind === 'long' ? `Long video · ${(v.durationSec / 60).toFixed(1)} min` : `${sceneName(v.sceneId)} · ${styleName(v.style)}`} · ${when}${v.status !== 'draft' && !v.fileExists && v.file ? ' · MP4 missing' : ''}`));
       row.setAttribute('role', 'listitem'); row.dataset.id = v.id;
       row.onclick = async () => { await flush(); selected = v.id; view.dataset.step = 'detail'; renderList(); renderDetail(); $('vList').querySelector<HTMLElement>('.vrow.on')?.focus({ preventScroll: true }); };
-      box.append(row);
+      if (selecting) { // a checkbox next to the row (a button cannot hold one): the row itself still opens the video
+        const cb = el('input', { type: 'checkbox', checked: picked.has(v.id) }) as HTMLInputElement; cb.setAttribute('aria-label', `Select: ${v.title || '(no title)'}`);
+        cb.onchange = () => { if (cb.checked) picked.add(v.id); else picked.delete(v.id); renderBulk(list); };
+        row.removeAttribute('role'); box.append(el('div', { className: 'vsel', role: 'listitem' }, cb, row));
+      } else box.append(row);
     }
     // one tab stop for the whole list (the open video, or the first); the arrow keys move between rows
     const rows = [...box.querySelectorAll<HTMLElement>('.vrow')], stop = rows.find(r => r.classList.contains('on')) ?? rows[0];
@@ -370,7 +443,8 @@ export function initVideos(deps: VideosDeps) {
   $('vList').addEventListener('keydown', (e) => {
     const k = (e as KeyboardEvent).key; if (k !== 'ArrowDown' && k !== 'ArrowUp' && k !== 'Home' && k !== 'End') return;
     const rows = [...$('vList').querySelectorAll<HTMLElement>('.vrow')]; if (!rows.length) return;
-    const at = rows.indexOf(document.activeElement as HTMLElement), to = k === 'Home' ? 0 : k === 'End' ? rows.length - 1 : Math.max(0, Math.min(rows.length - 1, (at < 0 ? 0 : at) + (k === 'ArrowDown' ? 1 : -1)));
+    const cur = ((document.activeElement as HTMLElement).closest('.vsel')?.querySelector('.vrow') ?? document.activeElement) as HTMLElement; // a checkbox counts as its row
+    const at = rows.indexOf(cur), to = k === 'Home' ? 0 : k === 'End' ? rows.length - 1 : Math.max(0, Math.min(rows.length - 1, (at < 0 ? 0 : at) + (k === 'ArrowDown' ? 1 : -1)));
     e.preventDefault(); rows.forEach(r => r.tabIndex = -1); rows[to].tabIndex = 0; rows[to].focus();
   });
 
