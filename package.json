@@ -18,6 +18,7 @@
     "render": "node apps/server/cli-render.ts",
     "batch:plan": "node tools/batch-plan.ts",
     "batch:run": "node tools/batch-run.ts",
+    "schedule:plan": "node tools/schedule-plan.ts",
     "test": "node --test tests/*.test.ts",
     "typecheck": "tsc --noEmit"
   },

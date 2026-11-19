@@ -11,6 +11,7 @@ import { coverText, COVER_TEXT_MAX } from '../../packages/publish/cover.ts';
 import { getTheme } from '../../packages/theme/index.ts';
 import { friendlyError, fmtSize, needsCounts, firstNeeding, uploadFailed, uploadRunning, uploadWaiting } from './ux.ts';
 import { icon } from './icons.ts';
+import { initCalendar } from './calendar-ui.ts';
 import { youtubePanel, openYoutubeSettings, loadYt, ytState } from './youtube-ui.ts';
 import type { SceneModule } from '../../packages/core/index.ts';
 
@@ -50,7 +51,7 @@ export function initVideos(deps: VideosDeps) {
       if (r.notice) banner(r.notice.text);
       await loadYt();
     } catch (e) { banner((e as Error).message); }
-    badge(); if (!view.hidden) render();
+    badge(); if (!view.hidden) { render(); if (view.dataset.mode === 'calendar') void calendar.show(); }
     watchUpload();
   }
   /** while an upload runs: update its progress every second; reload the list when a step changes */
@@ -101,6 +102,15 @@ export function initVideos(deps: VideosDeps) {
   }
   addEventListener('pagehide', () => { void flush(); });
   function setSaveState(t: string, bad = false) { const s = document.getElementById('vSaved'); if (s) { s.textContent = t; s.className = 'msg' + (bad ? ' bad' : ''); } }
+
+  // ---------- list / calendar ----------
+  const calendar = initCalendar({ host: $('vCal'), videos: () => videos, sceneName, open: async (id) => { setMode('list'); await flush(); selected = id; view.dataset.step = 'detail'; render(); } });
+  function setMode(m: 'list' | 'calendar') {
+    view.dataset.mode = m; $('vCal').hidden = m !== 'calendar'; document.querySelector<HTMLElement>('#vview .vbody')!.hidden = m === 'calendar';
+    $('vModeList').setAttribute('aria-pressed', String(m === 'list')); $('vModeCal').setAttribute('aria-pressed', String(m === 'calendar'));
+    $('vChips').hidden = $('vSearch').hidden = m === 'calendar'; if (m === 'calendar') void calendar.show();
+  }
+  $('vModeList').onclick = () => setMode('list'); $('vModeCal').onclick = () => setMode('calendar');
 
   // ---------- show / hide ----------
   function show(id?: string) {

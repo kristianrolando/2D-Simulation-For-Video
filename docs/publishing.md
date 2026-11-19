@@ -116,3 +116,12 @@ studio never does this by itself.
 - YouTube's rules for custom thumbnails (channel verification) and for how Shorts show covers can change; the layout keeps
   clear of the areas YouTube covers *today* (approximate, from `branding/`).
 - Indonesian suggestions keep the older single-style writer; the five-style writer is English only, as requested.
+
+## Upload schedule calendar
+
+Videos → **Calendar** shows the YouTube upload schedule as a month grid (Monday first, times in WIB, UTC+7). It reads `data/schedule.json`
+(made by `npm run schedule:plan -- --write`) through `GET /api/schedule` and merges it with the studio's own video records, so a slot shows
+what really happened: **Planned** (dashed), **Scheduled on YouTube**, **Published**, **Uploading**, **Waiting for quota**, **Upload failed**.
+Click a day for its list; click a video to open it in the Videos list. On a phone the cells show a count and the day list carries the titles.
+The view is read only: it never uploads or changes anything. It needs a studio started after this change (`codeStale: true` = restart when idle).
+Code: `packages/publish/calendar.ts` (pure), `apps/studio/calendar-ui.ts`; tests `tests/calendar.test.ts`.

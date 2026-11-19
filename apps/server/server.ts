@@ -499,6 +499,11 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     if (videos.list().some(v => v.status === 'scheduled' && v.youtube?.videoId)) syncSoon();
     json(res, 200, { videos: videos.list().map(videoView), notice: videos.takeNotice(), untracked: untrackedRenders().length, dataDir: path.relative(ROOT, DATA) || '.', readOnly: videos.readOnly, readOnlyReason: videos.readOnlyReason, settings: videos.settings() }); return true;
   }
+  // the upload plan (data/schedule.json, written by tools/schedule-plan.ts), read only: the calendar view shows it next to the studio's own records
+  if (p === '/api/schedule' && req.method === 'GET') {
+    let plan: unknown = null; try { plan = JSON.parse(fs.readFileSync(path.join(DATA, 'schedule.json'), 'utf8')); } catch { /* no plan yet, or unreadable: the calendar then shows only what the studio knows */ }
+    json(res, 200, { plan }); return true;
+  }
   if (p === '/api/videos/export' && req.method === 'GET') {
     const csv = url.searchParams.get('format') !== 'json', day = new Date().toISOString().slice(0, 10);
     res.writeHead(200, { 'content-type': csv ? 'text/csv; charset=utf-8' : 'application/json', 'content-disposition': `attachment; filename="videos-${day}.${csv ? 'csv' : 'json'}"` });

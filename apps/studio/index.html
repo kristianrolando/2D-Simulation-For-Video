@@ -111,6 +111,10 @@
     <header class="vtop">
       <button id="vBack" type="button" class="link"><span class="ico-slot" data-icon="back"></span> Studio</button>
       <h1>Videos</h1>
+      <div id="vMode" class="seg" role="group" aria-label="Show videos as">
+        <button id="vModeList" type="button" aria-pressed="true">List</button>
+        <button id="vModeCal" type="button" aria-pressed="false" title="Upload schedule as a calendar">Calendar</button>
+      </div>
       <div id="vChips" class="chips" role="group" aria-label="Filter by status"></div>
       <input id="vSearch" type="search" placeholder="Search videos…" aria-label="Search videos" autocomplete="off" spellcheck="false">
       <label class="sel" title="Language of the suggested title, description and tags (interface stays English)">Suggestions <select id="vLang"><option value="en">English</option><option value="id">Indonesian</option></select></label>
@@ -126,6 +130,7 @@
     <div id="vReadOnly" class="vnotice ro" role="status" hidden><span></span></div>
     <div id="vUntracked" class="vnotice info" role="status" hidden><span></span> <button type="button" class="primary"></button></div>
     <div id="vNotice" class="vnotice" role="status" hidden><span></span> <button type="button" class="link">Dismiss</button></div>
+    <div id="vCal" class="vcal" hidden></div>
     <div class="vbody">
       <div class="vcol">
         <div id="vNeeds" class="needs" role="status" hidden></div>
