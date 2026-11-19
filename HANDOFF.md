@@ -124,7 +124,9 @@ Pilihan perintah: `npm run dev` untuk merender/mengunggah, `npm run dev:watch` h
 - Cadangan sebelum render: `data/videos.pre-plasma.json` (salinan penuh, di luar rotasi 50 cadangan store) dan `data/batch-plasma/photon-videos.snapshot.json` (sha256 tiap record yang ada: 264). Data `data/batch/` (Photon) tidak disentuh.
 - Perkiraan: 245 video ≈ 78 menit satu per satu (rata-rata Photon per pasangan), ≈ 7,4 GB; disk bebas 229 GB.
 - Syarat sebelum render: channel AKTIF studio = Plasma Pendulum (pemilik yang mengatur atau menyetujui di chat); video baru otomatis bertanda channel + channelId aktif. Setelah selesai: kembalikan channel aktif ke Photon Lab bila unggah Photon dari studio dilanjutkan.
-- Tahap berikutnya: uji `--limit 10`, lembar kontak, persetujuan pemilik, lalu render per 50.
+- 2026-11-20 ~00:20: channel aktif studio terbaca sudah Plasma Pendulum (tidak perlu diubah; pemilik menyetujui pengaturan di chat). Uji kecil: `node tools/batch-run.ts --dir data/batch-plasma --limit 10` (latar, log `data/batch-plasma/run.log`), keluaran di `output/`.
+- Uji kecil SELESAI 2026-11-20 00:35: 10/10 done, 0 gagal, rata-rata 22 dtk; semua `channel` = Plasma Pendulum + `channelId` UCeQFzt0… (benar), status rendered, 1080×1920@60, 23,6–53,5 dtk; cover 1080×1920 dibuat lewat API studio untuk 10 itu. Lembar kontak dari video nyata: `data/batch-plasma/test10-contactsheet.png`, `test10-covers.png`. Catatan: judul publikasi penulis studio untuk pasangan galton `p≠0,5` berbunyi "bell curve" padahal papan miring (juga di Photon); diperbaiki di langkah judul. Menunggu persetujuan pemilik untuk render massal (per 50).
+- Tahap berikutnya: render massal, lembar kontak, persetujuan pemilik, lalu render per 50.
 
 ## Evidence
 - 2026-11-19 08:46: `npm run typecheck` lulus; `npm test` 223 lulus, 0 gagal (tes baru: job-queue +1, batch-run 5, youtube +4 untuk kuota, housekeeping 6, dev-watch 1, ux +1). Semua tanpa jaringan nyata, tanpa kredit, tanpa unggahan.
