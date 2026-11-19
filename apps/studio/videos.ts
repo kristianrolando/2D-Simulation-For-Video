@@ -15,7 +15,7 @@ import { initCalendar } from './calendar-ui.ts';
 import { initCompile, longDetail } from './compile-ui.ts';
 import {
   FORMATS, FORMAT_LABEL, FORMAT_HINT, SORTS, SORT_LABEL, NO_FILTERS, formatCounts, formatOf, inFormat, statusCountsIn, parseHash, formatHash, writeFormat, startNav, browserStore, readSort,
-  bannerVisible, bannerText, addConfirmText, dismissBanner, readDismissed, sortVideos, filterBy, optionsOf, hasFilters, type Format, type Mode, type Sort,
+  bannerVisible, bannerText, addConfirmText, dismissBanner, readDismissed, sortVideos, filterBy, optionsOf, hasFilters, channelOf, channelsOf, filterChannel, type Format, type Mode, type Sort,
 } from './videos-nav.ts';
 import { toCsv } from '../../packages/publish/index.ts';
 import './videos-nav.css';
@@ -47,7 +47,7 @@ export function initVideos(deps: VideosDeps) {
   let videos: VideoView[] = [], selected = '', status: Status | 'all' = 'all', focus: '' | 'failed' | 'uploading' = '', query = '', untracked = 0, dataDir = 'data', loaded = false, readOnly = false, readOnlyReason = '', lang: 'en' | 'id' = 'en';
   // what the page is showing: the format (All / Shorts / Long), the view, and the extra filters; the format is remembered and is in the address
   const store = browserStore(), first = startNav(location.hash, store);
-  let format: Format = first.format, mode: Mode = first.mode, sceneF = '', styleF = '', sortBy: Sort = readSort(store), untrackedFiles: string[] = [];
+  let format: Format = first.format, mode: Mode = first.mode, sceneF = '', styleF = '', channelF = '', sortBy: Sort = readSort(store), untrackedFiles: string[] = [];
   const sceneName = (id: string) => id === 'compilation' ? 'Long video' : deps.scenes.find(s => s.meta.id === id)?.meta.name ?? id;
   const styleName = (id: string) => getTheme(id).name;
   const autoTried = new Set<string>(); // videos whose cover was already tried (or that were opened for you, so nothing is made behind your back)
@@ -130,7 +130,7 @@ export function initVideos(deps: VideosDeps) {
     format = f; writeFormat(store, f);
     if (mode === 'build') setMode('list', false); // the builder has no format: picking one takes you back to the videos
     if (selected && !inFormat(videos, f).some(v => v.id === selected)) selected = '';
-    sceneF = styleF = ''; render(); if (mode === 'calendar') calendar.render(); if (push) syncHash();
+    sceneF = styleF = channelF = ''; render(); if (mode === 'calendar') calendar.render(); if (push) syncHash();
   }
   $('vModeList').onclick = () => setMode('list'); $('vModeCal').onclick = () => setMode('calendar'); $('vModeCompile').onclick = () => setMode('build');
   /** the address changed (a link, the back button, the menu bar app): follow it */
@@ -191,22 +191,26 @@ export function initVideos(deps: VideosDeps) {
     }
   }
   /** the menus of the toolbar: only simulations and styles that exist in this format; none for long videos (they have no simulation or style) */
-  const sceneSel = $<HTMLSelectElement>('vScene'), styleSel = $<HTMLSelectElement>('vStyle'), sortSel = $<HTMLSelectElement>('vSort');
+  const channelSel = $<HTMLSelectElement>('vChannel'), sceneSel = $<HTMLSelectElement>('vScene'), styleSel = $<HTMLSelectElement>('vStyle'), sortSel = $<HTMLSelectElement>('vSort');
   function renderToolbar() {
     const o = optionsOf(inFormat(videos, format)), long = format === 'long';
     if (!o.scenes.includes(sceneF)) sceneF = ''; if (!o.styles.includes(styleF)) styleF = '';
     const fill = (sel: HTMLSelectElement, all: string, items: [string, string][], val: string) => { sel.replaceChildren(el('option', { value: '' }, all), ...items.map(([v, t]) => el('option', { value: v }, t))); sel.value = val; };
     fill(sceneSel, 'All simulations', o.scenes.map(id => [id, sceneName(id)]), sceneF); fill(styleSel, 'All styles', o.styles.map(id => [id, styleName(id)]), styleF);
     sceneSel.hidden = styleSel.hidden = long;
+    // the channel menu exists only once videos of more than one channel exist, so nothing changes for a single-channel studio
+    const chs = channelsOf(videos); if (!chs.includes(channelF)) channelF = '';
+    channelSel.hidden = chs.length < 2; fill(channelSel, 'All channels', chs.map(c => [c, c]), channelF);
     sortSel.replaceChildren(...SORTS.map(k => el('option', { value: k }, SORT_LABEL[k]))); sortSel.value = sortBy;
     $('vCsv').textContent = `Spreadsheet (CSV): ${FORMAT_LABEL[format].toLowerCase()}`;
   }
+  channelSel.onchange = () => { channelF = channelSel.value; render(); };
   sceneSel.onchange = () => { sceneF = sceneSel.value; renderList(); }; styleSel.onchange = () => { styleF = styleSel.value; renderList(); };
   sortSel.onchange = () => { sortBy = sortSel.value as Sort; store.set('studio.vsort', sortBy); renderList(); };
   const searchBox = $<HTMLInputElement>('vSearch');
   searchBox.oninput = () => { query = searchBox.value; renderList(); };
   searchBox.onkeydown = (e) => { if (e.key === 'Escape' && searchBox.value) { e.stopPropagation(); searchBox.value = query = ''; renderList(); } };
-  const clearFilters = () => { status = 'all'; focus = ''; query = ''; sceneF = styleF = ''; searchBox.value = ''; render(); };
+  const clearFilters = () => { status = 'all'; focus = ''; query = ''; sceneF = styleF = channelF = ''; searchBox.value = ''; render(); };
   const impBtn = $('vAddAll') as HTMLButtonElement;
   /** renders in output/ that are not in the list: say how many, ask before adding, add exactly the files that were counted */
   function renderBanner() {
@@ -271,9 +275,11 @@ export function initVideos(deps: VideosDeps) {
     box.hidden = box.childElementCount === 0;
     if (!box.hidden) box.prepend(el('span', {}, 'Needs you:'));
   }
+  /** small neutral tag with the channel name; the full name is the tooltip (long names are cut by CSS) */
+  const channelBadge = (name: string) => el('span', { className: 'vbadge ch', title: `Channel: ${name}` }, name);
   function renderList() {
     const box = $('vList'), inF = inFormat(videos, format);
-    let list = sortVideos(filterBy(filterVideos(inF, { status, query }, { scene: sceneName, style: styleName }), { scene: sceneF, style: styleF }), sortBy);
+    let list = sortVideos(filterBy(filterVideos(filterChannel(inF, channelF), { status, query }, { scene: sceneName, style: styleName }), { scene: sceneF, style: styleF }), sortBy);
     if (focus === 'failed') list = list.filter(uploadFailed); else if (focus === 'uploading') list = list.filter(uploadRunning);
     box.replaceChildren(); renderNeeds();
     if (!loaded) { box.append(el('p', { className: 'empty' }, 'Loading videos…')); return; }
@@ -289,12 +295,13 @@ export function initVideos(deps: VideosDeps) {
       return;
     }
     if (format === 'long') box.append(el('div', { className: 'vshortrow' }, toBuild()));
-    if (!list.length) { box.append(el('div', { className: 'empty' }, el('p', {}, 'Nothing matches these filters.'), hasFilters({ ...NO_FILTERS, status, query, scene: sceneF, style: styleF, focus }) ? (() => { const b = el('button', { type: 'button', className: 'primary' }, 'Clear filters'); b.onclick = clearFilters; return b; })() : '')); return; }
+    if (!list.length) { box.append(el('div', { className: 'empty' }, el('p', {}, 'Nothing matches these filters.'), hasFilters({ ...NO_FILTERS, status, query, scene: sceneF, style: styleF, focus, channel: channelF }) ? (() => { const b = el('button', { type: 'button', className: 'primary' }, 'Clear filters'); b.onclick = clearFilters; return b; })() : '')); return; }
     for (const v of list) {
       const badges = el('span', { className: 'vbs' });
       const bd = (cls: string, ic: string, text: string) => { const b = el('span', { className: 'vbadge ' + cls }); b.innerHTML = icon(ic, 12); b.append(text); badges.append(b); };
       bd('s-' + v.status, v.status === 'draft' ? 'draft' : v.status === 'rendered' ? 'rendered' : v.status === 'scheduled' ? 'calendar' : 'published', STATUS_LABEL[v.status]);
       if (v.kind === 'long') bd('s-long', 'rendered', 'Long');
+      badges.append(channelBadge(channelOf(v)));
       if (uploadFailed(v)) bd('up-failed', 'warn', 'Upload failed'); else if (uploadRunning(v)) bd('up-running', 'upload', uploadWaiting(v) ? 'Waiting for quota' : 'Uploading');
       const when = v.status === 'published' && v.publishedAt ? `published ${v.publishedAt}` : v.status === 'scheduled' && v.scheduledAt ? `for ${v.scheduledAt.replace('T', ' ')}` : fmtDate(v.createdAt);
       const row = el('button', { type: 'button', className: 'vrow' + (v.id === selected ? ' on' : '') },
@@ -395,7 +402,7 @@ export function initVideos(deps: VideosDeps) {
     if (v.kind === 'long') { longDetail(v, box, { patch, openCompile: () => setMode('build'), statusBar: stat, note: nextStep(v) }); return; } // a long video: facts, texts to copy and the owner's own tracking; the texts are edited on the Compile page
     box.append(el('div', { className: 'vhead' },
       el('div', {}, el('h2', {}, `${sceneName(v.sceneId)} · ${styleName(v.style)}`),
-        el('p', { className: 'msg' }, `Shorts · 1080×1920 · 60 fps${v.durationSec ? ` · ${v.durationSec.toFixed(1)} s` : ''}${v.sizeBytes ? ' · ' + fmtSize(v.sizeBytes) : ''} · created ${fmtDate(v.createdAt)}`)),
+        el('p', { className: 'msg' }, channelBadge(channelOf(v)), ` Shorts · 1080×1920 · 60 fps${v.durationSec ? ` · ${v.durationSec.toFixed(1)} s` : ''}${v.sizeBytes ? ' · ' + fmtSize(v.sizeBytes) : ''} · created ${fmtDate(v.createdAt)}`)),
       copyBtn('Copy title, description and tags', () => copyAll(current()!), 'primary')),
       stat, el('p', { className: 'next', id: 'vNext' }, nextStep(v)));
 

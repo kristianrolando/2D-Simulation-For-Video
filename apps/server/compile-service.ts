@@ -27,6 +27,8 @@ export interface CompileDeps {
   json: Json; readBody: (req: http.IncomingMessage) => Promise<any>;
   /** how the server refuses writes while another studio owns the data folder */
   readOnlyError: (reason: string) => Error;
+  /** the channel a NEW long video entry is made for (existing entries keep theirs) */
+  channel?: () => string;
 }
 const ID = /^c-[\w.-]+$/;
 
@@ -51,7 +53,7 @@ export function createCompileService(d: CompileDeps) {
       if (c.status !== 'built' || !c.file || !fs.existsSync(path.join(d.out, c.file))) continue;
       const v = d.videos.mutate(vs => {
         const i = vs.findIndex(x => x.compilationId === c.id);
-        const next = videoFor(c, i >= 0 ? vs[i] : undefined);
+        const next = videoFor(c, i >= 0 ? vs[i] : undefined, new Date(), d.channel?.());
         if (i >= 0) vs[i] = next; else vs.push(next);
         return { videos: vs, result: next };
       });

@@ -125,3 +125,6 @@ what really happened: **Planned** (dashed), **Scheduled on YouTube**, **Publishe
 Click a day for its list; click a video to open it in the Videos list. On a phone the cells show a count and the day list carries the titles.
 The view is read only: it never uploads or changes anything. It needs a studio started after this change (`codeStale: true` = restart when idle).
 Code: `packages/publish/calendar.ts` (pure), `apps/studio/calendar-ui.ts`; tests `tests/calendar.test.ts`.
+
+## Channel on every video
+Each record has a `channel` (display name). Lists from before this field read as **Photon Lab**; the first studio start that can write adds it to `data/videos.json` once (the old file is copied to `data/backups/` first; `schemaVersion` stays 1; nothing else changes). A new video gets the name of the connected YouTube channel, else Photon Lab. The Videos page shows a small channel badge on each row and in the detail, and a **All channels** menu only when videos of 2+ channels exist (the status chips count all channels). The field is not editable from the page; uploads and the schedule are untouched. Tests: `tests/channel.test.ts`.

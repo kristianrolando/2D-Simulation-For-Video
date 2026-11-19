@@ -1,7 +1,7 @@
 // Navigation of the Videos page, pure (no DOM): the Shorts / Long format, the address (#videos/long/build), what is remembered,
 // the "renders not in the list" banner and its dismissal, sorting and the scene/style filter. Unit-tested in Node (tests/videos-nav.test.ts).
 // UI only: it reads the video list and never changes a video, a schedule or a status.
-import { statusCounts, type Video } from '../../packages/publish/index.ts';
+import { statusCounts, DEFAULT_CHANNEL, type Video } from '../../packages/publish/index.ts';
 import { hash8 } from '../../packages/compile/index.ts';
 
 export type Format = 'all' | 'shorts' | 'long';
@@ -82,9 +82,14 @@ export function sortVideos<T extends Video>(vs: T[], by: Sort): T[] {
   if (by === 'schedule') return out.sort((a, b) => { const x = when(a), y = when(b); return x && y ? x.localeCompare(y) || newest(a, b) : x ? -1 : y ? 1 : newest(a, b); });
   return out.sort(newest);
 }
-export interface Filters { status: string; query: string; scene: string; style: string; focus: string }
-export const NO_FILTERS: Filters = { status: 'all', query: '', scene: '', style: '', focus: '' };
-export const hasFilters = (f: Filters) => f.status !== 'all' || f.query.trim() !== '' || f.scene !== '' || f.style !== '' || f.focus !== '';
+export interface Filters { status: string; query: string; scene: string; style: string; focus: string; channel?: string }
+export const NO_FILTERS: Filters = { status: 'all', query: '', scene: '', style: '', focus: '', channel: '' };
+export const hasFilters = (f: Filters) => f.status !== 'all' || f.query.trim() !== '' || f.scene !== '' || f.style !== '' || f.focus !== '' || !!f.channel;
+/** which channel a record belongs to; lists from before channels were recorded read as the default channel */
+export const channelOf = (v: { channel?: string }) => v.channel?.trim() || DEFAULT_CHANNEL;
+/** the channels present in a list (sorted). The page shows the channel filter only when this has more than one entry. */
+export const channelsOf = (vs: { channel?: string }[]): string[] => [...new Set(vs.map(channelOf))].sort((a, b) => a.localeCompare(b));
+export const filterChannel = <T extends { channel?: string }>(vs: T[], channel: string): T[] => (channel ? vs.filter(v => channelOf(v) === channel) : vs);
 export const filterBy = <T extends Pick<Video, 'sceneId' | 'style'>>(vs: T[], f: Pick<Filters, 'scene' | 'style'>): T[] => vs.filter(v => (!f.scene || v.sceneId === f.scene) && (!f.style || v.style === f.style));
 /** the scenes and styles that exist in a list, for the two filter menus */
 export const optionsOf = (vs: Pick<Video, 'sceneId' | 'style'>[]) => ({ scenes: [...new Set(vs.map(v => v.sceneId))].sort(), styles: [...new Set(vs.map(v => v.style))].sort() });

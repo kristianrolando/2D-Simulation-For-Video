@@ -22,7 +22,7 @@ export class ReadOnlyError extends Error { constructor(msg: string) { super(msg)
 const MIGRATIONS: Record<number, (raw: Record<string, unknown>) => Record<string, unknown>> = {};
 
 export type ReadResult =
-  | { ok: true; store: VideoStore; skipped: number }
+  | { ok: true; store: VideoStore; skipped: number; /** some record lacked a field this version writes (e.g. channel), so the file should be rewritten once */ migrated: boolean }
   | { ok: false; reason: 'missing' | 'unreadable' | 'newer'; detail: string };
 
 const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace('T', '-').replace('Z', '').replace('.', '-'); // 20261118-094412-123
@@ -37,8 +37,9 @@ export function parseStore(text: string, now: string = new Date().toISOString())
   if (v > SCHEMA_VERSION) return { ok: false, reason: 'newer', detail: `schema ${v} is newer than this studio understands (${SCHEMA_VERSION})` };
   for (let k = v; k < SCHEMA_VERSION; k++) { const m = MIGRATIONS[k]; if (m) obj = m(obj); }
   if (!Array.isArray(obj.videos)) return { ok: false, reason: 'unreadable', detail: 'no "videos" list' };
-  const seen = new Set<string>(); const videos: Video[] = []; let skipped = 0;
+  const seen = new Set<string>(); const videos: Video[] = []; let skipped = 0, migrated = false;
   for (const r of obj.videos) {
+    if (typeof r === 'object' && r !== null && typeof (r as Record<string, unknown>).channel !== 'string') migrated = true;
     const s = sanitizeVideo(r, now);
     if (!s) { skipped++; continue; }
     if (seen.has(s.id)) s.id = newId();
@@ -46,7 +47,7 @@ export function parseStore(text: string, now: string = new Date().toISOString())
   }
   const st = obj.settings as Record<string, unknown> | undefined;
   const settings = st && typeof st === 'object' && isLang(st.suggestLang) ? { suggestLang: st.suggestLang } : {};
-  return { ok: true, skipped, store: { schemaVersion: SCHEMA_VERSION, savedAt: typeof obj.savedAt === 'string' ? obj.savedAt : now, videos, settings } };
+  return { ok: true, skipped, migrated, store: { schemaVersion: SCHEMA_VERSION, savedAt: typeof obj.savedAt === 'string' ? obj.savedAt : now, videos, settings } };
 }
 
 export function openStore(dir: string, opts: StoreOptions = {}) {
@@ -137,6 +138,8 @@ export function openStore(dir: string, opts: StoreOptions = {}) {
       const r = parseStore(text, nowFn().toISOString());
       if (r.ok) {
         state = r.store;
+        // one-time upgrade: old records get `channel` written to disk (the current file is backed up first); nothing else changes
+        if (r.migrated && !r.skipped && canWrite()) try { save({ ...state, savedAt: state.savedAt }); } catch { /* the list is still right in memory; the next save writes it */ }
         if (r.skipped) notice = { level: 'warn', text: `${r.skipped} entr${r.skipped === 1 ? 'y' : 'ies'} in the video list could not be read and ${r.skipped === 1 ? 'was' : 'were'} skipped. The original file is in the data/ folder's backups.` };
         return state;
       }

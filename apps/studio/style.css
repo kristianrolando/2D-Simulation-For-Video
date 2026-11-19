@@ -321,6 +321,7 @@ button.icon .ico-slot { vertical-align: 0; }
 /* Videos: status badges, what needs you, folding sections */
 .vbadge { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); font-weight: 700; padding: 0 7px; border-radius: 999px; border: 1px solid currentColor; color: var(--st-draft); white-space: nowrap; line-height: 1.6; }
 .vbadge.s-rendered { color: var(--st-rendered); } .vbadge.s-scheduled { color: var(--st-scheduled); } .vbadge.s-published { color: var(--st-published); }
+.vbadge.ch { color: var(--muted); max-width: 14em; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
 .vbadge.up-failed { color: var(--bad); } .vbadge.up-running { color: var(--cyan); }
 .vrow { grid-template-columns: 1fr auto; }
 .vrow .vt { grid-column: 1; } .vrow .vbs { grid-column: 2; grid-row: 1; display: flex; gap: 4px; align-items: center; } .vrow .vm { grid-column: 1 / -1; }

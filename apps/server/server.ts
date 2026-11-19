@@ -20,7 +20,7 @@ import { openJobStore, isOurWorker, killGroup, processAlive, strayRequests, temp
 import * as yt from './youtube.ts';
 import { createUploader } from './uploader.ts';
 import { uploadProblems, consentKey, fileSig, MIN_LEAD_MIN, uploadThumbName, thumbProblem, type UploadOptions, type FileFacts } from '../../packages/publish/index.ts';
-import { patchVideo, type Video } from '../../packages/publish/index.ts';
+import { patchVideo, DEFAULT_CHANNEL, type Video } from '../../packages/publish/index.ts';
 import { newVideoFor, hookFor } from '../../packages/publish/describe.ts';
 import { climaxSecFor, coverText } from '../../packages/publish/cover.ts';
 import { makeCovers } from './cover.ts';
@@ -231,8 +231,10 @@ function enqueue(scene: NonNullable<ReturnType<typeof sceneById>>, input: Record
 // ---------------- video tracking (the render engine is untouched; this only records what the studio renders) ----------------
 /** keep tracking failures away from rendering: a full disk or a damaged list must never fail a render */
 const safely = (what: string, fn: () => void) => { try { fn(); } catch (e) { console.warn(`video list: could not ${what}:`, e instanceof Error ? e.message : e); } };
+/** a new video belongs to the channel the studio is connected to (name from the YouTube connection), else the default */
+const currentChannel = () => yt.channel()?.name?.trim() || DEFAULT_CHANNEL;
 function trackJobStart(j: JobRec) {
-  safely('add the new render', () => videos.mutate(vs => { const v = newVideoFor(j.sceneId, j.params, { jobId: j.id }, new Date(), videos.settings().suggestLang); return { videos: v ? [...vs, v] : vs, result: null }; }));
+  safely('add the new render', () => videos.mutate(vs => { const v = newVideoFor(j.sceneId, j.params, { jobId: j.id, channel: currentChannel() }, new Date(), videos.settings().suggestLang); return { videos: v ? [...vs, v] : vs, result: null }; }));
 }
 /** pick the best frame and draw the cover and thumbnail for one video. `t` set = that frame; unset = chosen automatically. Throws a readable error. */
 async function buildCover(id: string, o: { t?: number; text?: string; noText?: boolean } = {}): Promise<Video> {
@@ -340,7 +342,7 @@ function sendFile(req: http.IncomingMessage, res: http.ServerResponse, file: str
 const safeName = (s: string) => s.toLowerCase().replace(/[^a-z0-9-_]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
 
 // ---------------- long videos: several Shorts joined into one 16:9 video (docs/compile.md) ----------------
-compiles = createCompileService({ data: DATA, out: OUT, thumbDir: THUMB_DIR, videos, jobs: () => jobs, enqueue: enqueueCompile, stop: stopJob, lowDisk: lowDiskFor, json, readBody, readOnlyError: m => new ReadOnlyError(m) });
+compiles = createCompileService({ data: DATA, out: OUT, thumbDir: THUMB_DIR, videos, jobs: () => jobs, enqueue: enqueueCompile, stop: stopJob, lowDisk: lowDiskFor, json, readBody, readOnlyError: m => new ReadOnlyError(m), channel: currentChannel });
 
 /** newest modification time of the server-side code (apps/server and packages/publish), looked up at most every 10 s */
 const SERVER_STARTED = Date.now();
@@ -518,7 +520,7 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     const found = untrackedRenders().filter(u => !only || only.has(u.file)); let added = 0; const lang = videos.settings().suggestLang;
     videos.mutate(vs => {
       for (const u of found) {
-        const v = newVideoFor(u.sceneId, u.params, { jobId: u.id, file: u.file, sizeBytes: u.size, status: 'rendered', createdAt: new Date(u.mtimeMs).toISOString(), updatedAt: new Date(u.mtimeMs).toISOString() }, new Date(u.mtimeMs), lang);
+        const v = newVideoFor(u.sceneId, u.params, { jobId: u.id, channel: currentChannel(), file: u.file, sizeBytes: u.size, status: 'rendered', createdAt: new Date(u.mtimeMs).toISOString(), updatedAt: new Date(u.mtimeMs).toISOString() }, new Date(u.mtimeMs), lang);
         if (v && !vs.some(x => x.file === u.file)) { vs.push(v); added++; }
       }
       return { videos: vs, result: null };

@@ -83,9 +83,9 @@ export async function makeThumbnail(c: Compilation, videos: Video[], outDir: str
 }
 
 /** The Videos-list entry of a long video, created or refreshed from its record. The owner's own fields (status, dates, link, notes) are never overwritten. */
-export function videoFor(c: Compilation, existing: Video | undefined, now: Date = new Date()): Video {
+export function videoFor(c: Compilation, existing: Video | undefined, now: Date = new Date(), channel?: string): Video {
   const own = { title: c.title, description: c.description, tags: c.tags, hashtags: c.hashtags, file: c.file, durationSec: c.durationSec, sizeBytes: c.sizeBytes, thumbFile: c.thumbFile, kind: 'long' as const, compilationId: c.id };
   if (existing) return sanitizeVideo({ ...existing, ...own, updatedAt: now.toISOString() }, now.toISOString())!;
-  return sanitizeVideo({ id: newId(now), ...own, notes: '', sceneId: LONG_SCENE_ID, style: 'classic', params: {}, status: 'rendered', jobId: '', thumbSec: null, coverFile: '', coverText: '', scheduledAt: '', publishedAt: '', youtubeUrl: '', createdAt: now.toISOString(), updatedAt: now.toISOString() }, now.toISOString())!;
+  return sanitizeVideo({ id: newId(now), ...own, ...(channel ? { channel } : {}), notes: '', sceneId: LONG_SCENE_ID, style: 'classic', params: {}, status: 'rendered', jobId: '', thumbSec: null, coverFile: '', coverText: '', scheduledAt: '', publishedAt: '', youtubeUrl: '', createdAt: now.toISOString(), updatedAt: now.toISOString() }, now.toISOString())!;
 }
 export { planParts, groupOf, framesOf };

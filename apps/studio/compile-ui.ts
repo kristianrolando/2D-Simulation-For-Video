@@ -165,7 +165,7 @@ export function longDetail(v: Video & { fileExists: boolean; thumbUrl: string },
   // the same button and the same call as a Short's detail; a missing file is answered by the server and shown right under the header
   const where = el('p', { className: 'msg', role: 'status' }), reveal = el('button', { type: 'button' }, 'Show MP4 in folder');
   reveal.onclick = async () => { where.textContent = ''; where.className = 'msg'; try { await call('/api/reveal', send('POST', { file: v.file })); } catch (e) { where.textContent = (e as Error).message; where.className = 'msg bad'; } };
-  box.append(el('div', { className: 'vhead' }, el('div', {}, el('h2', {}, v.title), el('p', { className: 'msg' }, `Long video · 1920×1080 · 60 fps · ${(v.durationSec / 60).toFixed(1)} min${v.sizeBytes ? ' · ' + fmtSize(v.sizeBytes) : ''}${v.fileExists ? '' : ' · MP4 missing'}`)),
+  box.append(el('div', { className: 'vhead' }, el('div', {}, el('h2', {}, v.title), el('p', { className: 'msg' }, el('span', { className: 'vbadge ch', title: `Channel: ${v.channel || 'Photon Lab'}` }, v.channel || 'Photon Lab'), ` Long video · 1920×1080 · 60 fps · ${(v.durationSec / 60).toFixed(1)} min${v.sizeBytes ? ' · ' + fmtSize(v.sizeBytes) : ''}${v.fileExists ? '' : ' · MP4 missing'}`)),
     el('div', { className: 'row' }, open, cp('Copy title', v.title), cp('Copy description with hashtags', `${v.description}\n\n${v.hashtags.join(' ')}`), cp('Copy tags', v.tags.join(', ')), reveal)),
     where, o.statusBar, el('p', { className: 'next' }, o.note));
   if (v.thumbUrl) box.append(el('img', { src: v.thumbUrl, alt: 'Thumbnail, 1280 by 720', className: 'cmp-bigthumb' }));

@@ -6,6 +6,8 @@ import { genericTopic, type Topic } from './topics.ts';
 import type { Facts, TitleIdea } from './copywriter.ts';
 
 export const SCHEMA_VERSION = 1;
+/** the channel every video belonged to before channels were recorded; also the fallback when no YouTube channel is connected */
+export const DEFAULT_CHANNEL = 'Photon Lab';
 export const STATUSES = ['draft', 'rendered', 'scheduled', 'published'] as const;
 export type Status = typeof STATUSES[number];
 export const STATUS_LABEL: Record<Status, string> = { draft: 'Draft', rendered: 'Rendered', scheduled: 'Scheduled', published: 'Published' };
@@ -32,6 +34,8 @@ export interface Video {
   createdAt: string; updatedAt: string;
   /** set by the studio's YouTube upload only (never editable from the page); absent for videos never uploaded */
   youtube?: YoutubeState;
+  /** the YouTube channel this video is made for (a display name). Older lists have none and read as DEFAULT_CHANNEL. Not editable from the page. */
+  channel: string;
   /** 'long' = a 16:9 long video built from Shorts (the Compile page); absent for every Short, so older lists stay valid */
   kind?: 'long';
   /** the long video record (data/compilations/<id>.json) this entry tracks */
@@ -120,7 +124,7 @@ export function sanitizeVideo(raw: unknown, now: string = new Date().toISOString
     thumbSec: raw.thumbSec !== null && raw.thumbSec !== undefined && Number.isFinite(sec) && sec >= 0 ? sec : null, thumbFile: safeFile(raw.thumbFile),
     coverFile: safeFile(raw.coverFile), coverText: str(raw.coverText, 120),
     scheduledAt: dateTime(raw.scheduledAt), publishedAt: dateOnly(raw.publishedAt), youtubeUrl: str(raw.youtubeUrl, 400).trim(),
-    createdAt: created, updatedAt: isoOr(raw.updatedAt, created),
+    createdAt: created, updatedAt: isoOr(raw.updatedAt, created), channel: str(raw.channel, 120).trim() || DEFAULT_CHANNEL,
     ...(isObj(raw.youtube) ? { youtube: sanitizeYoutube(raw.youtube) } : {}),
     ...(raw.kind === 'long' ? { kind: 'long' as const, compilationId: str(raw.compilationId, 80) } : {}),
   };
