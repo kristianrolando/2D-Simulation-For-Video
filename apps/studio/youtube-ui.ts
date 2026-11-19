@@ -73,7 +73,7 @@ export function openYoutubeSettings(onChange: () => void) {
       const up = el('input', { type: 'checkbox', checked: c.uploadEnabled }) as HTMLInputElement;
       up.onchange = async () => {
         const on = up.checked;
-        if (on && !confirm(`Turn on uploads to ${who(c)}?\n\nFrom now on Upload, the schedule runner, Continue and "Set the thumbnail again" can send videos to this channel (each upload still asks for your approval). Every upload uses quota (about 1,650 units with its thumbnail) from the one daily quota all channels share.`)) { up.checked = false; return; }
+        if (on && !confirm(`Turn on uploads to ${who(c)}?\n\nFrom now on Upload, the schedule runner, Continue and "Set the thumbnail again" can send videos to this channel (each upload still asks for your approval). Every upload uses the one daily YouTube quota that all channels share.`)) { up.checked = false; return; }
         try { await call('/api/youtube/upload-enabled', 'PUT', { channelId: c.id, enabled: on, confirmName: on ? c.name : '' }); say(on ? `Upload from Sim Studio is ON for ${c.name}.` : `Upload from Sim Studio is OFF for ${c.name}. Nothing will be sent to it.`); await draw(); onChange(); }
         catch (e) { say((e as Error).message, true); up.checked = !on; }
       };
@@ -114,7 +114,7 @@ export function openYoutubeSettings(onChange: () => void) {
         el('label', { title: 'YouTube requires this answer. It is a legal statement (COPPA): is the video made for children?' }, 'Made for kids'), kids,
         el('label', { title: 'Required for realistic AI or altered content. Animated, clearly unrealistic videos do not need it.' }, 'Altered/synthetic (AI) label'), ai,
         el('label', {}, 'Notify subscribers'), notify));
-    const q = el('p', { className: 'msg' }, `Quota today, shared by all channels (one Google Cloud project): ${s.quota.units.toLocaleString('en-US')} units used by this studio (the usual daily quota is 10,000; an upload with its thumbnail is about 1,650) · ${s.quota.uploads} upload${s.quota.uploads === 1 ? '' : 's'}${s.connections.length > 1 ? ` (${s.connections.map(c => `${c.name} ${c.uploadsToday}`).join(', ')})` : ''}. Resets at ${s.resetAt} (midnight Pacific Time). Uploads you make by hand in YouTube Studio do not use this quota. Each channel also has its own upload limit; when YouTube reports it, only that channel waits.`);
+    const q = el('p', { className: 'msg' }, `Quota today, shared by all channels (one Google Cloud project): ${s.quota.units.toLocaleString('en-US')} units used by this studio (of 10,000; Google does not report what is left) · ${s.quota.uploads} upload${s.quota.uploads === 1 ? '' : 's'}${s.connections.length > 1 ? ` (${s.connections.map(c => `${c.name} ${c.uploadsToday}`).join(', ')})` : ''}. Resets at ${s.resetAt} (midnight Pacific Time). Uploads you make by hand in YouTube Studio do not use this quota. Each channel also has its own upload limit; when YouTube reports it, only that channel waits.`);
     body.append(client, ch, defs, q);
   }
   dlg.addEventListener('close', () => { clearInterval(poll); dlg.remove(); });
