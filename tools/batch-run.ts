@@ -2,6 +2,8 @@
 //   node tools/batch-run.ts --dry-run            show what would happen (nothing is sent)
 //   node tools/batch-run.ts --limit 3            send only the next 3 videos (a trial)
 //   node tools/batch-run.ts                      send everything not done yet, then stop
+//   --dir <folder>                               run another plan (its own plan.json, state.json, lock and PAUSE), e.g. --dir data/batch-plasma
+//                                                (the Plasma Pendulum plan, tools/batch-plan-plasma.ts). Without it: data/batch, as always.
 // It never starts the studio, never touches YouTube, never deletes anything. Ctrl+C stops SENDING; videos already
 // in the studio's queue keep going (stop them in the studio if needed). Run it again and it continues where it stopped.
 // The studio runs jobs side by side only when it was started with JOBS=N (npm run dev with JOBS=2); default is one at a time.
@@ -14,11 +16,11 @@ import type { PlanItem } from './batch-plan.ts';
 import { headOf, reconcile, lockHolder, type JobLite } from './batch-chain.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BATCH = process.env.SIM_BATCH_DIR ? path.resolve(process.env.SIM_BATCH_DIR) : path.join(ROOT, 'data/batch'); // SIM_BATCH_DIR: tests only
-const LOCK = path.join(BATCH, '.runner.lock');
-const PLAN = path.join(BATCH, 'plan.json'), STATE = path.join(BATCH, 'state.json'), PAUSE = path.join(BATCH, 'PAUSE');
 const args = process.argv.slice(2);
 const opt = (k: string, d?: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
+const BATCH = opt('--dir') ? path.resolve(opt('--dir')!) : process.env.SIM_BATCH_DIR ? path.resolve(process.env.SIM_BATCH_DIR) : path.join(ROOT, 'data/batch'); // SIM_BATCH_DIR: tests only
+const LOCK = path.join(BATCH, '.runner.lock');
+const PLAN = path.join(BATCH, 'plan.json'), STATE = path.join(BATCH, 'state.json'), PAUSE = path.join(BATCH, 'PAUSE');
 const DRY = args.includes('--dry-run');
 const BASE = opt('--url', 'http://127.0.0.1:5180')!;
 const LIMIT = opt('--limit') ? +opt('--limit')! : Infinity;
