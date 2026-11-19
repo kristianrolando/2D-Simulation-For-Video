@@ -32,6 +32,10 @@ export interface Video {
   createdAt: string; updatedAt: string;
   /** set by the studio's YouTube upload only (never editable from the page); absent for videos never uploaded */
   youtube?: YoutubeState;
+  /** 'long' = a 16:9 long video built from Shorts (the Compile page); absent for every Short, so older lists stay valid */
+  kind?: 'long';
+  /** the long video record (data/compilations/<id>.json) this entry tracks */
+  compilationId?: string;
 }
 
 /** Technical progress of one upload, so it can be resumed. The tracking status stays `status` (no second status system).
@@ -118,6 +122,7 @@ export function sanitizeVideo(raw: unknown, now: string = new Date().toISOString
     scheduledAt: dateTime(raw.scheduledAt), publishedAt: dateOnly(raw.publishedAt), youtubeUrl: str(raw.youtubeUrl, 400).trim(),
     createdAt: created, updatedAt: isoOr(raw.updatedAt, created),
     ...(isObj(raw.youtube) ? { youtube: sanitizeYoutube(raw.youtube) } : {}),
+    ...(raw.kind === 'long' ? { kind: 'long' as const, compilationId: str(raw.compilationId, 80) } : {}),
   };
 }
 
@@ -149,6 +154,8 @@ export const MIN_LEAD_MIN = 30;
 
 /** Everything that blocks an upload, in plain words ([] = ready). */
 export function uploadProblems(v: Video, f: FileFacts, o: UploadOptions, now: Date = new Date()): string[] {
+  // the uploader only knows Shorts (1080×1920, up to 3 minutes); long videos are a separate piece of work, so they are never sent
+  if (v.kind === 'long') return ['Long videos cannot be uploaded from the studio yet: the uploader only takes Shorts. Upload this one yourself in YouTube Studio.'];
   const p: string[] = [];
   if (v.youtube?.videoId || (v.youtube && v.youtube.stage !== 'failed')) p.push('This video was already sent to YouTube. The studio never uploads it a second time.');
   if (v.status !== 'rendered') p.push('Only videos with status Rendered can be uploaded.');
@@ -297,6 +304,7 @@ export function checkMetadata(v: Video): Warning[] {
 }
 
 export function nextStep(v: Video): string {
+  if (v.kind === 'long' && v.status === 'rendered') return 'Upload it yourself in YouTube Studio (the studio cannot upload long videos yet), then mark it Scheduled or Published.';
   switch (v.status) {
     case 'draft': return v.file ? 'Check the texts, then mark it Rendered.' : 'Render it from the studio (Render MP4).';
     case 'rendered': return 'Upload the MP4 on YouTube (use the copy buttons), then mark it Scheduled or Published.';
@@ -332,7 +340,7 @@ export function coverage(videos: Video[], sceneIds: string[], styleIds: string[]
   for (const s of sceneIds) for (const t of styleIds) cells[`${s}|${t}`] = 'none';
   for (const v of videos) {
     const k = `${v.sceneId}|${v.style}`;
-    if (k in cells && rank.indexOf(v.status) > rank.indexOf(cells[k])) cells[k] = v.status;
+    if (v.kind !== 'long' && k in cells && rank.indexOf(v.status) > rank.indexOf(cells[k])) cells[k] = v.status;
   }
   const total = sceneIds.length * styleIds.length;
   return { cells, total, none: Object.values(cells).filter(c => c === 'none').length };
