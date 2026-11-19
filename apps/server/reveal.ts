@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export type RevealResult = { ok: true; file: string } | { ok: false; status: number; error: string };
-const OK_NAME = /^[\w][\w .,()+-]{0,198}\.(mp4|jpg|txt)$/i;
+const OK_NAME = /^[\w][\w .,()+-]{0,198}\.(mp4|jpg|png|txt)$/i;
 
 export function revealTarget(outDir: string, name: unknown): RevealResult {
   const n = typeof name === 'string' ? name : '';

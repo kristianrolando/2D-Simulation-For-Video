@@ -20,7 +20,7 @@ import { openJobStore, isOurWorker, killGroup, processAlive, strayRequests, temp
 import * as yt from './youtube.ts';
 import { createUploader } from './uploader.ts';
 import { uploadProblems, consentKey, fileSig, MIN_LEAD_MIN, uploadThumbName, thumbProblem, type UploadOptions, type FileFacts } from '../../packages/publish/index.ts';
-import { patchVideo, DEFAULT_CHANNEL, type Video } from '../../packages/publish/index.ts';
+import { patchVideo, DEFAULT_CHANNEL, channelLocked, youtubeIdOf, localDate, type Video } from '../../packages/publish/index.ts';
 import { newVideoFor, hookFor } from '../../packages/publish/describe.ts';
 import { climaxSecFor, coverText } from '../../packages/publish/cover.ts';
 import { makeCovers } from './cover.ts';
@@ -51,7 +51,7 @@ process.on('exit', () => { stopWorkers(); videos.close(); });
 const THUMB_DIR = path.join(DATA, 'thumbnails');
 
 // ---------------- YouTube (docs/youtube-upload-plan.md) ----------------
-const uploader = createUploader({ store: videos, outDir: OUT, thumbDir: THUMB_DIR, log: line => console.log(line) });
+const uploader = createUploader({ store: videos, outDir: OUT, thumbDir: THUMB_DIR, log: line => console.log(line), defaultChannel: DEFAULT_CHANNEL });
 if (!videos.readOnly) uploader.recover();
 // uploads that waited for YouTube's daily quota continue by themselves once the reset time has passed (wall clock, checked every 30 s and now)
 const continueWaiting = () => { if (!videos.readOnly) uploader.tickWaiting(); };
@@ -81,7 +81,7 @@ function uploadOptions(b: any): UploadOptions {
     language: /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(String(o.language ?? '')) ? String(o.language) : d.language,
     madeForKids: typeof o.madeForKids === 'boolean' ? o.madeForKids : d.madeForKids, synthetic: typeof o.synthetic === 'boolean' ? o.synthetic : d.synthetic, notify: typeof o.notify === 'boolean' ? o.notify : d.notify };
 }
-const ytPage = (title: string, text: string) => `<!doctype html><meta charset="utf-8"><title>Sim Studio · YouTube</title><meta name="color-scheme" content="light dark"><style>body{font:16px system-ui;background:#0b1020;color:#e8ecf7;display:grid;place-items:center;height:90vh}@media (prefers-color-scheme:light){body{background:#eef1f7;color:#1a2030}}</style><body><div style="max-width:520px"><h2>${title}</h2><p>${text}</p><p style="opacity:.8">You can close this tab and go back to the studio.</p></div>`;
+const ytPage = (title: string, text: string, extra = '') => `<!doctype html><meta charset="utf-8"><title>Sim Studio · YouTube</title><meta name="color-scheme" content="light dark"><style>body{font:16px system-ui;background:#0b1020;color:#e8ecf7;display:grid;place-items:center;height:90vh}@media (prefers-color-scheme:light){body{background:#eef1f7;color:#1a2030}}</style><body><div style="max-width:520px"><h2>${title}</h2><p>${text}</p>${extra}${extra ? '' : '<p style="opacity:.8">You can close this tab and go back to the studio.</p>'}</div>`;
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 // ---------------- jobs ----------------
@@ -232,9 +232,13 @@ function enqueue(scene: NonNullable<ReturnType<typeof sceneById>>, input: Record
 /** keep tracking failures away from rendering: a full disk or a damaged list must never fail a render */
 const safely = (what: string, fn: () => void) => { try { fn(); } catch (e) { console.warn(`video list: could not ${what}:`, e instanceof Error ? e.message : e); } };
 /** a new video belongs to the channel the studio is connected to (name from the YouTube connection), else the default */
-const currentChannel = () => yt.channel()?.name?.trim() || DEFAULT_CHANNEL;
+// The ACTIVE channel (chosen in YouTube settings, even while its permission needs renewing); no channel at all: the default name.
+// A style preset never changes it: the owner picks the channel per video.
+const currentChannel = () => yt.status().channel?.name?.trim() || DEFAULT_CHANNEL;
+const currentChannelId = () => yt.status().channel?.id ?? '';
+const channelExtra = () => { const id = currentChannelId(); return { channel: currentChannel(), ...(id ? { channelId: id } : {}) }; };
 function trackJobStart(j: JobRec) {
-  safely('add the new render', () => videos.mutate(vs => { const v = newVideoFor(j.sceneId, j.params, { jobId: j.id, channel: currentChannel() }, new Date(), videos.settings().suggestLang); return { videos: v ? [...vs, v] : vs, result: null }; }));
+  safely('add the new render', () => videos.mutate(vs => { const v = newVideoFor(j.sceneId, j.params, { jobId: j.id, ...channelExtra() }, new Date(), videos.settings().suggestLang); return { videos: v ? [...vs, v] : vs, result: null }; }));
 }
 /** pick the best frame and draw the cover and thumbnail for one video. `t` set = that frame; unset = chosen automatically. Throws a readable error. */
 async function buildCover(id: string, o: { t?: number; text?: string; noText?: boolean } = {}): Promise<Video> {
@@ -370,7 +374,11 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     return true;
   }
   if (p === '/api/youtube/connect' && req.method === 'POST') { json(res, 200, { url: yt.loginUrl(`http://127.0.0.1:${PORT}/oauth/youtube`) }); return true; }
-  if (p === '/api/youtube/disconnect' && req.method === 'POST') { json(res, 200, await yt.disconnect()); return true; }
+  // one channel at a time: the others stay connected (no body = the active channel, as before)
+  if (p === '/api/youtube/disconnect' && req.method === 'POST') { const b = await readBody(req); json(res, 200, await yt.disconnect(typeof b.channelId === 'string' ? b.channelId : '')); return true; }
+  if (p === '/api/youtube/active' && req.method === 'PUT') { const b = await readBody(req); json(res, 200, yt.setActive(String(b.channelId ?? ''))); return true; }
+  // "Upload from Sim Studio" per channel; turning it on for a channel that is not the active one needs its name (confirmName)
+  if (p === '/api/youtube/upload-enabled' && req.method === 'PUT') { const b = await readBody(req); json(res, 200, yt.setUploadEnabled(String(b.channelId ?? ''), b.enabled === true, String(b.confirmName ?? ''))); return true; }
   if (p === '/api/youtube/defaults' && req.method === 'PUT') { json(res, 200, yt.setDefaults(await readBody(req))); return true; }
   if (p === '/api/youtube/sync' && req.method === 'POST') { const n = await uploader.syncPublished(); lastSync = Date.now(); json(res, 200, { published: n }); return true; }
   const ym = /^\/api\/videos\/([\w-]+)\/youtube\/(check|upload|resume|skip-thumbnail|rethumb)$/.exec(p);
@@ -381,27 +389,32 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     if (ym[2] === 'resume') { uploader.resume(v); json(res, 200, { ok: true }); return true; }
     if (ym[2] === 'rethumb') { // explicit approval only: it uses 50 quota units and changes the channel
       if (b.agree !== true) { json(res, 409, { error: 'Tick the approval box first. Nothing was changed on YouTube.' }); return true; }
-      try { await uploader.replaceThumbnail(v); } catch (e) { json(res, e instanceof yt.YtError ? 502 : 400, { error: yt.redact(e instanceof Error ? e.message : String(e)) }); return true; }
+      try { await uploader.replaceThumbnail(v); } catch (e) { json(res, e instanceof yt.YtError ? (e.kind === 'off' ? 409 : 502) : 400, { error: yt.redact(e instanceof Error ? e.message : String(e)) }); return true; }
       json(res, 200, { ok: true, video: videoView(videos.get(v.id)!) }); return true;
     }
     if (ym[2] === 'skip-thumbnail') { uploader.skipThumbnail(v); json(res, 200, { ok: true }); return true; }
-    const ch = yt.channel(), f = await probe(path.join(OUT, v.file)), o = uploadOptions(b);
+    // the channel this video goes to (its own; older records: the studio's first channel). Never another one.
+    const ch = yt.connectionFor(v, DEFAULT_CHANNEL), f = await probe(path.join(OUT, v.file)), o = uploadOptions(b);
     const problems = uploadProblems(v, f, o);
-    if (!ch) problems.unshift('YouTube is not connected. Open YouTube settings and connect a channel.');
+    if (!ch) problems.unshift(yt.connections().length ? `This video is for the channel ${v.channel}, which is not connected to Sim Studio. Connect it in YouTube settings, or upload it by hand.` : 'YouTube is not connected. Open YouTube settings and connect a channel.');
+    else if (!ch.connected) problems.unshift(`The channel ${ch.name} is not connected (${ch.disconnected || 'no permission'}). Connect again in YouTube settings.`);
+    else if (!ch.uploadEnabled) problems.unshift(yt.UPLOADS_OFF);
+    if (ch && v.youtube?.channelId && v.youtube.channelId !== ch.id) problems.unshift('This video was sent to another channel before. The studio never sends it to a different one.');
     if (uploader.busy()) problems.push('Another upload is running. Wait until it has finished.');
+    const target = ch ? `${ch.id}|${ch.name}` : ''; // the consent names the exact channel
     if (ym[2] === 'check') {
-      json(res, 200, { problems, consent: problems.length ? '' : consentKey(v, f, o, ch!.id), channel: ch ? { name: ch.name, handle: ch.handle } : null,
+      json(res, 200, { problems, consent: problems.length ? '' : consentKey(v, f, o, target), channel: ch ? { id: ch.id, name: ch.name, handle: ch.handle, uploadEnabled: ch.uploadEnabled, uploadsToday: ch.uploadsToday } : null,
         file: { width: f.width, height: f.height, durationSec: Math.round(f.durationSec * 10) / 10, sizeBytes: f.sizeBytes }, options: o,
         publishAtLocal: o.mode === 'schedule' && o.at ? new Date(o.at).toString() : '', thumbnail: !!uploadThumbName(v), quota: yt.status().quota, resetAt: yt.quotaResetLocal() });
       return true;
     }
     // upload: the owner's tick + the exact consent key shown in the dialog, used once
     if (problems.length) { json(res, 400, { error: problems[0], problems }); return true; }
-    const key = consentKey(v, f, o, ch!.id);
+    const key = consentKey(v, f, o, target);
     if (b.agree !== true || b.consent !== key) { json(res, 409, { error: 'The approval does not match what is being uploaded (something changed, or the box was not ticked). Open the dialog again.' }); return true; }
     if (usedConsent.has(key)) { json(res, 409, { error: 'This approval was already used. The studio never uploads the same video twice.' }); return true; }
     usedConsent.add(key);
-    await uploader.start(v, f, o);
+    await uploader.start(v, f, o, ch!.id);
     if (o.mode === 'schedule') yt.setDefaults({ lastTime: o.at.slice(11, 16) });
     json(res, 200, { ok: true, video: videoView(videos.get(v.id)!) }); return true;
   }
@@ -486,9 +499,59 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     old.retriedBy = j.id; saveJobs(); broadcast(old);
     json(res, 200, { ...publicJob(j), warnings: errors }); return true;
   }
+  // open YouTube Studio in the browser for a manual upload: always this one fixed address, nothing is sent anywhere
+  if (p === '/api/open-youtube-studio' && req.method === 'POST') {
+    const url = 'https://studio.youtube.com';
+    if (process.env.SIM_NO_OPEN) { json(res, 200, { ok: true, url }); return true; } // SIM_NO_OPEN: tests only
+    const [cmd, args] = process.platform === 'darwin' ? ['open', [url]] : process.platform === 'win32' ? ['explorer', [url]] : ['xdg-open', [url]];
+    try { const c = spawn(cmd, args, { stdio: 'ignore', detached: true }); c.on('error', () => {}); c.unref(); json(res, 200, { ok: true, url }); }
+    catch { json(res, 500, { error: 'Could not open the browser.', url }); }
+    return true;
+  }
+  // which channel videos are for: one video, or several at once ({ ids }); a video that is scheduled, published or on YouTube keeps its channel
+  const chm = /^\/api\/videos\/([\w-]+)\/channel$/.exec(p);
+  if ((chm && req.method === 'PUT') || (p === '/api/videos/channel' && req.method === 'PUT')) {
+    if (videos.readOnly) throw new ReadOnlyError(videos.readOnlyReason);
+    const b = await readBody(req), ids: string[] = chm ? [chm[1]] : Array.isArray(b.ids) ? b.ids.map(String) : [];
+    const c = yt.connection(String(b.channelId ?? ''));
+    if (!c) { json(res, 400, { error: 'Choose one of the channels in YouTube settings.' }); return true; }
+    const skipped: { id: string; reason: string }[] = [];
+    videos.mutate(vs => {
+      for (const id of ids) {
+        const i = vs.findIndex(x => x.id === id); if (i < 0) { skipped.push({ id, reason: 'not in the list' }); continue; }
+        const why = channelLocked(vs[i]); if (why) { skipped.push({ id, reason: why }); continue; }
+        vs[i] = { ...vs[i], channel: c.name, channelId: c.id, updatedAt: new Date().toISOString() };
+      }
+      return { videos: vs, result: null };
+    });
+    if (chm && skipped.length) { json(res, 409, { error: skipped[0].reason }); return true; }
+    json(res, 200, { changed: ids.length - skipped.length, skipped, videos: videos.list().filter(v => ids.includes(v.id)).map(videoView) }); return true;
+  }
+  // "Mark as uploaded manually": the owner uploaded it in YouTube Studio by hand. Never calls YouTube; status → Published.
+  const mm = /^\/api\/videos\/([\w-]+)\/manual(\/undo)?$/.exec(p);
+  if (mm && req.method === 'POST') {
+    if (videos.readOnly) throw new ReadOnlyError(videos.readOnlyReason);
+    const v = videos.get(mm[1]); if (!v) { json(res, 404, { error: 'This video is no longer in the list. Reload the page.' }); return true; }
+    const b = await readBody(req);
+    if (mm[2]) { // undo: back to Rendered, only for a mark made here (the uploader's own records are never undone this way)
+      if (!v.uploadedManually) { json(res, 409, { error: 'This video is not marked as uploaded by hand.' }); return true; }
+      if (v.youtube?.videoId) { json(res, 409, { error: 'The studio uploaded this video itself; that cannot be undone here.' }); return true; }
+      const nv = videos.mutate(vs => { const i = vs.findIndex(x => x.id === v.id); const n = { ...patchVideo(vs[i], { status: 'rendered', publishedAt: '', youtubeUrl: '' }) }; delete n.uploadedManually; vs[i] = n; return { videos: vs, result: n }; });
+      json(res, 200, { ok: true, video: videoView(nv) }); return true;
+    }
+    if (v.youtube) { json(res, 409, { error: 'The studio already has an upload record for this video. It cannot be marked as uploaded by hand.' }); return true; }
+    if (v.status !== 'rendered') { json(res, 409, { error: 'Only a Rendered video can be marked as uploaded by hand.' }); return true; }
+    const raw = String(b.url ?? '').trim(), id = raw ? youtubeIdOf(raw) : '';
+    if (raw && !id) { json(res, 400, { error: 'That is not a YouTube link or video id (11 characters).' }); return true; }
+    const date = typeof b.date === 'string' && /^\d{4}-\d\d-\d\d$/.test(b.date) ? b.date : localDate();
+    const url = id ? (v.kind === 'long' ? `https://www.youtube.com/watch?v=${id}` : `https://www.youtube.com/shorts/${id}`) : '';
+    const nv = videos.mutate(vs => { const i = vs.findIndex(x => x.id === v.id); vs[i] = { ...patchVideo(vs[i], { status: 'published', publishedAt: date, youtubeUrl: url }), uploadedManually: new Date().toISOString() }; return { videos: vs, result: vs[i] }; });
+    json(res, 200, { ok: true, video: videoView(nv) }); return true;
+  }
   if (p === '/api/reveal' && req.method === 'POST') {
-    // show a finished render or long video in Finder / Explorer; only a plain file name inside output/ is accepted (apps/server/reveal.ts)
-    const b = await readBody(req), t = revealTarget(OUT, b.file);
+    // show a finished render or long video in Finder / Explorer; only a plain file name inside output/ is accepted (apps/server/reveal.ts);
+    // { where: 'thumbnails' } = the same rule inside data/thumbnails/ (the Shorts cover and the thumbnail, for a manual upload)
+    const b = await readBody(req), t = revealTarget(b.where === 'thumbnails' ? THUMB_DIR : OUT, b.file);
     if (!t.ok) { json(res, t.status, { error: t.error }); return true; }
     if (process.env.SIM_NO_OPEN) { json(res, 200, { ok: true, path: t.file }); return true; } // SIM_NO_OPEN: tests only (no file manager is opened)
     const [cmd, args] = process.platform === 'darwin' ? ['open', ['-R', t.file]] : process.platform === 'win32' ? ['explorer', [`/select,${t.file}`]] : ['xdg-open', [OUT]];
@@ -520,7 +583,7 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     const found = untrackedRenders().filter(u => !only || only.has(u.file)); let added = 0; const lang = videos.settings().suggestLang;
     videos.mutate(vs => {
       for (const u of found) {
-        const v = newVideoFor(u.sceneId, u.params, { jobId: u.id, channel: currentChannel(), file: u.file, sizeBytes: u.size, status: 'rendered', createdAt: new Date(u.mtimeMs).toISOString(), updatedAt: new Date(u.mtimeMs).toISOString() }, new Date(u.mtimeMs), lang);
+        const v = newVideoFor(u.sceneId, u.params, { jobId: u.id, ...channelExtra(), file: u.file, sizeBytes: u.size, status: 'rendered', createdAt: new Date(u.mtimeMs).toISOString(), updatedAt: new Date(u.mtimeMs).toISOString() }, new Date(u.mtimeMs), lang);
         if (v && !vs.some(x => x.file === u.file)) { vs.push(v); added++; }
       }
       return { videos: vs, result: null };
@@ -612,8 +675,22 @@ http.createServer(async (req, res) => {
   try {
     if (url.pathname === '/oauth/youtube') {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
-      try { const c = await yt.finishLogin(url.searchParams); res.end(ytPage('Connected ✓', `YouTube channel <b>${esc(c.name)}</b>${c.handle ? ` (${esc(c.handle)})` : ''} is connected to Sim Studio.`)); }
+      try {
+        const c = await yt.finishLogin(url.searchParams), who = `<b>${esc(c.name)}</b>${c.handle ? ` (${esc(c.handle)})` : ''}`;
+        if (c.connected) res.end(ytPage('Connected ✓', `YouTube channel ${who} is connected to Sim Studio.`));
+        else res.end(ytPage('Connect this channel?', `Google signed in to the channel ${who}. Connect it to Sim Studio as an extra channel? It starts with <b>Upload from Sim Studio: Off</b>, so nothing is sent to it until you turn that on.`,
+          `<form method="post" action="/oauth/youtube/confirm" style="display:flex;gap:12px;margin-top:16px"><input type="hidden" name="t" value="${esc(c.confirm)}"><button name="yes" value="1" style="font:inherit;padding:8px 16px">Connect ${esc(c.name)}</button><button name="yes" value="0" style="font:inherit;padding:8px 16px">Cancel</button></form>`));
+      }
       catch (e) { res.end(ytPage('Not connected', esc(e instanceof Error ? yt.redact(e.message) : 'Unknown error.'))); }
+      return;
+    }
+    if (url.pathname === '/oauth/youtube/confirm' && req.method === 'POST') {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
+      try {
+        const f = new URLSearchParams(await new Promise<string>(ok => { let t = ''; req.on('data', d => { if (t.length < 4096) t += d; }); req.on('end', () => ok(t)); }));
+        const c = yt.confirmConnection(f.get('t') ?? '', f.get('yes') === '1'), who = `<b>${esc(c.name)}</b>${c.handle ? ` (${esc(c.handle)})` : ''}`;
+        res.end(c.connected ? ytPage('Connected ✓', `YouTube channel ${who} is connected to Sim Studio. Upload from Sim Studio is <b>Off</b> for it; turn it on in YouTube settings when you want.`) : ytPage('Not connected', `${who} was not connected. Its permission was withdrawn again.`));
+      } catch (e) { res.end(ytPage('Not connected', esc(e instanceof Error ? yt.redact(e.message) : 'Unknown error.'))); }
       return;
     }
     if (url.pathname.startsWith('/api/')) { if (await api(req, res, url)) return; json(res, 404, { error: 'no such endpoint' }); return; }
@@ -624,7 +701,7 @@ http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/assets/sfx/')) return sendFile(req, res, path.join(ROOT, 'assets/sfx', path.basename(url.pathname)));
     vite.middlewares(req, res, () => { res.writeHead(404); res.end('not found'); });
   } catch (e) {
-    if (e instanceof yt.YtError) { json(res, e.kind === 'auth' ? 401 : e.kind === 'quota' ? 429 : 400, { error: e.message, kind: e.kind }); return; }
+    if (e instanceof yt.YtError) { json(res, e.kind === 'auth' ? 401 : e.kind === 'quota' ? 429 : e.kind === 'off' ? 409 : 400, { error: e.message, kind: e.kind }); return; }
     json(res, e instanceof ReadOnlyError ? 423 : 500, { error: e instanceof ReadOnlyError ? `Read-only: ${e.message}` : yt.redact(e instanceof Error ? e.message : String(e)) });
   }
 }).listen(PORT, '127.0.0.1', () => console.log(`studio: http://127.0.0.1:${PORT}/  (render workers: ${CONCURRENCY})`));
