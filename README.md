@@ -120,6 +120,13 @@ npm test
 npm run typecheck
 ```
 
+### Long videos (Videos → Compile)
+
+Joins finished Shorts into long 16:9 videos (1920×1080, 9–18 minutes, one theme each) with numbered clips, chapters, texts and a 1280×720
+thumbnail, **ready to upload by hand** (the uploader only takes Shorts; long video upload is separate, later work). Pick **Compile** in the Videos
+page, **Suggest long videos**, create the drafts, **Build**. Builds run in the render queue, can be stopped and continued (finished clips are
+reused) and survive a restart. Terminal: `node tools/compile.ts plan | build all | verify <slug>`. Details: `docs/compile.md`.
+
 ### Upload to YouTube (free, official API, private first)
 
 The **YouTube** section of a video in **Videos** uploads it with the official YouTube Data API v3. No billing, no paid service, no npm package. The full plan, the facts checked against Google's documentation and the click-by-click Google Cloud setup are in `docs/youtube-upload-plan.md`.
@@ -349,6 +356,7 @@ packages/audio      procedural SFX (recurrence oscillators), sample bank + roles
 packages/juice      shake, flash, particle pool, squash/stretch, counter pop/roll (all deterministic)
 packages/theme      style tokens, validation + fallback to classic, registry, palette helper
 packages/publish    video metadata (title/description/tags writer, quality checker, thumbnail logic, status changes, filters, coverage, CSV); topics.ts = what each scene is about; pure; describe.ts links it to the scenes
+packages/compile    long videos from Shorts: selection, order, chapters (exact frame sums), texts and their checker; pure (docs/compile.md)
 themes/             one JSON file per style (riso, chalk, terminal, candy, blueprint)
 packages/sim        shared by the templates: spatial grid for discs (O(n) broad phase, no allocation), container shapes (octagon, circle, square, triangle, ring)
 packages/scenes     one folder per scene: sim (pure) + view + audio + schema; index.ts = registry

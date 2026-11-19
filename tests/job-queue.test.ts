@@ -105,7 +105,7 @@ async function startStudio(dir: string): Promise<Studio> {
   let log = ''; const proc = spawn(process.execPath, ['apps/server/server.ts'], { cwd: ROOT, env: { ...process.env, HOME: path.join(dir, 'home'), PORT: String(port), SIM_DATA_DIR: data, SIM_OUT_DIR: out }, stdio: ['ignore', 'pipe', 'pipe'] });
   procs.push(proc); proc.stdout!.on('data', d => { log += d; }); proc.stderr!.on('data', d => { log += d; });
   const base = `http://127.0.0.1:${port}`;
-  for (let i = 0; i < 100; i++) { try { if ((await fetch(`${base}/api/jobs`)).ok) break; } catch { /* starting */ } await sleep(150); if (i === 99) throw new Error('studio did not start:\n' + log); }
+  for (let i = 0; i < 300; i++) { try { if ((await fetch(`${base}/api/jobs`)).ok) break; } catch { /* starting */ } await sleep(150); if (i === 299) throw new Error('studio did not start:\n' + log); } // up to 45 s: the other tests keep every CPU core busy while this one starts
   return { proc, port, base, log: () => log, stop: async (sig = 'SIGTERM') => { if (proc.exitCode !== null || proc.signalCode) return; const done = new Promise(r => proc.once('exit', r)); proc.kill(sig); await done; } };
 }
 const jobsOf = async (s: Studio) => (await (await fetch(`${s.base}/api/jobs`)).json()) as any[];
