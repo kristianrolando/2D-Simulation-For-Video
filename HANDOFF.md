@@ -4,7 +4,7 @@
 - task_status: partial
 - handoff: ready
 - writer: none
-- updated_at: 2026-11-18T19:10:00+0700
+- updated_at: 2026-11-18T21:30:00+0700
 - language: id
 
 Satu-satunya checkpoint proyek ini. Perbarui di akhir tiap langkah kerja yang substansial, bukan hanya di akhir sesi.
@@ -37,6 +37,11 @@ Decisions: lihat `docs/styles.md`, `docs/publishing.md` dan memori proyek. Atura
 - Tidak pernah menghapus video di YouTube.
 - `references/` (video kompetitor) tidak di git dan tidak diubah. `data/` dan `output/` tidak di git.
 - Mesin render, scene, dan style bawaan tidak diubah oleh fitur antarmuka/penerbitan.
+- Guard kredit ElevenLabs (belum di-commit): satu pintu `runGeneration()` di `packages/sfx-guard/guard.ts`, klien jaringan satu-satunya `packages/sfx-guard/client.ts`,
+  CLI `node tools/sfx.ts generate` (default dry run, `--yes` untuk membayar), ledger `assets/sfx/ledger.json` (belum ada; dibuat pada panggilan berbayar pertama),
+  batas di `~/Library/Application Support/Sim Studio/elevenlabs-guard.json` (belum ada; default dipakai). Dokumen `docs/sfx-credits.md`; aturan agen di `AGENTS.md`; tes `tests/sfx-guard.test.ts`.
+  Kunci API untuk Sim Studio belum dipasang, jadi `generate` belum bisa membaca saldo; belum pernah ada panggilan nyata lewat guard. Tarif estimasi 40 kredit/detik belum dikalibrasi.
+  Konektor MCP `mcp__elevenlabs__*` tidak bisa dicegat kode; aturan agen di `AGENTS.md` + aturan izin `ask` di `.claude/settings.json` (tiap panggilan butuh klik pemilik; berlaku sesudah sesi baru).
 Writers / operations: tidak ada penulis lain teramati pada 19:07. Studio berjalan di `localhost:5180` (pid 77570, uptime 72 detik, `state: ready`, antrean 0, tidak ada render, `codeStale: false`).
 Apakah studio memuat kode terbaru? Jangan percaya catatan ini; tanyakan ke studio:
 
@@ -66,6 +71,7 @@ Dengan `npm run dev:watch` restart otomatis; render yang berjalan menjadi **Stop
   Studio yang berjalan memakai kode lama; restart agar render berikutnya memakai penulis judul baru.
 
 ## Evidence
+- 2026-11-18 21:30, guard kredit: `npm run typecheck` lulus; `npm test` 207 lulus, 0 gagal (14 tes baru di `tests/sfx-guard.test.ts`, klien/fetch palsu, tanpa jaringan dan tanpa kredit). `node tools/sfx.ts generate` (tanpa kunci) = dry run, 13/13 dilewati, tidak ada panggilan.
 - `npm run typecheck`: lulus (2026-11-18 19:08, pohon bersih `af0d5f7`).
 - `npm test`: 192 lulus, 0 gagal (sama waktunya). Cakupan: tes unit/integrasi `tests/*.test.ts`; tidak menguji tampilan UI, render nyata, atau YouTube sungguhan.
 - Status studio: `curl localhost:5180/api/status` → ready, `codeStale: false`.
@@ -74,6 +80,7 @@ Dengan `npm run dev:watch` restart otomatis; render yang berjalan menjadi **Stop
 Pemilik: cek thumbnail `KYUpU2KtKUw` di YouTube Studio, lalu putuskan apakah thumbnail `60J5S2RCJ1Y` dipasang ulang. Agen: render scene lain (atas permintaan pemilik) untuk mengisi peta scene × style.
 
 ## Recent outcomes
+- 2026-11-18: guard kredit ElevenLabs satu pintu + aturan agen; belum di-commit.
 - 2026-11-18: preset style (`Main-1` jadi preset style), tes dan dokumen; commit `af0d5f7`.
 - 2026-11-18: antrean render tahan restart, status Stopped, Render again, `dev:watch`; commit `facd630`.
 - 2026-11-18: cross-agent handoff diinisialisasi; HANDOFF.md disesuaikan ke format checkpoint, ditambah `AGENTS.md` dan `CLAUDE.md`.

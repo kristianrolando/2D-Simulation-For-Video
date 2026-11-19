@@ -324,7 +324,14 @@ node tools/sfx.ts reprocess
 ```
 Re-converts the samples from `src/` without spending credits.
 
-`node tools/sfx.ts import <id> <file>` refuses a prompt hash that already exists. Samples are decoded once per process (server) or per session (studio).
+`node tools/sfx.ts import <id> <file>` refuses a prompt hash that already exists and never overwrites an original in `src/`. Samples are decoded once per process (server) or per session (studio).
+
+New sounds cost ElevenLabs credits, and every paid call goes through one guard (`packages/sfx-guard/guard.ts`):
+
+```bash
+node tools/sfx.ts generate --only <id>
+```
+Dry run: the list, the credit estimate and the account balance; nothing is paid. Add `--yes` to generate exactly that list. Caps, the ledger (`assets/sfx/ledger.json`) and the rules for agents: `docs/sfx-credits.md`. The studio and the renderer never call ElevenLabs.
 
 ## Architecture
 

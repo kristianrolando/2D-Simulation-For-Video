@@ -1,58 +1,79 @@
-// Sound library manager (credit-safe).
-//   node tools/sfx.ts plan                 -> requests that are NOT yet in the library (only these may be generated)
-//   node tools/sfx.ts import <id> <file>   -> convert (ffmpeg: mono 44.1 kHz 16-bit, trimmed, peak-normalised) and register
-//   node tools/sfx.ts reprocess            -> re-run the conversion from assets/sfx/src/<id>.mp3 (no generation, no credits)
-//   node tools/sfx.ts list                 -> what the library holds
-// A request is identified by promptHash = sha1(model + prompt + duration). import refuses a hash that already
-// exists, and plan never lists it, so the same prompt can never be generated (and paid for) twice.
+// Sound library manager (credit-safe). Rules: docs/sfx-credits.md.
+//   node tools/sfx.ts plan                     -> offline: what is NOT yet in the library (no network)
+//   node tools/sfx.ts generate [options]       -> DRY RUN: list, credit estimate, account balance. Nothing is paid.
+//   node tools/sfx.ts generate --yes [options] -> generate exactly that list (the only paid command in the project)
+//        --only a,b      limit to these request ids
+//        --again a       allow ONE more attempt for an id whose last attempt failed
+//        --max-credits N / --max-calls N   lower the caps for this run (can never raise them)
+//   node tools/sfx.ts import <id> <file>       -> convert a file you already have and register it (no credits)
+//   node tools/sfx.ts reprocess                -> re-convert from assets/sfx/src (no credits)
+//   node tools/sfx.ts ledger                   -> show the record of paid calls
+//   node tools/sfx.ts list                     -> what the library holds
+// Every paid call goes through runGeneration() in packages/sfx-guard/guard.ts. Studio and render never call ElevenLabs.
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
+import { createElevenLabsClient, loadApiKey, supportDir } from '../packages/sfx-guard/client.ts';
+import { loadLimits, planGeneration, readLedger, runGeneration } from '../packages/sfx-guard/guard.ts';
+import { ffmpegConverter, importSample, readManifest, writeJsonAtomic } from '../packages/sfx-guard/library.ts';
 
 const DIR = path.resolve(import.meta.dirname, '../assets/sfx');
-const REQ = JSON.parse(fs.readFileSync(path.join(DIR, 'requests.json'), 'utf8'));
-const MAN = path.join(DIR, 'manifest.json');
-const manifest = fs.existsSync(MAN) ? JSON.parse(fs.readFileSync(MAN, 'utf8')) : { version: 1, samples: [] };
-export const promptHash = (r: { prompt: string; duration: number }) => createHash('sha1').update(`${REQ.model}|${r.prompt}|${r.duration}`).digest('hex').slice(0, 16);
-const have = new Set(manifest.samples.map((s: any) => s.promptHash));
-const [cmd, a, b] = process.argv.slice(2);
+const LEDGER = path.join(DIR, 'ledger.json');
+const CONFIG = path.join(supportDir(), 'elevenlabs-guard.json');
+const argv = process.argv.slice(2), cmd = argv[0];
+const flag = (n: string) => argv.includes(n);
+const opt = (n: string) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : undefined; };
+const list = (n: string) => opt(n)?.split(',').map(s => s.trim()).filter(Boolean);
 
-/** mono 44.1 kHz 16-bit, DC removed (high-pass 25 Hz), silence trimmed, loudness-normalised */
-function convert(input: string, output: string) {
-  const res = spawnSync('ffmpeg', ['-v', 'error', '-y', '-i', input, '-ac', '1', '-ar', '44100', '-c:a', 'pcm_s16le',
-    '-af', 'highpass=f=25,silenceremove=start_periods=1:start_threshold=-50dB,areverse,silenceremove=start_periods=1:start_threshold=-60dB,areverse,loudnorm=I=-16:TP=-1.5:LRA=11',
-    output], { encoding: 'utf8' });
-  if (res.status !== 0) throw new Error(res.stderr);
+function limitsFromArgs() {
+  const lower: Record<string, number> = {};
+  if (opt('--max-credits')) lower.maxCreditsPerRun = Number(opt('--max-credits'));
+  if (opt('--max-calls')) lower.maxCallsPerRun = Number(opt('--max-calls'));
+  const r = loadLimits(CONFIG, lower);
+  for (const n of r.notes) console.error('note:', n);
+  return r;
 }
 
 if (cmd === 'plan') {
-  const todo = REQ.requests.filter((r: any) => !have.has(promptHash(r)));
-  console.log(JSON.stringify({ alreadyInLibrary: REQ.requests.length - todo.length, toGenerate: todo.map((r: any) => ({ ...r, promptHash: promptHash(r) })) }, null, 2));
+  const { limits } = limitsFromArgs();
+  const p = planGeneration({ dir: DIR, ledgerFile: LEDGER, limits, only: list('--only') });
+  console.log(JSON.stringify({ toGenerate: p.todo.map(t => ({ id: t.id, role: t.role, duration: t.duration, prompt: t.prompt, guardHash: t.guardHash, estimate: t.estimate })), skipped: p.skipped, problems: p.problems, estimate: p.estimate }, null, 2));
+} else if (cmd === 'generate') {
+  const { limits, source } = limitsFromArgs();
+  const k = loadApiKey();
+  if (k.warning) console.error('warning:', k.warning);
+  const rep = await runGeneration({
+    dir: DIR, ledgerFile: LEDGER, limits, only: list('--only'), again: list('--again'),
+    client: k.key ? createElevenLabsClient(k.key) : null, approved: flag('--yes'), converter: ffmpegConverter,
+  });
+  console.log(`Limits (${source}): ${limits.maxCallsPerRun} calls / ${limits.maxCreditsPerRun} credits per run, ${limits.maxCreditsPer24h} per 24 h, ≤ ${limits.maxDurationSec} s each, estimate ${limits.creditsPerSecond} credits/s`);
+  console.log(rep.balance ? `Account: ${rep.balance.remaining} credits left (${rep.balance.used} of ${rep.balance.limit} used${rep.balance.resetsAt ? ', resets ' + rep.balance.resetsAt.slice(0, 10) : ''})`
+    : `Account balance: unknown (${rep.balanceError}${k.key ? '' : `; put {"apiKey": "..."} in ${k.where}, mode 600`})`);
+  console.log(`Spent in the last 24 h (ledger): ${rep.spent24h}`);
+  if (rep.todo.length) { console.log('To generate (1 take each):'); for (const t of rep.todo) console.log(`  ${t.id.padEnd(16)} ${String(t.duration).padStart(4)} s  ~${t.estimate} credits  "${t.prompt}"`); }
+  console.log(`Estimate: ${rep.estimate} credits`);
+  for (const s of rep.skipped) console.log(`  skip ${s.id}: ${s.reason}`);
+  for (const r of rep.results) console.log(`  ${r.status} ${r.id}: estimate ${r.estimate}, actual ${r.actual ?? 'unknown'}${r.error ? ' — ' + r.error : ''}`);
+  console.log(rep.message);
+  process.exit(['dry-run', 'done', 'nothing-to-do'].includes(rep.status) ? 0 : 2);
 } else if (cmd === 'import') {
-  const r = REQ.requests.find((x: any) => x.id === a);
-  if (!r) throw new Error('no request with id ' + a);
-  const h = promptHash(r);
-  if (have.has(h)) { console.error(`refused: ${a} (prompt hash ${h}) is already in the library`); process.exit(2); }
-  const out = `${r.id}.wav`;
-  fs.mkdirSync(path.join(DIR, 'src'), { recursive: true });
-  const src = path.join(DIR, 'src', r.id + path.extname(b));
-  if (path.resolve(b) !== src) fs.copyFileSync(b, src); // keep the paid-for original for local reprocessing
-  convert(src, path.join(DIR, out));
-  const dur = parseFloat(spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', path.join(DIR, out)], { encoding: 'utf8' }).stdout);
-  manifest.samples.push({ id: r.id, file: out, role: r.role, tags: r.tags, duration: +dur.toFixed(3), prompt: r.prompt, promptHash: h, source: 'elevenlabs', model: REQ.model, created: new Date().toISOString().slice(0, 10) });
-  fs.writeFileSync(MAN, JSON.stringify(manifest, null, 2) + '\n');
-  console.log(`imported ${r.id} -> ${out} (${dur.toFixed(2)} s)`);
+  try { const r = importSample(DIR, argv[1], argv[2]); console.log(`imported ${r.id} -> ${r.file} (${r.duration.toFixed(2)} s)`); }
+  catch (e: any) { console.error(e.message); process.exit(2); }
 } else if (cmd === 'reprocess') {
-  for (const smp of manifest.samples) {
+  const man = readManifest(DIR);
+  for (const smp of man.samples) {
     const src = fs.readdirSync(path.join(DIR, 'src')).find(f => f.startsWith(smp.id + '.'));
     if (!src) { console.log('no source for', smp.id); continue; }
-    convert(path.join(DIR, 'src', src), path.join(DIR, smp.file));
-    smp.duration = +parseFloat(spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', path.join(DIR, smp.file)], { encoding: 'utf8' }).stdout).toFixed(3);
+    ffmpegConverter.convert(path.join(DIR, 'src', src), path.join(DIR, smp.file));
+    smp.duration = +ffmpegConverter.duration(path.join(DIR, smp.file)).toFixed(3);
     console.log('reprocessed', smp.id);
   }
-  fs.writeFileSync(MAN, JSON.stringify(manifest, null, 2) + '\n');
+  writeJsonAtomic(path.join(DIR, 'manifest.json'), man);
+} else if (cmd === 'ledger') {
+  const l = readLedger(LEDGER);
+  if (!l.entries.length) console.log('(no paid calls recorded yet)');
+  for (const e of l.entries) console.log(`#${e.seq} ${e.at} ${e.status.padEnd(7)} ${e.id.padEnd(16)} ${e.guardHash} estimate ${e.estimate} actual ${e.actual ?? 'unknown'}${e.error ? ' — ' + e.error : ''}`);
 } else {
-  for (const s of manifest.samples) console.log(`${s.role.padEnd(8)} ${s.id.padEnd(16)} ${s.duration}s  ${s.source}  ${s.promptHash}`);
-  if (!manifest.samples.length) console.log('(library empty — every role uses the synth fallback)');
+  const man = readManifest(DIR);
+  for (const s of man.samples) console.log(`${s.role.padEnd(8)} ${s.id.padEnd(16)} ${s.duration}s  ${s.source}  ${s.promptHash}`);
+  if (!man.samples.length) console.log('(library empty — every role uses the synth fallback)');
 }
