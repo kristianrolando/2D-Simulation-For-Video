@@ -182,6 +182,18 @@ node tools/schedule-run.ts --channel "Plasma Pendulum" --count 3
 
 The second command is a dry run; add `--yes` to send. Photon Lab keeps `data/schedule.json` and `node tools/schedule-run.ts --count N` works for it exactly as before (the plan file says which channel it is for; for any other channel the tool needs `--channel` and never guesses). Every upload counts against the one shared quota (see **Quota** above).
 
+### Plasma Pendulum batch (245 videos, Main-2 look)
+
+The second channel has its own batch, a partner for every Photon Lab batch video. Nothing in `data/batch/` (Photon Lab's plan, state and titles) is touched.
+
+- **Plan:** `node tools/batch-plan-plasma.ts` writes `data/batch-plasma/plan.json` (`--check` only prints; `--verify` also simulates the hammer-smash videos). Deterministic: same files, same plan, same order. Keys start with `plasma:`.
+- **What makes a partner different** (the concept and the scene stay): the *Main-2* style preset on Classic with `palette: theme`; parameters changed per scene (object counts, seed, speed, size, ratio, a slightly different length with its end moments moved along); its own on-screen title (two lines, at most 32 characters each, so it is not shrunk); `handle` = `@PlasmaPendulum`; another order (one of each scene first, then a seeded shuffle, hammer-smash never side by side). No Plasma video has the same scene and parameters as any Photon video or another Plasma video (texts and look not counted). In `sync-lines` modes `close` and `slider` few parameters change what is shown, so those partners differ mostly in timing and line count.
+- **Render:** make sure the studio's **active channel is Plasma Pendulum** (YouTube settings), then `node tools/batch-run.ts --dir data/batch-plasma --limit 50` and again for the next 50 (`--limit 10` first as a trial). Same gentle rules as Photon's batch (load, disk ≥ 40 GB, 5 failures in a row stop it, `data/batch-plasma/PAUSE` pauses). New videos are marked with the active channel (name and id). Put the active channel back to Photon Lab afterwards if you go on uploading Photon Lab from the studio.
+- **Texts:** `node tools/batch-titles.ts --dir data/batch-plasma --strict --apply` gives every video its own publishing title and description with the studio's writer (nothing equal or nearly equal, word overlap under 0.75, to any title outside the batch; the keyword of the topic stays in the title; the old texts are saved in `data/batch-plasma/old-titles.json`, undo with `--undo`).
+- **Look at the plan first:** `node tools/batch-sheet.ts --dir data/batch-plasma --out <folder>` draws a frame near the end of every video into contact sheets (no studio needed).
+- **Uploading:** by hand in YouTube Studio (video page → *Manual upload* → *Mark as uploaded manually*); uploads from the studio stay off for Plasma Pendulum until you turn them on. Videos already rendered are never re-rendered.
+- **Tests:** `tests/batch-plasma.test.ts`.
+
 ## Open it with a double-click (macOS)
 
 `Sim Studio.app` is in the project root. Double-click it: it starts the server if it is not running yet (`apps/server/server.ts`, port 5180), opens the studio in your browser, and puts an icon in the menu bar (top right). A second double-click only opens the browser again; there is never a second icon or a second server.
