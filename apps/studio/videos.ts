@@ -19,7 +19,7 @@ import {
 } from './videos-nav.ts';
 import { toCsv } from '../../packages/publish/index.ts';
 import './videos-nav.css';
-import { youtubePanel, openYoutubeSettings, loadYt, ytState } from './youtube-ui.ts';
+import { youtubePanel, openYoutubeSettings, loadYt, ytState, channelPicker, manualUpload } from './youtube-ui.ts';
 import type { SceneModule } from '../../packages/core/index.ts';
 
 type VideoView = Video & { fileExists: boolean; thumbUrl: string; coverUrl: string; thumbProblem?: string };
@@ -237,6 +237,17 @@ export function initVideos(deps: VideosDeps) {
     catch (e) { banner((e as Error).message); langSel.value = lang; }
   };
   $('vYt').onclick = () => { ($('vExport') as HTMLDetailsElement).open = false; openYoutubeSettings(refresh); };
+  // several videos at once: every video the list shows now (same filters), after a confirmation that names the channel
+  $('vChanAll').onclick = async () => {
+    ($('vExport') as HTMLDetailsElement).open = false;
+    const conns = ytState()?.connections ?? [];
+    if (conns.length < 2) { banner('Only one channel is connected. Connect another one in YouTube settings first.'); return; }
+    const shown = [...$('vList').querySelectorAll<HTMLElement>('.vrow')].map(r => r.dataset.id!).filter(Boolean);
+    const pick = prompt(`Put the ${shown.length} videos shown on which channel? Type its number:\n${conns.map((c, i) => `${i + 1}. ${c.name}`).join('\n')}\n\nScheduled, published or uploaded videos keep their channel.`);
+    const c = conns[Number(pick) - 1]; if (!c) return;
+    try { const r = await call<{ changed: number; skipped: unknown[] }>('/api/videos/channel', send('PUT', { ids: shown, channelId: c.id })); banner(`${r.changed} video${r.changed === 1 ? '' : 's'} now for ${c.name}${r.skipped.length ? `; ${r.skipped.length} kept their channel` : ''}.`); await refresh(); }
+    catch (e) { banner((e as Error).message); }
+  };
   $('vData').onclick = async () => { try { await call('/api/videos/reveal-data', send('POST')); } catch (e) { banner((e as Error).message); } };
 
   // ---------- coverage: which scene × style combinations exist ----------
@@ -399,7 +410,7 @@ export function initVideos(deps: VideosDeps) {
       };
       stat.append(b);
     }
-    if (v.kind === 'long') { longDetail(v, box, { patch, openCompile: () => setMode('build'), statusBar: stat, note: nextStep(v) }); return; } // a long video: facts, texts to copy and the owner's own tracking; the texts are edited on the Compile page
+    if (v.kind === 'long') { longDetail(v, box, { patch, openCompile: () => setMode('build'), statusBar: stat, note: nextStep(v), youtube: el('div', { className: 'ytbox' }, el('h3', { className: 'sub' }, 'YouTube'), channelPicker(v, { refresh, flush, readOnly }), manualUpload(v, { refresh, flush, readOnly })) }); return; } // a long video: facts, texts to copy and the owner's own tracking; the texts are edited on the Compile page
     box.append(el('div', { className: 'vhead' },
       el('div', {}, el('h2', {}, `${sceneName(v.sceneId)} · ${styleName(v.style)}`),
         el('p', { className: 'msg' }, channelBadge(channelOf(v)), ` Shorts · 1080×1920 · 60 fps${v.durationSec ? ` · ${v.durationSec.toFixed(1)} s` : ''}${v.sizeBytes ? ' · ' + fmtSize(v.sizeBytes) : ''} · created ${fmtDate(v.createdAt)}`)),

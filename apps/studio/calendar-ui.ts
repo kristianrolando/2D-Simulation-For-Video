@@ -67,12 +67,12 @@ export function initCalendar(d: CalendarDeps) {
   const short = (e: CalEntry) => (e.kind === 'long' ? 'Long video' : d.sceneName(e.sceneId));
   function chip(e: CalEntry) {
     const b = el('button', { type: 'button', className: 'cal-chip st-' + e.state }, el('b', {}, e.time), ' ', short(e));
-    b.title = `${e.date} ${e.time} WIB · ${CAL_LABEL[e.state]}\n${e.title}`; b.setAttribute('aria-label', `${e.date} ${e.time}, ${short(e)}, ${CAL_LABEL[e.state]}: ${e.title}`);
+    b.title = `${e.date} ${e.time} WIB · ${CAL_LABEL[e.state]} · ${e.channel ?? 'Photon Lab'}\n${e.title}`; b.setAttribute('aria-label', `${e.date} ${e.time}, ${short(e)}, ${e.channel ?? 'Photon Lab'}, ${CAL_LABEL[e.state]}: ${e.title}`);
     b.onclick = () => d.open(e.videoId); return b;
   }
   function row(e: CalEntry) {
     const b = el('button', { type: 'button', className: 'cal-row' }, el('span', { className: 'cal-rt' }, e.time), el('i', { className: 'cal-dot st-' + e.state }),
-      el('span', { className: 'cal-rtitle' }, e.title), el('span', { className: 'cal-rm' }, `${short(e)} · ${CAL_LABEL[e.state]}`));
+      el('span', { className: 'cal-rtitle' }, e.title), el('span', { className: 'cal-rm' }, `${short(e)} · ${e.channel ?? 'Photon Lab'} · ${CAL_LABEL[e.state]}`));
     b.onclick = () => d.open(e.videoId); return b;
   }
   return { async show() { await load(); render(); }, render() { if (loaded) render(); } };

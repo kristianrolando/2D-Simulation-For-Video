@@ -304,6 +304,13 @@ button.dice { white-space: nowrap; }
 .ytdlg dl { grid-template-columns: max-content 1fr; }
 .ytstep { border-top: 1px solid var(--field-line); padding: 10px 0; }
 .ytstep textarea { width: 100%; font: var(--fs-sm) ui-monospace, monospace; margin: 6px 0; }
+/* channels in YouTube settings: one bordered row each, the active one marked with the cyan border (tokens only, both modes) */
+.ytconns { display: grid; gap: 6px; margin: 6px 0 8px; }
+.ytconn { display: grid; gap: 4px; border: 1px solid var(--field-line); border-radius: var(--r-md); padding: 8px 10px; background: var(--panel2); }
+.ytconn.on { border-color: var(--cyan); }
+.ytmanualbox { display: grid; gap: 6px; margin-top: 6px; }
+.ytmanualbox input[type=text] { min-width: 16em; flex: 1; }
+details.ytmanual { margin-top: 8px; }
 .ytprog .bar { height: 8px; background: var(--track); border-radius: 4px; overflow: hidden; margin: 6px 0; }
 .ytprog .bar > div { height: 100%; background: var(--cat, var(--cyan)); transition: width .3s; }
 
