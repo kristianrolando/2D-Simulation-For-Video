@@ -4,7 +4,7 @@
 - task_status: partial
 - handoff: ready
 - writer: none
-- updated_at: 2026-11-19T17:10:00+0700
+- updated_at: 2026-11-19T18:05:00+0700
 - language: id
 
 Satu-satunya checkpoint proyek ini. Perbarui di akhir tiap langkah kerja yang substansial, bukan hanya di akhir sesi.
@@ -95,6 +95,12 @@ Pilihan perintah: `npm run dev` untuk merender/mengunggah, `npm run dev:watch` h
 - Tombol "Show MP4 in folder" di detail Long (`compile-ui.ts`), memakai POST /api/reveal. Aturan nama berkas dipindah ke `apps/server/reveal.ts` (hanya nama polos di output/, .mp4/.jpg/.txt; `../`, path absolut, `\`, NUL ditolak 400; tidak ada 404; semua berkas output/ asli lolos). `SIM_NO_OPEN=1` (hanya tes) mencegah membuka Finder. Tes `tests/reveal.test.ts`. Tombol untuk thumbnail/.txt tidak ditambahkan: berkasnya satu folder dengan MP4 di Finder.
 - Tambahan kecil: header detail video membungkus di layar sempit (tombol terpotong).
 - Studio asli belum di-restart: butuh restart saat idle agar CSS/tombol/rute baru aktif.
+
+## Channel per video + branding channel baru (2026-11-19 ~18:00)
+- Tugas 1 SELESAI (commit `ce79c5e`): bidang `channel` di tiap video (default "Photon Lab"), upgrade sekali saat studio dibuka dan boleh menulis (cadangan dulu, schemaVersion tetap 1), lencana di baris/detail, filter "All channels" hanya bila >1 channel. Video baru memakai nama channel YouTube yang terhubung, kalau tidak "Photon Lab". `tests/channel.test.ts` (6); `npm test` 274 lulus, tsc bersih. Diuji di studio uji port 5391 dengan salinan data (dimatikan).
+  `data/videos.json` ASLI belum berisi `channel` di disk: studio asli (pid 69773) memakai kode lama; baru tertulis saat studio di-restart (aman, ada cadangan). Tanpa restart pun data lama terbaca sebagai Photon Lab.
+- Tugas 2 BERHENTI di 2a: kandidat nama sudah diperiksa, MENUNGGU pilihan pemilik. 2b-2f (identitas visual dari `style-presets/main-2.json`, aset, teks channel, langkah, panduan Main-2) belum dikerjakan. `style-presets/main-2.json` milik pemilik, belum di-commit, tidak diubah.
+- Kandidat (cek 2026-11-19): handle @VioletVector, @AmethystAxis, @NebulaBounce, @PlasmaPendulum, @MagentaMechanics, @VioletKinetics = 404 di youtube.com (bebas); @Hyperviolet SUDAH DIPAKAI (dicoret). Langkah "buat channel di YouTube Studio sampai kolom nama" tidak dilakukan (create_channel mengalihkan ke channel Photon Lab; alur channel baru butuh klik akun).
 
 ## Evidence
 - 2026-11-19 08:46: `npm run typecheck` lulus; `npm test` 223 lulus, 0 gagal (tes baru: job-queue +1, batch-run 5, youtube +4 untuk kuota, housekeeping 6, dev-watch 1, ux +1). Semua tanpa jaringan nyata, tanpa kredit, tanpa unggahan.
