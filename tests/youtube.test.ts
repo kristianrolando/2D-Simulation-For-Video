@@ -19,7 +19,7 @@ let fake: Awaited<ReturnType<typeof startFakeGoogle>>;
 let server: ChildProcess | null = null, serverLog = '';
 const responses: string[] = []; // every studio API answer, scanned for secrets at the end
 
-const IDS = ['v-sched', 'v-drop', 'v-now', 'v-quota', 'v-thumb', 'v-kill', 'v-expire', 'v-revoked', 'v-cover', 'v-wide'];
+const IDS = ['v-sched', 'v-drop', 'v-now', 'v-quota', 'v-quota2', 'v-quota3', 'v-thumb', 'v-kill', 'v-expire', 'v-revoked', 'v-cover', 'v-wide'];
 function seed() {
   for (const d of [HOME, DATA, OUT, path.join(DATA, 'thumbnails'), path.join(HOME, 'Downloads')]) fs.mkdirSync(d, { recursive: true });
   // a real 1080x1920 H.264 file, big enough for several 256 KB chunks
@@ -35,7 +35,7 @@ function seed() {
 }
 async function startServer() {
   serverLog = '';
-  server = spawn(process.execPath, ['apps/server/server.ts'], { cwd: ROOT, env: { ...process.env, HOME, PORT: String(PORT), SIM_DATA_DIR: DATA, SIM_OUT_DIR: OUT, SIM_GOOGLE_FAKE: fake.url, SIM_YT_POLL_MS: '150', SIM_YT_CHUNK: String(256 * 1024) }, stdio: ['ignore', 'pipe', 'pipe'] });
+  server = spawn(process.execPath, ['apps/server/server.ts'], { cwd: ROOT, env: { ...process.env, HOME, PORT: String(PORT), SIM_DATA_DIR: DATA, SIM_OUT_DIR: OUT, SIM_GOOGLE_FAKE: fake.url, SIM_YT_POLL_MS: '150', SIM_YT_QUOTA_WAIT_MS: '1500', SIM_YT_TICK_MS: '200', SIM_YT_CHUNK: String(256 * 1024) }, stdio: ['ignore', 'pipe', 'pipe'] });
   server.stdout!.on('data', d => { serverLog += d; }); server.stderr!.on('data', d => { serverLog += d; });
   for (let i = 0; i < 80; i++) { try { if ((await fetch(`${BASE}/api/status`)).ok) return; } catch { /* starting */ } await sleep(150); }
   throw new Error('studio did not start:\n' + serverLog);
@@ -173,15 +173,55 @@ test('"now": private first, public only after the thumbnail is set; tracking →
   assert.ok(fake.ctl.updates.includes(`${yv.id}:public:thumb=true`), 'made public after the thumbnail');
 });
 
-test('quota used up: a clear message with the reset time, no retry, nothing recorded', async () => {
-  fake.ctl.quota = true; const before = fake.ctl.log.filter(l => l.path === '/upload/youtube/v3/videos').length;
-  const r = await upload('v-quota', { mode: 'schedule', at: inFuture(90) });
+test('quota used up at the first insert: nothing is created, the approved upload waits and starts BY ITSELF after the reset (one insert, ever)', async () => {
+  fake.ctl.quota = true; const inserts = () => fake.ctl.log.filter(l => l.path === '/upload/youtube/v3/videos').length, before = inserts(), okBefore = fake.ctl.inserts;
+  const r = await upload('v-quota', { mode: 'schedule', at: inFuture(180), categoryId: '27', notify: false });
+  assert.equal(r.status, 200, 'the owner is told it waits, not that it failed');
+  let v = await video('v-quota');
+  assert.equal(v.youtube.stage, 'failed'); assert.equal(v.youtube.failedAt, 'uploading'); assert.equal(v.youtube.needsSession, true); assert.equal(v.youtube.videoId, '');
+  assert.ok(v.youtube.waitUntil && Date.parse(v.youtube.waitUntil) > Date.now() - 1000, 'a reset time is recorded');
+  assert.match(v.youtube.error, /quota is used up/i); assert.match(v.youtube.error, /continues by itself|starts this upload by itself/i); assert.match(v.youtube.error, /Nothing was uploaded/);
+  assert.equal(v.status, 'rendered'); assert.equal(fake.ctl.inserts, okBefore, 'nothing was created on YouTube');
+  // the reset arrives but the quota is still used up: it waits again, it does not hammer
+  await until(async () => inserts() >= before + 2, 12000);
+  assert.equal(fake.ctl.inserts, okBefore);
+  v = await video('v-quota'); assert.equal(v.youtube.needsSession, true); assert.ok(v.youtube.waitUntil, 'waiting again');
+  // the quota is back: the next try creates the one and only upload, with the choices that were approved
   fake.ctl.quota = false;
-  assert.equal(r.status, 429); assert.match(r.j.error, /quota is used up/i); assert.match(r.j.error, /Nothing is retried/);
-  await sleep(400);
-  assert.equal(fake.ctl.log.filter(l => l.path === '/upload/youtube/v3/videos').length, before + 1, 'exactly one attempt');
-  const v = await video('v-quota');
-  assert.equal(v.youtube, undefined); assert.equal(v.status, 'rendered');
+  await until(async () => (await video('v-quota')).youtube?.stage === 'done', 20000);
+  v = await video('v-quota');
+  assert.equal(fake.ctl.inserts, okBefore + 1, 'exactly one video was ever created'); assert.equal(v.youtube.needsSession, false); assert.equal(v.youtube.waitUntil, '');
+  const yv = fake.ctl.videos.get(v.youtube.videoId)!; assert.equal(yv.privacy, 'private'); assert.equal(v.status, 'scheduled');
+  assert.equal(yv.category, '27', 'the approved category, not today\'s default'); assert.equal(yv.notify, 'false', 'the approved notify choice');
+});
+
+test('quota used up AFTER the insert: the same video continues by itself, no second insert', async () => {
+  fake.ctl.quotaPoll = true; const okBefore = fake.ctl.inserts;
+  const r = await upload('v-quota2', { mode: 'schedule', at: inFuture(180) });
+  assert.equal(r.status, 200);
+  await until(async () => { const y = (await video('v-quota2')).youtube; return y?.stage === 'failed' && !!y.waitUntil; }, 15000);
+  let v = await video('v-quota2');
+  assert.equal(v.youtube.failedAt, 'processing'); assert.ok(v.youtube.videoId, 'the video exists'); assert.equal(v.youtube.needsSession, false);
+  fake.ctl.quotaPoll = false;
+  await until(async () => (await video('v-quota2')).youtube?.stage === 'done', 20000);
+  assert.equal(fake.ctl.inserts, okBefore + 1, 'one insert in total');
+});
+
+test('quota wait survives a restart; a changed file or a schedule that passed drops the waiting upload without creating anything', async () => {
+  fake.ctl.quota = true; const okBefore = fake.ctl.inserts;
+  assert.equal((await upload('v-quota3', { mode: 'schedule', at: inFuture(40) })).status, 200);
+  assert.equal((await video('v-quota3')).youtube.needsSession, true);
+  await stopServer(); await startServer(); // the wait is on disk, not in memory
+  let v = await video('v-quota3'); assert.equal(v.youtube.needsSession, true); assert.ok(v.youtube.waitUntil);
+  // the schedule (40 min ahead when approved) is now under 30 min: the studio must not insert; it drops the attempt and says why
+  const file = JSON.parse(fs.readFileSync(path.join(DATA, 'videos.json'), 'utf8'));
+  const rec = file.videos.find((x: any) => x.id === 'v-quota3'); rec.youtube.publishAt = new Date(Date.now() + 10 * 60e3).toISOString();
+  await stopServer(); fs.writeFileSync(path.join(DATA, 'videos.json'), JSON.stringify(file)); await startServer();
+  await until(async () => (await video('v-quota3')).youtube === undefined, 20000);
+  assert.equal(fake.ctl.inserts, okBefore, 'nothing was created');
+  fake.ctl.quota = false;
+  const list = (await api('GET', '/api/videos')).j; assert.equal((await video('v-quota3')).status, 'rendered');
+  assert.ok(JSON.stringify(list.notice ?? '').match(/scheduled time passed|under 30 minutes/) || /waiting upload dropped/.test(serverLog), 'the owner can see why');
 });
 
 test('thumbnail refused: video stays private + scheduled, the owner continues or skips', async () => {
@@ -330,6 +370,16 @@ test('disconnect revokes at Google and forgets the token; uploaded videos keep t
   assert.equal(r.j.connected, false); assert.equal(fake.ctl.revokes, revokes + 1);
   assert.ok(!fs.readFileSync(path.join(SUPPORT, 'youtube.json'), 'utf8').includes('1//fake-refresh-'));
   const v = await video('v-now'); assert.equal(v.status, 'published'); assert.ok(v.youtubeUrl);
+});
+
+test('nextQuotaReset: the next midnight Pacific Time, strictly after now, across daylight saving', async () => {
+  const { nextQuotaReset, quotaWaitUntil } = await import('../apps/server/youtube.ts');
+  const at = (iso: string) => nextQuotaReset(new Date(iso)).toISOString();
+  assert.equal(at('2026-11-18T05:00:00Z'), '2026-11-18T08:00:00.000Z', 'winter: midnight PST = 08:00 UTC');
+  assert.equal(at('2026-11-18T08:00:00Z'), '2026-11-19T08:00:00.000Z', 'exactly at the reset: the NEXT one');
+  assert.equal(at('2026-07-01T05:00:00Z'), '2026-07-01T07:00:00.000Z', 'summer: midnight PDT = 07:00 UTC');
+  assert.equal(at('2026-11-01T07:00:00Z'), '2026-11-02T08:00:00.000Z', 'the day the clocks change');
+  assert.equal(quotaWaitUntil(new Date('2026-11-18T05:00:00Z')).toISOString(), '2026-11-18T08:02:00.000Z', 'two minutes after the reset');
 });
 
 test('quota reset time: midnight Pacific Time, shown in the Mac\'s own time zone (moves with US daylight saving)', async () => {

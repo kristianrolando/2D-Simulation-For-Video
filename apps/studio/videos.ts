@@ -57,7 +57,7 @@ export function initVideos(deps: VideosDeps) {
   let ytTimer = 0, lastStage = '';
   function watchUpload() {
     clearTimeout(ytTimer);
-    const running = () => ytState()?.live || videos.some(v => v.youtube && v.youtube.stage !== 'done' && v.youtube.stage !== 'failed');
+    const running = () => ytState()?.live || videos.some(v => v.youtube && ((v.youtube.stage !== 'done' && v.youtube.stage !== 'failed') || v.youtube.waitUntil));
     if (!running()) { lastStage = ''; return; }
     ytTimer = window.setTimeout(async () => {
       const s = await loadYt(), key = s?.live ? `${s.live.videoId}:${s.live.stage}` : 'idle';

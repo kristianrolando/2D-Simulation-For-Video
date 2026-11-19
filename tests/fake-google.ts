@@ -10,7 +10,7 @@ export interface FakeVideo { id: string; title: string; privacy: string; publish
   polls: number; processed: boolean; thumbBytes: number; thumbDims: string; thumbBeforeProcessed: boolean; publishedAt: string }
 export function startFakeGoogle() {
   const ctl = {
-    quota: false, revoked: false, thumbReject: 0 as 0 | 403 | 429, dropAfterChunk: -1, fail503Once: false, expireSessions: false, slowChunkMs: 0, processingPolls: 2,
+    quota: false, quotaPoll: false /* quota error on status checks only: the insert works, the steps after it hit the quota */, revoked: false, thumbReject: 0 as 0 | 403 | 429, dropAfterChunk: -1, fail503Once: false, expireSessions: false, slowChunkMs: 0, processingPolls: 2,
     inserts: 0, deletes: 0, revokes: 0, tokenRefreshes: 0, chunks: 0, updates: [] as string[],
     log: [] as { method: string; path: string }[], videos: new Map<string, FakeVideo>(),
     sessions: new Map<string, { total: number; got: number; meta: any; notify: string; videoId: string }>(),
@@ -96,12 +96,12 @@ export function startFakeGoogle() {
     }
     if (p === '/youtube/v3/channels') { json(res, 200, { items: [{ id: 'UCfakechannel', snippet: { title: 'Fake Science Channel', customUrl: '@fakescience' }, contentDetails: { relatedPlaylists: { uploads: 'UUfake' } } }] }); return; }
     if (p === '/youtube/v3/videos' && req.method === 'GET') {
-      if (ctl.quota) { gErr(res, 403, 'quotaExceeded'); return; }
+      if (ctl.quota || ctl.quotaPoll) { gErr(res, 403, 'quotaExceeded'); return; }
       const items = (u.searchParams.get('id') ?? '').split(',').map(id => ctl.videos.get(id)).filter(Boolean).map(v => { v!.polls++; if (v!.polls >= ctl.processingPolls) v!.processed = true; return vidView(v!); });
       json(res, 200, { items }); return;
     }
     if (p === '/youtube/v3/videos' && req.method === 'PUT') {
-      if (ctl.quota) { gErr(res, 403, 'quotaExceeded'); return; }
+      if (ctl.quota || ctl.quotaPoll) { gErr(res, 403, 'quotaExceeded'); return; }
       const b = JSON.parse(raw.toString()), v = ctl.videos.get(b.id); if (!v) { gErr(res, 404, 'videoNotFound'); return; }
       ctl.updates.push(`${b.id}:${b.status?.privacyStatus}:thumb=${v.thumbBytes > 0}`);
       v.privacy = b.status?.privacyStatus ?? v.privacy; json(res, 200, vidView(v)); return;

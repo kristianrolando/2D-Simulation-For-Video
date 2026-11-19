@@ -5,7 +5,7 @@
 // Never: a second videos.insert for the same record, an automatic retry after a quota error, or any delete call.
 import fs from 'node:fs';
 import path from 'node:path';
-import { patchVideo, localDate, sanitizeYoutube, uploadDescription, fileSig, uploadThumbName, type Video, type YoutubeState, type UploadOptions, type FileFacts } from '../../packages/publish/index.ts';
+import { patchVideo, localDate, sanitizeYoutube, uploadDescription, fileSig, uploadThumbName, MIN_LEAD_MIN, type Video, type YoutubeState, type UploadOptions, type FileFacts } from '../../packages/publish/index.ts';
 import { imageSize, isShortsRatio, THUMB_MAX_BYTES } from '../../packages/publish/cover.ts';
 import * as yt from './youtube.ts';
 import type { Store } from './store.ts';
@@ -45,7 +45,44 @@ export function createUploader(deps: UploaderDeps) {
   function fail(id: string, step: YoutubeState['failedAt'], e: unknown) {
     const msg = e instanceof yt.YtError ? e.message : yt.redact(e instanceof Error ? e.message : String(e));
     log(`youtube: ${id} stopped at ${step}: ${msg}`);
-    try { setYt(id, { stage: 'failed', failedAt: step, error: msg }); } catch { /* read-only or removed */ }
+    // the DAILY quota is the one failure that fixes itself: wait for the reset (by the wall clock) and continue. Anything else waits for the owner.
+    const quota = e instanceof yt.YtError && e.kind === 'quota' && e.daily;
+    const until = quota ? yt.quotaWaitUntil() : null;
+    const text = until ? `${msg} The studio continues by itself after ${whenText(until)}; keep it running. Nothing is uploaded twice.` : msg;
+    try { setYt(id, { stage: 'failed', failedAt: step, error: text, waitUntil: until ? until.toISOString() : '' }); } catch { /* read-only or removed */ }
+  }
+  const whenText = (d: Date) => d.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+
+  /** The approved upload could not be started after the quota reset (the file or the schedule changed meanwhile): drop the attempt so the
+   *  owner can approve a fresh one, and say why. Nothing was ever created on YouTube in this state. */
+  function dropWaiting(id: string, why: string): never {
+    write(id, x => { const n = { ...x }; delete n.youtube; return n; });
+    try { store.setNotice({ level: 'warn', text: why }); } catch { /* read-only */ }
+    log(`youtube: ${id} waiting upload dropped: ${why}`);
+    throw new Error(why);
+  }
+  /** After the daily quota reset: the FIRST and only videos.insert of an upload whose insert was refused for quota (no session, no video id).
+   *  Refuses unless it can prove nothing exists yet, the file is the one that was approved, and a schedule is still ≥30 minutes ahead. */
+  async function startAfterQuota(id: string) {
+    const v = store.get(id)!, y = v.youtube!, mp4 = path.join(deps.outDir, v.file);
+    if (y.videoId || yt.hasSession(id)) { setYt(id, { needsSession: false, waitUntil: '' }); return run(id, y.videoId ? 'processing' : 'uploading'); } // something exists after all: continue it, never insert again
+    let facts: { size: number; mtime: number } | null = null; try { const st = fs.statSync(mp4); facts = { size: st.size, mtime: st.mtimeMs }; } catch { /* missing */ }
+    if (!facts || fileSig({ sizeBytes: facts.size, mtimeMs: facts.mtime }) !== y.fileSig) dropWaiting(id, 'The MP4 changed (or is gone) while the upload waited for the YouTube quota. Nothing was uploaded. Approve a new upload.');
+    if (y.mode === 'schedule' && Date.parse(y.publishAt) < Date.now() + MIN_LEAD_MIN * 60e3) dropWaiting(id, `The scheduled time passed (or is under ${MIN_LEAD_MIN} minutes away) while the upload waited for the YouTube quota. Nothing was uploaded. Approve a new upload with a new time.`);
+    const meta = metaOf.get(id) ?? metaFromRecord(v);
+    setYt(id, { stage: 'uploading', failedAt: '', error: '', waitUntil: '' });
+    live = { videoId: id, stage: 'uploading', sent: 0, total: y.total, startedAt: Date.now() };
+    try { await yt.startSession(id, mp4, meta); }
+    catch (e) {
+      live = null;
+      if (e instanceof yt.YtError && e.kind === 'quota' && e.daily) { fail(id, 'uploading', e); return; } // refused again: wait for the next reset
+      const msg = e instanceof yt.YtError ? e.message : yt.redact(e instanceof Error ? e.message : String(e));
+      setYt(id, { stage: 'failed', failedAt: 'uploading', needsSession: true, error: `${msg} Nothing was uploaded. Press Continue to try again.` });
+      return;
+    }
+    live = null;
+    setYt(id, { needsSession: false });
+    return run(id, 'start');
   }
 
   /** Steps from `from` to the end. Each step is safe to repeat except the upload, which only ever continues its own session. */
@@ -110,8 +147,8 @@ export function createUploader(deps: UploaderDeps) {
   const waitOpts = { every: Number(process.env.SIM_YT_POLL_MS) || 20e3, max: 15 * 60e3 };
 
   function metaFromRecord(v: Video): yt.UploadMeta {
-    const d = yt.status().defaults;
-    return { title: v.title, description: uploadDescription(v), tags: v.tags, categoryId: d.categoryId, language: d.language, madeForKids: d.madeForKids, synthetic: d.synthetic, notify: d.notify, publishAt: v.youtube?.publishAt ?? '' };
+    const d = yt.status().defaults, o = v.youtube?.opts; // the owner's approved choices win over today's defaults
+    return { title: v.title, description: uploadDescription(v), tags: v.tags, categoryId: o?.categoryId || d.categoryId, language: o?.language || d.language, madeForKids: o ? o.madeForKids : d.madeForKids, synthetic: o ? o.synthetic : d.synthetic, notify: o ? o.notify : d.notify, publishAt: v.youtube?.publishAt ?? '' };
   }
 
   return {
@@ -125,11 +162,19 @@ export function createUploader(deps: UploaderDeps) {
       const meta: yt.UploadMeta = { title: v.title, description: uploadDescription(v), tags: v.tags, categoryId: o.categoryId, language: o.language, madeForKids: o.madeForKids, synthetic: o.synthetic, notify: o.notify, publishAt };
       metaOf.set(v.id, meta);
       // record first (so a crash right after leaves a trace), then open the session: exactly one videos.insert
-      setYt(v.id, { videoId: '', channelId: ch.id, channelName: ch.name, stage: 'uploading', failedAt: '', mode: o.mode, publishAt, uploadedAt: new Date().toISOString(), thumbnail: 'pending', thumbSent: '', fileSig: fileSig(f), error: '', sent: 0, total: f.sizeBytes, autoPublished: false });
+      setYt(v.id, { videoId: '', channelId: ch.id, channelName: ch.name, stage: 'uploading', failedAt: '', mode: o.mode, publishAt, uploadedAt: new Date().toISOString(), thumbnail: 'pending', thumbSent: '', fileSig: fileSig(f), error: '', sent: 0, total: f.sizeBytes, autoPublished: false, waitUntil: '', needsSession: false,
+        opts: { categoryId: o.categoryId, language: o.language, madeForKids: o.madeForKids, synthetic: o.synthetic, notify: o.notify } });
       live = { videoId: v.id, stage: 'uploading', sent: 0, total: f.sizeBytes, startedAt: Date.now() };
       try { await yt.startSession(v.id, path.join(deps.outDir, v.file), meta); }
       catch (e) {
         live = null;
+        if (e instanceof yt.YtError && e.kind === 'quota' && e.daily) {
+          // refused for the daily quota BEFORE anything was created: keep the approved upload and start it after the reset
+          const until = yt.quotaWaitUntil();
+          setYt(v.id, { stage: 'failed', failedAt: 'uploading', needsSession: true, waitUntil: until.toISOString(), error: `${e.message} Nothing was uploaded. The studio starts this upload by itself after ${whenText(until)}; keep it running.` });
+          log(`youtube: ${v.id} waits for the quota reset (${until.toISOString()})`);
+          return;
+        }
         // no session = nothing reached YouTube: clear the record so a later, newly approved upload is possible
         write(v.id, x => { const n = { ...x }; delete n.youtube; return n; });
         throw e;
@@ -142,9 +187,10 @@ export function createUploader(deps: UploaderDeps) {
       if (live) throw new Error('Another upload is running. Wait until it has finished.');
       const y = v.youtube; if (!y) throw new Error('This video has no upload to continue.');
       if (y.stage === 'done') throw new Error('This upload has already finished.');
+      if (y.needsSession) { void startAfterQuota(v.id).catch(e => log(`youtube: ${v.id}: ${yt.redact(e instanceof Error ? e.message : String(e))}`)); return; }
       const from = y.stage === 'failed' ? y.failedAt || 'uploading' : y.stage === 'uploading' ? 'uploading' : y.stage as YoutubeState['failedAt'];
       if (from === 'uploading' && !y.videoId && !yt.hasSession(v.id)) throw new Error('There is no upload session left to continue.');
-      setYt(v.id, { stage: from === 'uploading' ? 'uploading' : from === 'processing' ? 'processing' : from === 'thumbnail' ? 'thumbnail' : 'finishing', failedAt: '', error: '' });
+      setYt(v.id, { stage: from === 'uploading' ? 'uploading' : from === 'processing' ? 'processing' : from === 'thumbnail' ? 'thumbnail' : 'finishing', failedAt: '', error: '', waitUntil: '' });
       void run(v.id, from);
     },
     /** Put the right (tall 9:16) thumbnail on a video that is already on YouTube. Costs 50 quota units and changes the channel,
@@ -174,6 +220,14 @@ export function createUploader(deps: UploaderDeps) {
         const y = v.youtube; if (!y || y.stage === 'done' || y.stage === 'failed') continue;
         try { setYt(v.id, { stage: 'failed', failedAt: y.stage === 'uploading' ? 'uploading' : y.stage === 'processing' ? 'processing' : y.stage === 'thumbnail' ? 'thumbnail' : 'finishing', error: 'The studio stopped during the upload. Press Continue to resume from where it was.' }); } catch { /* read-only */ }
       }
+    },
+    /** Uploads waiting for the YouTube daily quota continue once their time has come. Compared with the wall clock (never a timer that
+     *  drifts while the Mac sleeps); called every 30 s and at start. Returns how many were continued. */
+    tickWaiting(nowMs = Date.now()): number {
+      if (live) return 0;
+      const due = store.list().find(v => v.youtube?.stage === 'failed' && v.youtube.waitUntil && Date.parse(v.youtube.waitUntil) <= nowMs);
+      if (!due) return 0;
+      try { this.resume(due); return 1; } catch (e) { log(`youtube: ${due.id} could not continue by itself: ${yt.redact(e instanceof Error ? e.message : String(e))}`); try { setYt(due.id, { waitUntil: '' }); } catch { /* read-only */ } return 0; }
     },
     /** Scheduled → Published once YouTube says public (1 unit for ≤50 videos). Never demotes, never twice. */
     async syncPublished(): Promise<number> {

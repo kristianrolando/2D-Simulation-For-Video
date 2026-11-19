@@ -70,7 +70,9 @@ export function redact(text: unknown): string {
 /** An error the page may show as it is (already redacted). kind decides what the studio does next. */
 export class YtError extends Error {
   kind: 'auth' | 'quota' | 'expired' | 'retry' | 'fatal' | 'thumbnail';
-  constructor(kind: YtError['kind'], msg: string) { super(redact(msg)); this.kind = kind; this.name = 'YtError'; }
+  /** quota only: the DAILY quota (resets at midnight Pacific Time, so waiting for the reset helps); false = the channel's own upload limit */
+  daily: boolean;
+  constructor(kind: YtError['kind'], msg: string, daily = false) { super(redact(msg)); this.kind = kind; this.daily = daily; this.name = 'YtError'; }
 }
 
 // ---------------- what the page may see ----------------
@@ -104,6 +106,17 @@ function quotaToday(d: Secrets) { const day = ptDay(); return d.quota?.day === d
 function spend(units: number, uploads = 0) {
   try { change(d => { const day = ptDay(); if (d.quota?.day !== day) d.quota = { day, units: 0, uploads: 0 }; d.quota!.units += units; d.quota!.uploads += uploads; }); } catch { /* bookkeeping only */ }
 }
+/** The next midnight Pacific Time after `now` (YouTube's daily quota resets then). Pacific offsets are whole hours, so it falls on a UTC hour. */
+export function nextQuotaReset(now = new Date()): Date {
+  for (let h = 0; h < 48; h++) {
+    const t = new Date(Math.ceil((now.getTime() + 1) / 3600e3) * 3600e3 + h * 3600e3);
+    if (Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', hourCycle: 'h23' }).format(t)) === 0) return t;
+  }
+  return new Date(now.getTime() + 24 * 3600e3);
+}
+/** When to try again after the daily quota ran out: two minutes after the reset, by the wall clock (a timer would drift while the Mac sleeps).
+ *  SIM_YT_QUOTA_WAIT_MS: tests only. */
+export const quotaWaitUntil = (now = new Date()): Date => process.env.SIM_YT_QUOTA_WAIT_MS ? new Date(now.getTime() + Number(process.env.SIM_YT_QUOTA_WAIT_MS)) : new Date(nextQuotaReset(now).getTime() + 2 * 60e3);
 /** "Quota resets at 15.00" in the Mac's own time zone (midnight PT moves with daylight saving) */
 export function quotaResetLocal(now = new Date()): string {
   for (let h = 0; h < 48; h++) {
@@ -204,7 +217,7 @@ async function failure(r: Response, what: string): Promise<YtError> {
   const j: any = await r.json().catch(() => ({}));
   const reason = j?.error?.errors?.[0]?.reason ?? j?.error?.status ?? '';
   const msg = j?.error?.message ?? '';
-  if (r.status === 403 && /quota|dailyLimit|rateLimitExceeded/i.test(reason + msg)) return new YtError('quota', `YouTube's daily quota is used up. Try again after ${quotaResetLocal()} (midnight Pacific Time). Nothing is retried automatically.`);
+  if (r.status === 403 && /quota|dailyLimit|rateLimitExceeded/i.test(reason + msg)) return new YtError('quota', `YouTube's daily quota is used up (it resets at midnight Pacific Time, ${quotaResetLocal()} here).`, true);
   if (r.status === 400 && reason === 'uploadLimitExceeded') return new YtError('quota', 'This channel has reached its own upload limit for now. Try again later.');
   if (r.status === 401) return new YtError('auth', 'YouTube refused the permission. Connect again in YouTube settings.');
   if ([500, 502, 503, 504].includes(r.status)) return new YtError('retry', `${what}: YouTube is busy (${r.status}).`);

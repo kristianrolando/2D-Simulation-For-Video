@@ -59,6 +59,12 @@ export interface YoutubeState {
   autoPublished: boolean;
   /** file name of the picture that was sent as the thumbnail ('' = not recorded: videos uploaded before this field existed) */
   thumbSent: string;
+  /** ISO UTC: YouTube's daily quota ran out and the studio continues by itself from this time ('' = not waiting) */
+  waitUntil: string;
+  /** the first videos.insert was refused for quota, so no upload session exists yet; waiting continues by creating it (the only insert there will ever be) */
+  needsSession: boolean;
+  /** the owner's upload choices, kept so a continued upload (even after a restart) uses exactly what was approved */
+  opts?: { categoryId: string; language: string; madeForKids: boolean; synthetic: boolean; notify: boolean };
 }
 export interface Settings { suggestLang: 'en' | 'id' }
 export interface VideoStore { schemaVersion: number; savedAt: string; videos: Video[]; /** optional, so files written before it existed stay valid (no schema bump) */ settings?: Partial<Settings> }
@@ -128,6 +134,8 @@ export function sanitizeYoutube(r: Record<string, unknown>): YoutubeState {
     thumbnail: pick(r.thumbnail, ['pending', 'set', 'skipped', 'rejected'] as const, 'pending'),
     fileSig: str(r.fileSig, 60), error: str(r.error, 400), sent: n(r.sent), total: n(r.total), autoPublished: r.autoPublished === true,
     thumbSent: /^[\w.-]{1,80}$/.test(String(r.thumbSent ?? '')) ? String(r.thumbSent) : '',
+    waitUntil: isoOr(r.waitUntil, ''), needsSession: r.needsSession === true,
+    ...(isObj(r.opts) ? { opts: { categoryId: str(r.opts.categoryId, 10), language: str(r.opts.language, 10), madeForKids: r.opts.madeForKids === true, synthetic: r.opts.synthetic === true, notify: r.opts.notify === true } } : {}),
   };
 }
 

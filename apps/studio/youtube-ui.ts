@@ -119,8 +119,9 @@ export function youtubePanel(v: Video & { fileExists: boolean; thumbUrl: string;
       }
     } else {
       box.append(el('p', { className: 'warnline' }, y.error || 'The upload stopped.'), link ? el('p', {}, link) : '');
+      if (y.waitUntil) box.append(el('p', { className: 'msg' }, `⏳ Waiting for YouTube's daily quota to reset · continues by itself about ${fmtWhen(y.waitUntil)}. Keep the studio running (the Mac may sleep; it continues when it wakes).`));
       const row = el('div', { className: 'row' });
-      const go = el('button', { type: 'button', className: 'primary' }, y.failedAt === 'uploading' ? 'Continue upload' : y.failedAt === 'thumbnail' ? 'Try the thumbnail again' : 'Continue') as HTMLButtonElement;
+      const go = el('button', { type: 'button', className: 'primary' }, y.waitUntil ? 'Try now' : y.failedAt === 'uploading' ? 'Continue upload' : y.failedAt === 'thumbnail' ? 'Try the thumbnail again' : 'Continue') as HTMLButtonElement;
       go.onclick = async () => { go.disabled = true; try { await call(`/api/videos/${v.id}/youtube/resume`, 'POST'); await h.refresh(); } catch (e) { alert((e as Error).message); go.disabled = false; } };
       row.append(go);
       if (y.failedAt === 'thumbnail') {

@@ -172,6 +172,8 @@ export function openStore(dir: string, opts: StoreOptions = {}) {
     dir, file, backups,
     /** the one-time message from loading (null once taken) */
     takeNotice(): Notice | null { const n = notice; notice = null; return n; },
+    /** a message for the next page load (e.g. the uploader explaining why a waiting upload was dropped) */
+    setNotice(n: Notice) { notice = n; },
     reload: load,
     get readOnly() { return !canWrite(); },
     get readOnlyReason() { return canWrite() ? '' : readOnlyReason; },

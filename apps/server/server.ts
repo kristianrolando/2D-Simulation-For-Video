@@ -43,6 +43,9 @@ const THUMB_DIR = path.join(DATA, 'thumbnails');
 // ---------------- YouTube (docs/youtube-upload-plan.md) ----------------
 const uploader = createUploader({ store: videos, outDir: OUT, thumbDir: THUMB_DIR, log: line => console.log(line) });
 if (!videos.readOnly) uploader.recover();
+// uploads that waited for YouTube's daily quota continue by themselves once the reset time has passed (wall clock, checked every 30 s and now)
+const continueWaiting = () => { if (!videos.readOnly) uploader.tickWaiting(); };
+continueWaiting(); setInterval(continueWaiting, Number(process.env.SIM_YT_TICK_MS) || 30e3).unref(); // SIM_YT_TICK_MS: tests only
 let lastSync = 0;
 function syncSoon(force = false) {
   if (videos.readOnly || (!force && Date.now() - lastSync < 5 * 60e3)) return;
