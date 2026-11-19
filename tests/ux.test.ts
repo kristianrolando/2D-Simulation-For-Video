@@ -1,7 +1,7 @@
 // Studio UX helpers: search, gallery order, keyboard shortcuts, readable errors.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { progressTitle, needsCounts, firstNeeding, matchesQuery, groupByScene, shortcutFor, SHORTCUTS, friendlyError, friendlyWarnings, fmtSecs, fmtSize } from '../apps/studio/ux.ts';
+import { uploadFailed, uploadRunning, uploadWaiting, progressTitle, needsCounts, firstNeeding, matchesQuery, groupByScene, shortcutFor, SHORTCUTS, friendlyError, friendlyWarnings, fmtSecs, fmtSize } from '../apps/studio/ux.ts';
 
 test('search: every word must match, case and accents ignored, empty query matches all', () => {
   assert.ok(matchesQuery('', 'anything'));
@@ -79,6 +79,9 @@ test('tab title shows render progress and stays quiet otherwise', () => {
 test('videos that need the owner: counts and which one opens first', () => {
   const vs = [{ status: 'published' }, { status: 'rendered' }, { status: 'rendered', youtube: { stage: 'failed' } }, { status: 'scheduled', youtube: { stage: 'uploading' } }, { status: 'draft' }];
   assert.deepEqual(needsCounts(vs), { toSchedule: 1, failed: 1, uploading: 1 });
+  const waiting = { status: 'rendered', youtube: { stage: 'failed', waitUntil: '2026-11-19T08:02:00.000Z' } };
+  assert.ok(uploadWaiting(waiting) && uploadRunning(waiting) && !uploadFailed(waiting), 'waiting for the quota is in progress, not a failure that needs the owner');
+  assert.deepEqual(needsCounts([waiting]), { toSchedule: 0, failed: 0, uploading: 1 });
   assert.equal(firstNeeding(vs), vs[2], 'a failed upload comes first');
   assert.equal(firstNeeding(vs.filter((_, i) => i !== 2)), vs[3], 'then a running upload');
   const two = [{ status: 'draft' }, { status: 'rendered' }];

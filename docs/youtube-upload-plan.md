@@ -166,7 +166,7 @@ Langkah yang perlu keputusan ditandai **[K]**, dan rekomendasi saya ada di bagia
 
 - **Satu unggahan memakai ±60–150 unit**, jadi 10.000 unit cukup untuk ±65 unggahan per hari. Batas yang lebih dulu tercapai adalah 100 `insert` per hari.
 - **Batas channel sendiri** (`uploadLimitExceeded`) bisa lebih ketat dan tidak terlihat sebelumnya.
-- **`403 quotaExceeded`:** pesan "Kuota YouTube hari ini habis. Coba lagi setelah 15.00 WIB" (14.00 WIB saat jam musim panas AS). **Tidak dicoba ulang otomatis.** Langkah yang tertunda tetap bisa diklik lagi besok (lanjutkan sesi, pasang thumbnail, selesaikan).
+- **`403 quotaExceeded`** (diperbarui 2026-11-19: sekarang menunggu reset dan lanjut sendiri, lihat README bagian YouTube; teks di bawah adalah rencana awal): pesan "Kuota YouTube hari ini habis. Coba lagi setelah 15.00 WIB" (14.00 WIB saat jam musim panas AS). **Tidak dicoba ulang otomatis.** Langkah yang tertunda tetap bisa diklik lagi besok (lanjutkan sesi, pasang thumbnail, selesaikan).
 - **Hitungan kuota studio:** studio menghitung unit yang dipakainya hari itu (reset tengah malam PT) di `youtube.json` dan menampilkannya. Itu hanya perkiraan: Google tidak memberi sisa kuota lewat API.
 
 **Status server untuk ikon menu bar** (opsional, kecil): `/api/status` ditambah `uploading: {percent}` tanpa judul, supaya ikon bisa menulis "Mengunggah 45%".

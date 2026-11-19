@@ -9,7 +9,7 @@ import { suggestFor, topicFor, factsFor, hookFor, descriptionFor } from '../../p
 import { checkQuality, qualitySummary, SEVERITY_LABEL } from '../../packages/publish/quality.ts';
 import { coverText, COVER_TEXT_MAX } from '../../packages/publish/cover.ts';
 import { getTheme } from '../../packages/theme/index.ts';
-import { friendlyError, fmtSize, needsCounts, firstNeeding, uploadFailed, uploadRunning } from './ux.ts';
+import { friendlyError, fmtSize, needsCounts, firstNeeding, uploadFailed, uploadRunning, uploadWaiting } from './ux.ts';
 import { icon } from './icons.ts';
 import { youtubePanel, openYoutubeSettings, loadYt, ytState } from './youtube-ui.ts';
 import type { SceneModule } from '../../packages/core/index.ts';
@@ -196,7 +196,7 @@ export function initVideos(deps: VideosDeps) {
       const badges = el('span', { className: 'vbs' });
       const bd = (cls: string, ic: string, text: string) => { const b = el('span', { className: 'vbadge ' + cls }); b.innerHTML = icon(ic, 12); b.append(text); badges.append(b); };
       bd('s-' + v.status, v.status === 'draft' ? 'draft' : v.status === 'rendered' ? 'rendered' : v.status === 'scheduled' ? 'calendar' : 'published', STATUS_LABEL[v.status]);
-      if (uploadFailed(v)) bd('up-failed', 'warn', 'Upload failed'); else if (uploadRunning(v)) bd('up-running', 'upload', 'Uploading');
+      if (uploadFailed(v)) bd('up-failed', 'warn', 'Upload failed'); else if (uploadRunning(v)) bd('up-running', 'upload', uploadWaiting(v) ? 'Waiting for quota' : 'Uploading');
       const when = v.status === 'published' && v.publishedAt ? `published ${v.publishedAt}` : v.status === 'scheduled' && v.scheduledAt ? `for ${v.scheduledAt.replace('T', ' ')}` : fmtDate(v.createdAt);
       const row = el('button', { type: 'button', className: 'vrow' + (v.id === selected ? ' on' : '') },
         el('span', { className: 'vt' }, v.title || '(no title)'), badges,

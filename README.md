@@ -45,11 +45,18 @@ The server loads its code once when it starts, so a code change needs a restart.
   temp audio and half-written MP4s of interrupted renders are removed; a render that did finish just before the stop is recognised as done.
 - A second studio on the same data folder is read-only and never touches the first one's jobs.
 - YouTube uploads and the video list were already restart-safe (stages are recorded, **Continue** resumes); that is unchanged.
+- **A long queue is never cut.** Every queued or running job stays in `data/jobs.json` however many there are; only finished ones are trimmed (newest 30 kept).
+- **Batch runner** (`tools/batch-run.ts`): follows "Render again" (a video you restarted is that same video, not a failure and not sent twice), runs stopped videos again through the studio's own link, and only one runner works on a plan at a time (`data/batch/.runner.lock`).
+- **Housekeeping:** at start and every hour the studio checks ffmpeg, free disk and the output/data folders (problems appear in the banner at the top of the page and in `/api/status`; a render is refused with a clear message when less than 2 GB are free), sweeps old temporary files nobody owns (`*.tmp`, orphan `<job>.wav`, stray request files), and rotates the log. Every log line has a time stamp and no secrets; when `~/Library/Logs/Sim Studio.log` passes 5 MB the old part is kept once as `Sim Studio.log.1`. While a render or an upload is active the Mac is kept from idle sleep (`caffeinate`, ends with the server).
+- **Where does the work stand?** `node tools/state.ts` (read-only) prints git, the running studio (up since, old code or current, queue), the render and batch counts, the disk and the handoff header. Use it instead of trusting a note.
+- **ElevenLabs credits** never run from the studio; see `docs/sfx-credits.md`.
 
 | Command | Use it for |
 |---|---|
 | `npm run dev` | Normal work: rendering and uploading. Restarts only when you do it. |
-| `npm run dev:watch` | Development sessions where the code changes often: the server restarts itself when a server file changes. |
+| `npm run dev:watch` | Development sessions where the code changes often: the server restarts itself when a server file changes. `tests/dev-watch.test.ts` proves a running render comes back as Stopped with no orphan worker and no leftovers. |
+
+**Which one?** Rendering a batch or uploading: `npm run dev` (or the app), and restart it yourself only when `node tools/state.ts` says nothing is running and the code is old. Changing server code: `npm run dev:watch` on a studio with no render or upload in progress.
 
 With `dev:watch`, **do not leave a render or an upload running while files are being edited**: a restart stops the render (you press Render
 again) and cuts an upload at its current step (you press Continue). `themes/`, `presets/`, `style-presets/` and `data/` are not watched, and changes to the
@@ -132,7 +139,7 @@ The **YouTube** section of a video in **Videos** uploads it with the official Yo
 - **Safety:**
   - **Secrets:** the client secret and the refresh token live only in `~/Library/Application Support/Sim Studio/youtube.json` (mode 600). Access tokens stay in memory, and session URIs are kept in `…/youtube-sessions/` (600). None of them reach the workspace, `data/`, logs or the page.
   - **No repeats:** a video is never uploaded twice, never re-uploaded automatically, and never deleted (the code has no delete call; a test checks this).
-  - **Failures:** a quota error shows a message with the reset time (midnight Pacific Time) and is not retried. A dropped connection resumes the same upload session, and after a studio restart **Continue upload** picks it up.
+  - **Failures:** a dropped connection resumes the same upload session, and after a studio restart **Continue upload** picks it up. When YouTube's **daily quota** is used up the upload is not lost: it shows "Waiting for quota" and the studio continues **by itself** about two minutes after the next midnight Pacific Time (compared with the wall clock every 30 seconds and at start, so a sleeping Mac or a restart does not matter; keep the studio running). After the video exists the same video simply continues. If the quota was already gone at the very first request, nothing exists yet; the approved upload (with exactly the choices you approved) makes its one and only `videos.insert` after the reset, and only if the MP4 is unchanged and a schedule is still at least 30 minutes ahead. Otherwise the attempt is dropped with a notice and you approve a new one. A channel's own upload limit is different and always waits for you. **Try now** retries at once.
   - **Disconnect** revokes the permission at Google.
 - **Quota** (checked 2026-11-18): 100 uploads per day in their own bucket, plus 10,000 units for everything else (thumbnail 50, publish now 50, status checks 1). One upload uses about 60–150 units.
 - **Tests:** `tests/youtube.test.ts` runs a real studio against a local stand-in of Google (`tests/fake-google.ts`): OAuth with PKCE, expired and revoked tokens, quota, dropped connections, a killed studio, expired sessions, refused thumbnails, and leaks. No test talks to Google.
