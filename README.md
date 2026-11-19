@@ -83,7 +83,7 @@ Every render you start in the studio becomes an entry in **Videos** (the switch 
 
 Fast path from render to published: **Render MP4** → **Texts & publish** (under the preview) → **Copy title, description and tags** → upload on YouTube yourself → **Published** → paste the link. That is 4 clicks and a paste.
 
-Files are named `<scene>-<layout>-<style>-<timestamp>.mp4` in `output/`; **Play** and **Show in folder** are in the status strip under the preview (with **Texts & publish**), **Copy path** is in the render history (**All renders**), and the video's page has **Show MP4 in folder**.
+Files are named `<scene>-<layout>-<style>-<timestamp>.mp4` in `output/`; **Play** and **Show in folder** are in the status strip under the preview (with **Texts & publish**), **Copy path** is in the render history (**All renders**), and the video's page has **Show MP4 in folder** with, right next to it, the picture buttons: **Show cover in folder** (Short: the 1080×1920 cover, the picture uploaded for Shorts), **Show thumbnail in folder** (Short: the 1280×720 picture, when it is a different file; long video: its 1280×720 thumbnail). A button with no picture behind it stays but is off, and its tooltip says why (no cover made yet, or the file is missing from `data/thumbnails/`). The status strip under the preview shows the MP4 only (a fresh render has no cover yet). The same buttons serve every screen from one function; the by-hand box below no longer repeats them.
 
 **Where the data lives.** Everything is local, in `data/` (set `SIM_DATA_DIR` to move it), never inside `references/`:
 
@@ -179,7 +179,7 @@ The studio can keep **several channels connected** through the same OAuth client
 
 #### Uploading by hand (Plasma Pendulum for now)
 
-For a video whose channel has *Upload from Sim Studio: Off* (or under **Upload by hand instead**), the YouTube section lists what you need in YouTube Studio: **Copy title / description / tags**, **Show MP4 in folder**, **Show cover in folder** (the 1080×1920 picture for a Short; the 1280×720 thumbnail for a long video), and **Open YouTube Studio** (opens studio.youtube.com in your browser; nothing is uploaded). After you published it there, **Mark as uploaded manually** (optional YouTube link or id, and the date) sets the video to *Published*. That calls nothing at YouTube, takes it out of every upload path and plan, and can be undone (**Undo the mark** → *Rendered*).
+For a video whose channel has *Upload from Sim Studio: Off* (or under **Upload by hand instead**), the YouTube section lists what you need in YouTube Studio: **Copy title / description / tags** and **Open YouTube Studio**; the files are the buttons next to the video itself (**Show MP4 in folder**, **Show cover in folder**, **Show thumbnail in folder**) (opens studio.youtube.com in your browser; nothing is uploaded). After you published it there, **Mark as uploaded manually** (optional YouTube link or id, and the date) sets the video to *Published*. That calls nothing at YouTube, takes it out of every upload path and plan, and can be undone (**Undo the mark** → *Rendered*).
 
 #### Uploading to the second channel later
 

@@ -2,6 +2,7 @@
 // look at the chapters and the checks, make the thumbnail. Everything is local: nothing here uploads anything (the uploader takes Shorts only).
 import './compile.css';
 import { friendlyError, fmtSize } from './ux.ts';
+import { revealImageButtons } from './youtube-ui.ts';
 import type { Video } from '../../packages/publish/index.ts';
 
 interface Issue { code: string; severity: 'error' | 'warn'; text: string }
@@ -159,14 +160,14 @@ export function initCompile(d: CompileDeps) {
 }
 
 /** The Videos-list detail of a long video: the facts, the texts to copy and the owner's own tracking (status, link). The texts are edited on the Compile page. */
-export function longDetail(v: Video & { fileExists: boolean; thumbUrl: string }, box: HTMLElement, o: { patch: (p: Record<string, unknown>, now?: boolean) => void; openCompile: () => void; statusBar: HTMLElement; note: string; /** channel + manual upload (the studio's uploader takes Shorts only) */ youtube?: HTMLElement }) {
+export function longDetail(v: Video & { fileExists: boolean; thumbUrl: string; thumbExists?: boolean; coverExists?: boolean }, box: HTMLElement, o: { patch: (p: Record<string, unknown>, now?: boolean) => void; openCompile: () => void; statusBar: HTMLElement; note: string; /** channel + manual upload (the studio's uploader takes Shorts only) */ youtube?: HTMLElement }) {
   const open = el('button', { type: 'button', className: 'primary' }, 'Edit in Compile'); open.onclick = o.openCompile;
   const cp = (label: string, text: string) => { const b = el('button', { type: 'button' }, label); b.onclick = async () => { b.textContent = (await copy(text)) ? 'Copied ✓' : 'Select and copy by hand'; setTimeout(() => { b.textContent = label; }, 1600); }; return b; };
   // the same button and the same call as a Short's detail; a missing file is answered by the server and shown right under the header
   const where = el('p', { className: 'msg', role: 'status' }), reveal = el('button', { type: 'button' }, 'Show MP4 in folder');
   reveal.onclick = async () => { where.textContent = ''; where.className = 'msg'; try { await call('/api/reveal', send('POST', { file: v.file })); } catch (e) { where.textContent = (e as Error).message; where.className = 'msg bad'; } };
   box.append(el('div', { className: 'vhead' }, el('div', {}, el('h2', {}, v.title), el('p', { className: 'msg' }, el('span', { className: 'vbadge ch', title: `Channel: ${v.channel || 'Photon Lab'}` }, v.channel || 'Photon Lab'), ` Long video · 1920×1080 · 60 fps · ${(v.durationSec / 60).toFixed(1)} min${v.sizeBytes ? ' · ' + fmtSize(v.sizeBytes) : ''}${v.fileExists ? '' : ' · MP4 missing'}`)),
-    el('div', { className: 'row' }, open, cp('Copy title', v.title), cp('Copy description with hashtags', `${v.description}\n\n${v.hashtags.join(' ')}`), cp('Copy tags', v.tags.join(', ')), reveal)),
+    el('div', { className: 'row' }, open, cp('Copy title', v.title), cp('Copy description with hashtags', `${v.description}\n\n${v.hashtags.join(' ')}`), cp('Copy tags', v.tags.join(', ')), reveal, ...revealImageButtons(v, (t, bad) => { where.textContent = t; where.className = 'msg' + (bad ? ' bad' : ''); }))),
     where, o.statusBar, el('p', { className: 'next' }, o.note));
   if (o.youtube) box.append(o.youtube);
   if (v.thumbUrl) box.append(el('img', { src: v.thumbUrl, alt: 'Thumbnail, 1280 by 720', className: 'cmp-bigthumb' }));

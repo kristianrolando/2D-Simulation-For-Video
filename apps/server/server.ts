@@ -271,7 +271,7 @@ function trackJob(j: JobRec) {
 function untrackedRenders() {
   return findUntrackedRenders(OUT, { tracked: new Set(videos.list().map(v => v.file)), ignoreIds: new Set(jobs.filter(j => j.status !== 'done').map(j => j.id)), knownScene: id => !!sceneById(id) });
 }
-const videoView = (v: Video) => ({ ...v, thumbProblem: thumbProblem(v), fileExists: !!v.file && fs.existsSync(path.join(OUT, v.file)), thumbUrl: v.thumbFile ? `/data/thumbnails/${v.thumbFile}?v=${Date.parse(v.updatedAt) || 0}` : '', coverUrl: v.coverFile ? `/data/thumbnails/${v.coverFile}?v=${Date.parse(v.updatedAt) || 0}` : '' });
+const videoView = (v: Video) => ({ ...v, thumbProblem: thumbProblem(v), fileExists: !!v.file && fs.existsSync(path.join(OUT, v.file)), coverExists: !!v.coverFile && fs.existsSync(path.join(THUMB_DIR, v.coverFile)), thumbExists: !!v.thumbFile && fs.existsSync(path.join(THUMB_DIR, v.thumbFile)), thumbUrl: v.thumbFile ? `/data/thumbnails/${v.thumbFile}?v=${Date.parse(v.updatedAt) || 0}` : '', coverUrl: v.coverFile ? `/data/thumbnails/${v.coverFile}?v=${Date.parse(v.updatedAt) || 0}` : '' });
 function extractFrame(mp4: string, t: number, out: string): Promise<void> {
   return new Promise((ok, bad) => {
     const tmp = out.replace(/\.png$/, '.tmp.png');

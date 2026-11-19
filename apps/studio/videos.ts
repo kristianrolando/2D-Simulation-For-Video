@@ -20,7 +20,7 @@ import {
 import { rows as rowsFor, NO_VIEW, bulkCsv, planBulkMark, chipCounts, channelChoices, channelCards, channelFacts, summaryLine, activeLine, hasActive, validChannel, loadView, saveView, NO_CHANNEL, type ViewState, type ViewCtx } from './videos-view.ts';
 import { toCsv } from '../../packages/publish/index.ts';
 import './videos-nav.css';
-import { youtubePanel, openYoutubeSettings, loadYt, ytState, channelPicker, manualUpload, setManualChannels } from './youtube-ui.ts';
+import { youtubePanel, openYoutubeSettings, loadYt, ytState, channelPicker, manualUpload, setManualChannels, revealImageButtons } from './youtube-ui.ts';
 import type { SceneModule } from '../../packages/core/index.ts';
 
 type VideoView = Video & { fileExists: boolean; thumbUrl: string; coverUrl: string; thumbProblem?: string };
@@ -558,7 +558,7 @@ export function initVideos(deps: VideosDeps) {
         el('p', { className: 'msg' }, v.thumbSec !== null ? `Frame at ${v.thumbSec.toFixed(1)} s (data/thumbnails/${v.coverFile || v.thumbFile})` : 'The thumbnail is the frame you choose, with the hook on it.'),
         v.thumbProblem ? el('p', { className: 'warnline' }, 'The thumbnail on YouTube is not this one. ' + v.thumbProblem + ' Use "Set the thumbnail again" under YouTube.') : '',
         el('div', { className: 'vfield' }, el('label', {}, el('span', {}, 'Text on the thumbnail'), el('span', { className: 'v', id: 'cCover' })), coverIn),
-        el('div', { className: 'row' }, autoBtn, useBtn, plainBtn), info, reveal))));
+        el('div', { className: 'row' }, autoBtn, useBtn, plainBtn), info, el('div', { className: 'row' }, reveal, ...revealImageButtons(v, (t, bad) => setSaveState(t, bad)))))));
       if (!v.thumbFile && !readOnly && !autoTried.has(id)) { autoTried.add(id); void make({ auto: true }, 'Picking the best frame…'); }
     } else if (v.file) {
       box.append(el('p', { className: 'warnline' }, `The MP4 (${v.file}) is no longer in output/. The texts and status are kept; render again to get a new file.`));

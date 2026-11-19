@@ -232,6 +232,23 @@ export function channelPicker(v: Video, h: Pick<PanelHooks, 'refresh' | 'flush' 
   return el('div', { className: 'row' }, el('label', {}, 'For channel '), sel, msg);
 }
 
+/** "Show cover in folder" / "Show thumbnail in folder": the picture files of a video in Finder, next to the MP4 button (one pair per screen).
+ *  Short: the 1080×1920 cover (the picture sent for Shorts) and, when it differs, the 1280×720 thumbnail; long video: its 1280×720 thumbnail.
+ *  A button with no picture behind it stays but is off, and its title says why. `say` shows "Opened in Finder." or the error. */
+export function revealImageButtons(v: Pick<Video, 'kind' | 'coverFile' | 'thumbFile' | 'status'> & { coverExists?: boolean; thumbExists?: boolean }, say: (t: string, bad?: boolean) => void): HTMLButtonElement[] {
+  const mk = (label: string, file: string, exists: boolean | undefined, what: string, tip: string) => {
+    const b = el('button', { type: 'button', title: tip }, label) as HTMLButtonElement;
+    const why = !file ? `No ${what} yet: pick a frame under "Video and thumbnail" first.` : exists === false ? `The ${what} file is missing from data/thumbnails. Draw it again under "Video and thumbnail".` : '';
+    if (why) { b.disabled = true; b.title = why; return b; }
+    b.onclick = async () => { try { await call('/api/reveal', 'POST', { file, where: 'thumbnails' }); say('Opened in Finder.'); } catch (e) { say((e as Error).message, true); } };
+    return b;
+  };
+  if (v.kind === 'long') return [mk('Show thumbnail in folder', v.thumbFile, v.thumbExists, 'thumbnail', 'Thumbnail 1280×720: for the channel page and the long video')];
+  const out = [mk('Show cover in folder', v.coverFile, v.coverExists, 'cover', 'Cover 1080×1920: the picture uploaded for Shorts')];
+  if (v.thumbFile && v.thumbFile !== v.coverFile) out.push(mk('Show thumbnail in folder', v.thumbFile, v.thumbExists, 'thumbnail', 'Thumbnail 1280×720: for the channel page and long videos'));
+  return out;
+}
+
 const copy = async (text: string) => { try { await navigator.clipboard.writeText(text); return true; } catch { return false; } };
 /** Manual upload: everything needed to upload in YouTube Studio by hand, then "Mark as uploaded manually" (never calls YouTube). */
 export function manualUpload(v: Video & { fileExists?: boolean; thumbUrl?: string; coverUrl?: string }, h: Pick<PanelHooks, 'refresh' | 'flush' | 'readOnly'>): HTMLElement {
@@ -239,8 +256,6 @@ export function manualUpload(v: Video & { fileExists?: boolean; thumbUrl?: strin
   const say = (t: string, bad = false) => { msg.textContent = t; msg.className = 'msg' + (bad ? ' bad' : ''); };
   const btn = (label: string, fn: () => Promise<void> | void, cls = '') => { const b = el('button', { type: 'button', className: cls }, label) as HTMLButtonElement; b.onclick = async () => { try { await fn(); } catch (e) { say((e as Error).message, true); } }; return b; };
   const copyB = (label: string, text: () => string) => btn(label, async () => { await h.flush(); say((await copy(text())) ? `${label}: copied.` : 'Select and copy by hand.'); });
-  const reveal = (file: string, where = '') => btn(where ? (v.kind === 'long' ? 'Show thumbnail in folder' : 'Show cover in folder') : 'Show MP4 in folder', () => call('/api/reveal', 'POST', { file, ...(where ? { where } : {}) }).then(() => say('Opened in Finder.')));
-  const pic = v.kind === 'long' ? v.thumbFile : v.coverFile; // Shorts: the 1080×1920 cover; long videos: the 1280×720 thumbnail
   if (v.uploadedManually) {
     const link = v.youtubeUrl ? el('a', { href: v.youtubeUrl, target: '_blank', rel: 'noopener' }, 'Open on YouTube ↗') : '';
     const undo = btn('Undo the mark', async () => {
@@ -261,7 +276,7 @@ export function manualUpload(v: Video & { fileExists?: boolean; thumbUrl?: strin
   box.append(
     el('p', { className: 'msg' }, 'Upload to ', el('b', {}, v.channel || 'Photon Lab'), ` in YouTube Studio by hand: copy the texts, pick the files, then mark it here.`),
     el('div', { className: 'row' }, copyB('Copy title', () => v.title), copyB('Copy description', () => descriptionWithHashtags(v)), copyB('Copy tags', () => v.tags.join(', '))),
-    el('div', { className: 'row' }, v.file ? reveal(v.file) : '', pic ? reveal(pic, 'thumbnails') : '', btn('Open YouTube Studio', () => call('/api/open-youtube-studio', 'POST').then(() => say('YouTube Studio opened in your browser. Nothing was uploaded.')))),
+    el('div', { className: 'row' }, btn('Open YouTube Studio', () => call('/api/open-youtube-studio', 'POST').then(() => say('YouTube Studio opened in your browser. Nothing was uploaded.')))),
     el('div', { className: 'row' }, url, day, mark),
     v.status !== 'rendered' ? el('p', { className: 'msg' }, 'Only a Rendered video can be marked.') : '', msg);
   return box;
