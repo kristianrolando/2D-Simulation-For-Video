@@ -32,6 +32,9 @@ import { installLog } from './log.ts';
 import { checkHealth, MIN_FREE_GB, type Health } from './health.ts';
 import { sweep } from './sweep.ts';
 import { createAwake } from './awake.ts';
+import { createCompileService, type CompileService } from './compile-service.ts';
+import { outFileFor } from '../../packages/compile/index.ts';
+import type { Compilation } from '../../packages/compile/index.ts';
 
 const logger = installLog({ redact: yt.redact }); // time stamps, no secrets, and a log file that does not grow forever
 
@@ -81,8 +84,9 @@ const ytPage = (title: string, text: string) => `<!doctype html><meta charset="u
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 // ---------------- jobs ----------------
-interface JobRec { id: string; sceneId: string; params: Record<string, unknown>; status: 'queued' | 'running' | 'done' | 'error' | 'stopped'; progress: { frame: number; frames: number; fps: number; phase: string }; out: string; report?: unknown; error?: string; created: number; started?: number; finished?: number; size?: number; pid?: number; note?: string; retriedBy?: string }
+interface JobRec { id: string; sceneId: string; params: Record<string, unknown>; status: 'queued' | 'running' | 'done' | 'error' | 'stopped'; progress: { frame: number; frames: number; fps: number; phase: string }; out: string; report?: unknown; error?: string; created: number; started?: number; finished?: number; size?: number; pid?: number; note?: string; retriedBy?: string; /** 'compile' = a long-video build (apps/server/compile-service.ts), not a scene render */ kind?: 'compile' }
 const jobs: JobRec[] = [];
+let compiles: CompileService | undefined; // long videos; created below, once the http helpers exist
 /** Studio renders from earlier sessions (output/<scene>-...-<timestamp>.mp4 + .job.json) come back as finished jobs, so "where is my video?" survives a restart. */
 function loadHistory(keep = 5) {
   const stamped = /-\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d$/;
@@ -101,20 +105,21 @@ const broadcast = (j: JobRec) => { const s = `data: ${JSON.stringify(publicJob(j
 const publicJob = ({ pid: _pid, ...j }: JobRec) => ({ ...j, out: '/output/' + path.basename(j.out), file: path.relative(ROOT, j.out), abs: j.out });
 
 // ---------------- the queue on disk (data/jobs.json) ----------------
-const WORKER = path.join(ROOT, 'apps/server/worker.ts');
+const WORKER = path.join(ROOT, 'apps/server/worker.ts'), COMPILE_WORKER = path.join(ROOT, 'apps/server/compile-worker.ts');
 const jobStore = openJobStore(DATA, { canWrite: () => !videos.readOnly });
 const toRecord = (j: JobRec): JobRecord => ({ id: j.id, sceneId: j.sceneId, params: j.params, style: String(j.params.style ?? 'classic'), status: j.status, created: j.created, started: j.started, finished: j.finished,
-  out: path.basename(j.out), pid: j.pid, progress: j.progress, report: j.report, error: j.error, size: j.size, note: j.note, retriedBy: j.retriedBy });
+  out: path.basename(j.out), pid: j.pid, progress: j.progress, report: j.report, error: j.error, size: j.size, note: j.note, retriedBy: j.retriedBy, ...(j.kind ? { kind: j.kind } : {}) });
 const saveJobs = () => jobStore.save(jobs.map(toRecord));
 
 function pump() {
   while (jobs.filter(j => j.status === 'running').length < CONCURRENCY) {
     const j = jobs.find(x => x.status === 'queued'); if (!j) return;
     j.status = 'running'; j.started = Date.now(); broadcast(j);
-    const jobFile = j.out.replace(/\.mp4$/, '') + '.request.json';
-    fs.writeFileSync(jobFile, JSON.stringify({ sceneId: j.sceneId, params: j.params, out: j.out }));
+    const jobFile = requestFileOf(j), build = j.kind === 'compile' ? compiles?.request(String(j.params.compilationId)) : undefined;
+    if (j.kind === 'compile' && !build) { j.status = 'error'; j.error = 'This long video is no longer in the list.'; j.finished = Date.now(); saveJobs(); broadcast(j); void compiles?.onJobFinished(j); continue; }
+    fs.writeFileSync(jobFile, JSON.stringify(build ?? { sceneId: j.sceneId, params: j.params, out: j.out }));
     // `detached` = the worker leads its own process group, so it and its ffmpeg can be stopped together (see stopWorkers / recoverJobs)
-    const child = spawn(process.execPath, [WORKER, jobFile], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+    const child = spawn(process.execPath, [j.kind === 'compile' ? COMPILE_WORKER : WORKER, jobFile], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
     j.pid = child.pid; saveJobs();
     let buf = '', err = '';
     child.stdout.on('data', d => {
@@ -136,7 +141,8 @@ function pump() {
       j.status = code === 0 && !j.error ? 'done' : 'error';
       if (j.status === 'done') try { j.size = fs.statSync(j.out).size; } catch { /* file vanished */ }
       if (j.status === 'error' && !j.error) j.error = err.trim().split('\n').slice(-3).join(' | ') || `worker exited with ${code}`;
-      trackJob(j); saveJobs();
+      if (j.kind === 'compile') void compiles?.onJobFinished(j); else trackJob(j);
+      saveJobs();
       broadcast(j); pump();
     });
   }
@@ -151,6 +157,7 @@ function stopWorkers() {
   for (const j of open) {
     const was = j.status; if (j.pid) killGroup(j.pid, 'SIGKILL');
     j.status = 'stopped'; j.note = STOPPED_NOTE; j.finished = Date.now(); j.pid = undefined;
+    if (j.kind === 'compile') { removeFiles([requestFileOf(j), j.out + '.part']); void compiles?.onJobFinished(j); continue; } // a finished long video of an earlier build is never touched; finished clips stay in the cache
     removeFiles(tempFilesOf(OUT, path.basename(j.out))); if (was === 'running') removeFiles(partialFilesOf(OUT, path.basename(j.out)));
     try { trackJob(j); } catch { /* the video list is safe on its own */ }
   }
@@ -167,7 +174,10 @@ async function recoverJobs() {
     if (r.status === 'running' || r.status === 'queued') {
       if (!owner) continue; // another studio owns the queue and may be rendering right now: leave its jobs alone
       const was = r.status;
-      if (j.pid && isOurWorker(j.pid, WORKER, j.id)) { killGroup(j.pid, 'SIGKILL'); for (let i = 0; i < 20 && processAlive(j.pid); i++) await new Promise(ok => setTimeout(ok, 100)); console.log(`render list: stopped the leftover worker of ${j.id}`); }
+      if (j.pid && isOurWorker(j.pid, j.kind === 'compile' ? COMPILE_WORKER : WORKER, j.id)) { killGroup(j.pid, 'SIGKILL'); for (let i = 0; i < 20 && processAlive(j.pid); i++) await new Promise(ok => setTimeout(ok, 100)); console.log(`render list: stopped the leftover worker of ${j.id}`); }
+      if (j.kind === 'compile') { // a long-video build: stopped, its half-written file removed; the finished video of an earlier build and the clip cache stay
+        j.pid = undefined; removeFiles([requestFileOf(j), j.out + '.part']); j.status = 'stopped'; j.note = 'The studio stopped while this long video was building. Press Build to continue: finished clips are reused.'; j.finished = j.finished ?? Date.now(); jobs.push(j); continue;
+      }
       j.pid = undefined; removeFiles(tempFilesOf(OUT, r.out));
       const facts = was === 'running' ? await probe(j.out) : null;
       if (facts && facts.exists && isComplete(facts.durationSec, j.progress.frames)) { // it finished just before the studio stopped
@@ -186,6 +196,26 @@ async function recoverJobs() {
 function lowDisk(): string {
   const free = checkHealth({ outDir: OUT, dataDir: DATA, minFreeGB: MIN_FREE, probes: { has: () => true, writable: () => true } }).freeGB;
   return free !== null && free < MIN_FREE ? `Only ${free.toFixed(1)} GB are free on the disk, so the render was not started (it needs at least ${MIN_FREE} GB free). Free some space and try again.` : '';
+}
+/** the same for a long video, which needs room for its clip cache and the finished file */
+function lowDiskFor(gb: number): string {
+  const free = checkHealth({ outDir: OUT, dataDir: DATA, minFreeGB: MIN_FREE, probes: { has: () => true, writable: () => true } }).freeGB, need = Math.max(MIN_FREE, gb);
+  return free !== null && free < need ? `Only ${free.toFixed(1)} GB are free on the disk, and this long video needs about ${need.toFixed(1)} GB (its clips and the finished file). Free some space and try again.` : '';
+}
+/** where a job's request file lives: a render's next to its video; a long-video build's named after the job (so a leftover worker can be recognised by it) */
+const requestFileOf = (j: JobRec) => (j.kind === 'compile' ? path.join(OUT, `${j.id}.request.json`) : j.out.replace(/\.mp4$/, '') + '.request.json');
+/** a long-video build in the queue (same queue, same one-at-a-time rule as renders) */
+function enqueueCompile(c: Compilation): string {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19), id = `long-${c.slug}-${stamp}`.replace(/--+/g, '-').slice(0, 150);
+  const j: JobRec = { id, sceneId: 'compile', kind: 'compile', params: { compilationId: c.id, title: c.title }, status: 'queued', progress: { frame: 0, frames: 0, fps: 0, phase: 'queued' }, out: path.join(OUT, outFileFor(c)), created: Date.now() };
+  jobs.push(j); saveJobs(); broadcast(j); pump();
+  return j.id;
+}
+/** stop a queued or running build now (its worker and ffmpeg are killed together); the job becomes Stopped and the long video says so */
+function stopJob(id: string) {
+  const j = jobs.find(x => x.id === id); if (!j || (j.status !== 'running' && j.status !== 'queued')) return;
+  j.status = 'stopped'; j.note = 'The build was stopped.'; j.finished = Date.now(); if (j.pid) killGroup(j.pid, 'SIGKILL'); j.pid = undefined;
+  removeFiles([requestFileOf(j), j.out + '.part']); saveJobs(); broadcast(j); void compiles?.onJobFinished(j); pump();
 }
 /** a new render job from a scene and parameters (used by "Render" and "Render again") */
 function enqueue(scene: NonNullable<ReturnType<typeof sceneById>>, input: Record<string, unknown>) {
@@ -307,6 +337,9 @@ function sendFile(req: http.IncomingMessage, res: http.ServerResponse, file: str
   } else { res.writeHead(200, { 'content-type': type, 'content-length': size, 'accept-ranges': 'bytes' }); fs.createReadStream(file).pipe(res); }
 }
 const safeName = (s: string) => s.toLowerCase().replace(/[^a-z0-9-_]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+
+// ---------------- long videos: several Shorts joined into one 16:9 video (docs/compile.md) ----------------
+compiles = createCompileService({ data: DATA, out: OUT, thumbDir: THUMB_DIR, videos, jobs: () => jobs, enqueue: enqueueCompile, stop: stopJob, lowDisk: lowDiskFor, json, readBody, readOnlyError: m => new ReadOnlyError(m) });
 
 /** newest modification time of the server-side code (apps/server and packages/publish), looked up at most every 10 s */
 const SERVER_STARTED = Date.now();
@@ -439,6 +472,11 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     if (old.status !== 'stopped' && old.status !== 'error') { json(res, 409, { error: 'Only a stopped or failed render can be run again.' }); return true; }
     const prev = old.retriedBy ? jobs.find(x => x.id === old.retriedBy) : undefined;
     if (prev && prev.status !== 'error' && prev.status !== 'stopped') { json(res, 409, { error: 'This render was already started again.' }); return true; }
+    if (old.kind === 'compile') { // a stopped or failed long-video build: build again, finished clips are reused
+      const c = compiles?.get(String(old.params.compilationId)); if (!c) { json(res, 404, { error: 'This long video is no longer in the list.' }); return true; }
+      const r = compiles!.startBuild(c); if (r.error) { json(res, 409, { error: r.error }); return true; }
+      const nj = jobs.find(x => x.id === r.job)!; old.retriedBy = nj.id; saveJobs(); broadcast(old); json(res, 200, publicJob(nj)); return true;
+    }
     const scene = sceneById(old.sceneId); if (!scene) { json(res, 400, { error: 'unknown scene' }); return true; }
     if (lowDisk()) { json(res, 507, { error: lowDisk() }); return true; }
     const { j, errors } = enqueue(scene, old.params);
@@ -454,6 +492,7 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     catch { json(res, 500, { error: 'Could not open the file manager.', path: file }); }
     return true;
   }
+  if (/^\/api\/compil/.test(p) && compiles && await compiles.api(req, res, url)) return true; // long videos (the Compile page)
   // ---- video list (metadata + tracking). Local files only; nothing is ever sent to YouTube. ----
   if (p === '/api/videos' && req.method === 'GET') {
     if (videos.readOnly && !videos.retryLock()) videos.reload(); // the other studio may be gone (take over), or it changed the list (show the new one)
@@ -533,6 +572,7 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
 
 // ---------------- server ----------------
 await recoverJobs();
+compiles.init(); // after the queue is back: a build that was running when the studio stopped shows as failed, built videos are in the Videos list
 
 // ---------------- housekeeping: health check, hourly sweep, keep the Mac awake while there is work ----------------
 const MIN_FREE = process.env.SIM_MIN_FREE_GB ? +process.env.SIM_MIN_FREE_GB : MIN_FREE_GB; // SIM_MIN_FREE_GB: tests only

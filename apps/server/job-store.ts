@@ -22,6 +22,8 @@ export interface JobRecord {
   note?: string;
   /** id of the job that re-ran this one ("Render again") */
   retriedBy?: string;
+  /** 'compile' = a long-video build (the MP4 is the finished long video); absent = a scene render, so older files stay valid */
+  kind?: 'compile';
 }
 export const JOB_SCHEMA = 1;
 /** how many records are kept on disk (the newest) */
@@ -54,6 +56,7 @@ export function sanitizeJob(raw: unknown): JobRecord | null {
   if (typeof raw.error === 'string') j.error = raw.error.slice(0, 400);
   if (typeof raw.note === 'string') j.note = raw.note.slice(0, 300);
   if (typeof raw.retriedBy === 'string' && /^[\w.-]{3,160}$/.test(raw.retriedBy)) j.retriedBy = raw.retriedBy;
+  if (raw.kind === 'compile') j.kind = 'compile';
   return j;
 }
 

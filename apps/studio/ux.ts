@@ -102,13 +102,13 @@ export function progressTitle(status: string, percent: number, base = 'Sim Studi
 }
 
 /** Videos that need the owner: rendered but not yet scheduled/published, and uploads that failed or stopped */
-export interface NeedVideo { status: string; fileExists?: boolean; youtube?: { stage: string; waitUntil?: string } }
+export interface NeedVideo { status: string; kind?: string; fileExists?: boolean; youtube?: { stage: string; waitUntil?: string } }
 /** stopped for YouTube's daily quota: the studio continues by itself after the reset, so it is not a failure that needs the owner */
 export const uploadWaiting = (v: NeedVideo) => v.youtube?.stage === 'failed' && !!v.youtube.waitUntil;
 export const uploadFailed = (v: NeedVideo) => v.youtube?.stage === 'failed' && !v.youtube.waitUntil;
 export const uploadRunning = (v: NeedVideo) => !!v.youtube && ((v.youtube.stage !== 'done' && v.youtube.stage !== 'failed') || uploadWaiting(v));
-export function needsCounts(vs: NeedVideo[]) { return { toSchedule: vs.filter(v => v.status === 'rendered' && !uploadFailed(v) && !uploadRunning(v)).length, failed: vs.filter(uploadFailed).length, uploading: vs.filter(uploadRunning).length }; }
+export function needsCounts(vs: NeedVideo[]) { return { toSchedule: vs.filter(v => v.kind !== 'long' && v.status === 'rendered' && !uploadFailed(v) && !uploadRunning(v)).length, failed: vs.filter(uploadFailed).length, uploading: vs.filter(uploadRunning).length }; }
 /** index of the video to open first: a failed upload, then a running one, then the newest "rendered", else the first */
 export function firstNeeding<T extends NeedVideo>(vs: T[]): T | undefined {
-  return vs.find(uploadFailed) ?? vs.find(uploadRunning) ?? vs.find(v => v.status === 'rendered') ?? vs[0];
+  return vs.find(uploadFailed) ?? vs.find(uploadRunning) ?? vs.find(v => v.status === 'rendered' && v.kind !== 'long') ?? vs[0];
 }

@@ -1,0 +1,33 @@
+/* Videos → Compile (long 16:9 videos). Colours come from the studio's tokens, so light and dark mode follow the interface. */
+.vcompile { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; }
+.vcompile[hidden] { display: none !important; }
+.vcompile h2, .vcompile h3 { margin: 0; } .vcompile h3 { font-size: var(--fs-md); margin-top: 10px; }
+.cmp-top { justify-content: space-between; align-items: center; }
+.cmp-list { display: flex; flex-direction: column; gap: 8px; }
+.cmp-card { display: grid; grid-template-columns: 160px minmax(0, 1fr) auto; gap: 12px; align-items: center; text-align: left; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--panel2); }
+.cmp-card.on { border-color: var(--accent); } .cmp-card:hover { background: var(--panel); }
+.cmp-thumb { width: 160px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--r-sm); background: var(--bg); display: grid; place-items: center; color: var(--muted); font-size: var(--fs-xs); }
+.cmp-meta { display: flex; flex-direction: column; gap: 3px; min-width: 0; } .cmp-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmp-bad { color: var(--bad); font-size: var(--fs-xs); font-weight: 700; }
+.cmp-st { border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; font-size: var(--fs-xs); font-weight: 700; color: var(--muted); }
+.cmp-st.st-built { color: var(--ok); border-color: var(--ok); } .cmp-st.st-building { color: var(--cyan); border-color: var(--cyan); } .cmp-st.st-failed { color: var(--warn); border-color: var(--warn); }
+.cmp-bar { position: relative; height: 22px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; display: block; }
+.cmp-bar i { position: absolute; inset: 0 auto 0 0; background: var(--cyan); opacity: .45; } .cmp-bar em { position: relative; font-style: normal; font-size: var(--fs-xs); padding: 0 8px; line-height: 20px; }
+.cmp-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); } .cmp-table th, .cmp-table td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); } .cmp-table th { color: var(--muted); font-weight: 700; }
+.cmp-sug { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px; background: var(--panel2); }
+.cmp-sug > button { align-self: flex-start; }
+.cmp-detail { display: flex; flex-direction: column; gap: 8px; max-width: 980px; }
+.cmp-actions { flex-wrap: wrap; gap: 6px; }
+.cmp-ideas { display: flex; flex-direction: column; gap: 4px; }
+.cmp-idea { text-align: left; white-space: normal; border-radius: var(--r-sm); color: var(--label); font-size: var(--fs-sm); } .cmp-idea.on { border-color: var(--accent); background: var(--seg-on); color: var(--text); font-weight: 700; }
+.cmp-detail textarea, .cmp-detail input[type=text] { width: 100%; box-sizing: border-box; }
+.cmp-detail textarea { font: var(--fs-sm) ui-monospace, monospace; }
+.cmp-detail .q-error { color: var(--bad); } .cmp-detail .q-warn { color: var(--warn); } .cmp-detail .q-ok { color: var(--ok); list-style: none; margin-left: -18px; }
+.cmp-bigthumb { width: min(100%, 640px); aspect-ratio: 16 / 9; border-radius: var(--r-md); border: 1px solid var(--line); }
+.cmp-video { width: min(100%, 760px); aspect-ratio: 16 / 9; background: #000; border-radius: var(--r-md); }
+.cmp-clips { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; counter-reset: clip; }
+.cmp-clips li { display: grid; grid-template-columns: 5ch minmax(0, 1fr) 5ch auto auto auto; gap: 8px; align-items: center; padding: 3px 6px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--panel2); counter-increment: clip; }
+.cmp-clips li::before { content: none; } .cmp-time { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--label); } .cmp-lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmp-clips button { padding: 1px 8px; }
+.vbadge.s-long { border-color: var(--cyan); color: var(--cyan); }
+@media (max-width: 760px) { .cmp-card { grid-template-columns: 96px minmax(0, 1fr); } .cmp-thumb { width: 96px; } .cmp-card .cmp-st { grid-column: 2; justify-self: start; } .cmp-clips li { grid-template-columns: 5ch minmax(0, 1fr) auto auto auto; } .cmp-clips li .msg { display: none; } }

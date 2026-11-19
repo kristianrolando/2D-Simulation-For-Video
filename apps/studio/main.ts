@@ -546,8 +546,8 @@ const strip = $('rstrip'), rsState = strip.querySelector('.rs-state') as HTMLEle
   rsMeta = strip.querySelector('.rs-meta') as HTMLElement, rsNote = strip.querySelector('.rs-note') as HTMLElement, rsRow = strip.querySelector('.rs-row') as HTMLElement,
   rsOpen = strip.querySelector('.rs-open') as HTMLAnchorElement, rsReveal = strip.querySelector('.rs-reveal') as HTMLButtonElement,
   rsPublish = strip.querySelector('.rs-publish') as HTMLButtonElement, rsAgain = strip.querySelector('.rs-again') as HTMLButtonElement, rsHist = strip.querySelector('.rs-hist') as HTMLButtonElement;
-const PHASE: Record<string, string> = { queued: 'Queued', audio: 'Preparing sound', video: 'Rendering', mux: 'Finishing', done: 'Rendering' };
-const jobLabel = (j: JobView) => `${SCENES.find(s => s.meta.id === j.sceneId)?.meta.name ?? j.sceneId} · ${getTheme(String(j.params?.style ?? 'classic')).name}`;
+const PHASE: Record<string, string> = { queued: 'Queued', audio: 'Preparing sound', video: 'Rendering', mux: 'Finishing', done: 'Rendering', normalize: 'Preparing clips', concat: 'Joining clips', verify: 'Checking' };
+const jobLabel = (j: JobView) => j.sceneId === 'compile' ? `Long video · ${String(j.params?.title ?? '')}` : `${SCENES.find(s => s.meta.id === j.sceneId)?.meta.name ?? j.sceneId} · ${getTheme(String(j.params?.style ?? 'classic')).name}`;
 const pctOf = (j: JobView) => (j.status === 'done' ? 100 : j.progress.frames ? Math.min(100, (100 * j.progress.frame) / j.progress.frames) : 0);
 let noteTimer = 0;
 /** one line under the progress bar. Messages about a failed job stay; everything else fades after 10 s. */
