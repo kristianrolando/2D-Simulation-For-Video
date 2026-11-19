@@ -6,6 +6,8 @@
 //   node tools/batch-titles.ts --undo      put the saved old titles and descriptions back
 //   --strict                               also avoid titles that are NEARLY the same (word overlap ≥ 0.75) as a title outside the batch, and
 //                                          any title already given inside it; prints how many are still near
+//   --own-title                            (with --strict) also offer the video's own on-screen title (params.title) as a title idea; for a batch whose
+//                                          on-screen titles were written to be different from the others (Fourier Loom). Off by default: Photon and Plasma unchanged.
 //   --dir <folder>                         another batch (default data/batch), e.g. --dir data/batch-plasma: its own plan, state and old-titles.json;
 //                                          titles already used by any video OUTSIDE that batch (Photon Lab's included) are avoided
 import fs from 'node:fs';
@@ -36,7 +38,7 @@ const batchJobs = new Set(Object.values(state).map(s => s.jobId));
 const mine = new Map(videos.filter(v => batchJobs.has(v.jobId)).map(v => [v.jobId, v]));
 const outside = videos.filter(v => !batchJobs.has(v.jobId)).map(v => String(v.title).trim().toLowerCase());
 const taken = new Set(outside);   // titles of the videos that are not in the batch
-const STRICT = process.argv.includes('--strict');
+const STRICT = process.argv.includes('--strict'), OWN_TITLE = process.argv.includes('--own-title');
 /** words of a title without emoji, punctuation and the " — variant" tail, for the overlap measure */
 const words = (t: string) => new Set(t.toLowerCase().split(' — ')[0].replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(w => w.length > 1));
 const jacc = (a: Set<string>, b: Set<string>) => { let i = 0; for (const x of a) if (b.has(x)) i++; return i / Math.max(1, a.size + b.size - i); };
@@ -57,6 +59,18 @@ for (const item of plan) {
     const joined = lines.reduce((a, b) => (a ? (/[.?!:]$/.test(a) ? `${a} ${b}` : `${a}: ${b.charAt(0).toLowerCase()}${b.slice(1)}`) : b), '');
     const tag = factsFor(item.sceneId, v.params).tag;
     const own = [tag ? `${joined} — ${tag}` : joined, joined].filter(Boolean);
+    if (OWN_TITLE) {   // the title shown on screen, flattened the same way (a different wording by design), with and without the variant tag
+      const sc = String((v.params as any)?.title ?? '').split('\n').map((x: string) => x.trim()).filter(Boolean).reduce((a: string, b: string) => (a ? (/[.?!:]$/.test(a) ? `${a} ${b}` : `${a}: ${b.charAt(0).toLowerCase()}${b.slice(1)}`) : b), '');
+      if (sc) {   // the full tag can make the title longer than YouTube's 100 characters: offer shorter tags too (the keyword is added below)
+        const parts = tag ? tag.split(/,\s*/) : [], short = [] as string[];
+        for (let k = parts.length; k >= 1; k--) short.push(`${sc} — ${parts.slice(0, k).join(', ')}`, `${sc} — ${parts.slice(-k).join(', ')}`);
+        if (item.sceneId === 'hammer-smash') {   // when the template words run out: two true facts of the video (its hammers, its starting balls)
+          const P = v.params as any, h = `${P.hammers} hammer${Number(P.hammers) === 1 ? '' : 's'}`, b = `starts with ${P.startBalls} ball${Number(P.startBalls) === 1 ? '' : 's'}`;
+          short.push(`${sc} — ${h}, ${parts[0] ?? ''}`.replace(/, $/, ''), `${sc} — ${b}, ${parts[0] ?? ''}`.replace(/, $/, ''), `${sc} — ${h}, ${b}`);
+        }
+        own.unshift(...short, sc);
+      }
+    }
     if (item.sceneId === 'billiard') own.push(`${joined} — ${Math.round(Number(v.params.maxBounces))} bounces`);   // two videos on one table differ in their bounce count
     // a title needs the topic's search keyword (the quality checker says so); add it where the hook lacks it, except for a tilted Galton
     // board: its keyword is "bell curve", which is not what that board draws
