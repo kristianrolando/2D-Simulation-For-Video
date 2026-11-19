@@ -207,6 +207,15 @@ The second channel has its own batch, a partner for every Photon Lab batch video
 - **Uploading:** by hand in YouTube Studio (video page → *Manual upload* → *Mark as uploaded manually*); uploads from the studio stay off for Plasma Pendulum until you turn them on. Videos already rendered are never re-rendered.
 - **Tests:** `tests/batch-plasma.test.ts`.
 
+### Fourier Loom batch (245 videos, Main-3 look, channel run by a friend)
+
+The third channel is run by the owner's friend and is **not connected** to the studio: the videos are only rendered and handed over as files. Nothing in `data/batch/` or `data/batch-plasma/` is touched.
+
+- **Plan:** `node tools/batch-plan-fourier.ts` writes `data/batch-fourier/plan.json` (`--check` only prints). A third partner for every Photon video: Main-3 on Classic with `palette: theme`, handle `@FourierLoom`, parameters unlike all 490 Photon and Plasma videos and each other, own on-screen titles. Tests: `tests/batch-fourier.test.ts`.
+- **Channel mark:** add the channel by hand once (`POST /api/channels/manual {"name":"Fourier Loom"}`, or *Add a channel by hand* on the Videos page). The studio tags new renders with its active channel, so after each stage run `node data/batch-fourier/retag.mjs` (tags the finished batch videos "Fourier Loom", no channel id, and checks them). `data/batch-fourier/run-stages.sh` does render + retag in five stages (`touch data/batch-fourier/PAUSE` pauses).
+- **Texts:** `node tools/batch-titles.ts --dir data/batch-fourier --strict --own-title --apply` (`--own-title` also offers the video's own on-screen title and shorter variant tags, so no title is nearly the same as one outside the batch).
+- **Hand-over folder:** `node tools/handover-fourier.ts` copies the videos and covers to `output/serah-terima-video-fourier-loom/` with `daftar.csv` and a README for the friend, then checks that no other channel's name, internal term or personal path is in it (`--check` only checks; about 18 minutes for the byte scan).
+
 ## Open it with a double-click (macOS)
 
 `Sim Studio.app` is in the project root. Double-click it: it starts the server if it is not running yet (`apps/server/server.ts`, port 5180), opens the studio in your browser, and puts an icon in the menu bar (top right). A second double-click only opens the browser again; there is never a second icon or a second server.
