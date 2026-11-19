@@ -1,0 +1,32 @@
+{
+  "name": "Plasma Pendulum",
+  "handle": "@PlasmaPendulum",
+  "tagline": "Physics, in neon.",
+  "bannerLine": "Satisfying physics & math simulations · New Shorts every week",
+  "textCase": "none",
+  "mark": "pendulum",
+  "bgLinear": ["#174074", "#010312", "#02223b"],
+  "colors": {
+    "bg0": "#010312",
+    "bg1": "#02223b",
+    "bg2": "#174074",
+    "core": "#cd18ff",
+    "glow": "#ff00ea",
+    "accent": "#ffd23f",
+    "text": "#eef2ff",
+    "muted": "#c8d2eb",
+    "grid": "#4f8dff"
+  },
+  "fonts": {
+    "display": "DejaVu Sans Bold",
+    "displayFile": "assets/fonts/DejaVuSans-Bold.ttf",
+    "fallback": "DejaVu Sans, sans-serif"
+  },
+  "thumb": {
+    "series": "Experiment",
+    "number": "012",
+    "title": "Will they all come back?",
+    "counterLabel": "Bounces",
+    "counterValue": "128"
+  }
+}

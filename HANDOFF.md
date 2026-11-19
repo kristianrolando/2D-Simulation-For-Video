@@ -4,7 +4,7 @@
 - task_status: partial
 - handoff: ready
 - writer: none
-- updated_at: 2026-11-19T18:05:00+0700
+- updated_at: 2026-11-19T19:00:00+0700
 - language: id
 
 Satu-satunya checkpoint proyek ini. Perbarui di akhir tiap langkah kerja yang substansial, bukan hanya di akhir sesi.
@@ -99,7 +99,7 @@ Pilihan perintah: `npm run dev` untuk merender/mengunggah, `npm run dev:watch` h
 ## Channel per video + branding channel baru (2026-11-19 ~18:00)
 - Tugas 1 SELESAI (commit `ce79c5e`): bidang `channel` di tiap video (default "Photon Lab"), upgrade sekali saat studio dibuka dan boleh menulis (cadangan dulu, schemaVersion tetap 1), lencana di baris/detail, filter "All channels" hanya bila >1 channel. Video baru memakai nama channel YouTube yang terhubung, kalau tidak "Photon Lab". `tests/channel.test.ts` (6); `npm test` 274 lulus, tsc bersih. Diuji di studio uji port 5391 dengan salinan data (dimatikan).
   `data/videos.json` ASLI belum berisi `channel` di disk: studio asli (pid 69773) memakai kode lama; baru tertulis saat studio di-restart (aman, ada cadangan). Tanpa restart pun data lama terbaca sebagai Photon Lab.
-- Tugas 2 BERHENTI di 2a: kandidat nama sudah diperiksa, MENUNGGU pilihan pemilik. 2b-2f (identitas visual dari `style-presets/main-2.json`, aset, teks channel, langkah, panduan Main-2) belum dikerjakan. `style-presets/main-2.json` milik pemilik, belum di-commit, tidak diubah.
+- Tugas 2: pemilik memilih **Plasma Pendulum** (@PlasmaPendulum). Kit selesai di `branding/brands/plasma-pendulum.json` + `branding/brands/plasma-pendulum/` (README berisi identitas, teks channel, langkah YouTube Studio, cara pakai Main-2; aset png/svg; `node branding/build.mjs plasma-pendulum`; `node branding/check-contrast.mjs plasma-pendulum`). `build.mjs` menerima id brand; Photon Lab tetap identik (git bersih). Cover contoh dari 2 render nyata 12 dtk (Main-2) di studio uji port 5392, data sementara (dimatikan). Channel BELUM dibuat pemilik; studio masih satu koneksi (Photon Lab). `style-presets/main-2.json` milik pemilik, belum di-commit, tidak diubah.
 - Kandidat (cek 2026-11-19): handle @VioletVector, @AmethystAxis, @NebulaBounce, @PlasmaPendulum, @MagentaMechanics, @VioletKinetics = 404 di youtube.com (bebas); @Hyperviolet SUDAH DIPAKAI (dicoret). Langkah "buat channel di YouTube Studio sampai kolom nama" tidak dilakukan (create_channel mengalihkan ke channel Photon Lab; alur channel baru butuh klik akun).
 
 ## Evidence

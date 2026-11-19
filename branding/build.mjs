@@ -1,17 +1,24 @@
-// Photon Playground branding generator.
+// Branding generator (Photon Lab by default; more brands in branding/brands/<id>.json).
 // Edit brand.json (name, handle, colors, font, sample thumbnail text), then run:
-//   node branding/build.mjs
-// Writes editable SVG sources to branding/svg/ and PNGs to branding/png/.
+//   node branding/build.mjs                    Photon Lab: reads brand.json, writes branding/svg/ and branding/png/
+//   node branding/build.mjs plasma-pendulum    reads branding/brands/<id>.json, writes branding/brands/<id>/{svg,png}/
+// The default run is unchanged by the optional brand keys (bgLinear, mark, textCase, colors.glow): without them the output is byte-identical.
 import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const DIR = path.dirname(fileURLToPath(import.meta.url));
-const B = JSON.parse(fs.readFileSync(path.join(DIR, 'brand.json'), 'utf8'));
+const BRANDING = path.dirname(fileURLToPath(import.meta.url));
+const BRAND_ID = process.argv[2] || '';
+if (BRAND_ID && !/^[a-z0-9-]+$/.test(BRAND_ID)) { console.error('Brand id: lowercase letters, digits and dashes only.'); process.exit(1); }
+const DIR = BRAND_ID ? path.join(BRANDING, 'brands', BRAND_ID) : BRANDING;
+const B = JSON.parse(fs.readFileSync(BRAND_ID ? path.join(BRANDING, 'brands', BRAND_ID + '.json') : path.join(BRANDING, 'brand.json'), 'utf8'));
+const ROOT = path.resolve(BRANDING, '..');
+const upper = (s) => (B.textCase === 'none' ? String(s) : String(s).toUpperCase());
 const C = B.colors;
 const FONT = B.fonts.display;
-if (B.fonts.displayFile && fs.existsSync(B.fonts.displayFile)) GlobalFonts.registerFromPath(B.fonts.displayFile, FONT);
+const FONT_FILE = B.fonts.displayFile ? path.resolve(ROOT, B.fonts.displayFile) : '';
+if (FONT_FILE && fs.existsSync(FONT_FILE)) GlobalFonts.registerFromPath(FONT_FILE, FONT);
 // Unquoted list on purpose: the Skia SVG renderer drops text whose family names are quoted.
 const FAMILY = `${FONT}, ${B.fonts.fallback}`.replace(/['"]/g, '');
 
@@ -45,9 +52,11 @@ const capBase = (top, size) => top + size * 0.72;
 
 const defs = (w, h, id = 'bg', extra = '') => `
   <defs>${extra}
-    <radialGradient id="${id}" cx="50%" cy="45%" r="75%">
+    ${B.bgLinear
+      ? `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${B.bgLinear[0]}"/><stop offset="0.5" stop-color="${B.bgLinear[1]}"/><stop offset="1" stop-color="${B.bgLinear[2]}"/></linearGradient>`
+      : `<radialGradient id="${id}" cx="50%" cy="45%" r="75%">
       <stop offset="0" stop-color="${C.bg2}"/><stop offset="0.55" stop-color="${C.bg1}"/><stop offset="1" stop-color="${C.bg0}"/>
-    </radialGradient>
+    </radialGradient>`}
     <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
       <path d="M48 0H0V48" fill="none" stroke="${C.grid}" stroke-width="1" opacity="0.10"/>
     </pattern>
@@ -84,6 +93,26 @@ function mark(cx, cy, R, { ticks = true, glowOn = true, dark = true, mono = fals
     ${dotEl}
   </g>`;
 }
+
+// ---------- logo mark "pendulum": a swinging bob with fading echoes on a glowing arc (brands with "mark": "pendulum") ----------
+function pendulumMark(cx, cy, R, { ticks = true, glowOn = true, dark = true, mono = false } = {}) {
+  const halo = mono ? C.text : (C.glow || C.core), main = mono ? C.text : C.core, hot = mono ? C.text : C.accent;
+  const px = cx, py = cy - R * 0.66, L = R * 1.34, sw = R * 0.07;
+  const at = (deg) => { const a = (deg * Math.PI) / 180; return [px + Math.sin(a) * L, py + Math.cos(a) * L]; };
+  const [ax, ay] = at(-48), [bx, by] = at(48);
+  const arc = `<path d="M${f(ax)} ${f(ay)} A${f(L)} ${f(L)} 0 0 0 ${f(bx)} ${f(by)}" fill="none" stroke="${main}" stroke-width="${f(sw * 0.7)}" stroke-linecap="round" opacity="0.9"/>`;
+  const echoes = [-8, 4, 17, 30].map((d, i) => { const [x, y] = at(d); return `<circle cx="${f(x)}" cy="${f(y)}" r="${f(R * (0.07 + i * 0.03))}" fill="${halo}" opacity="${f(0.25 + i * 0.2)}"/>`; }).join('');
+  const [hx, hy] = at(42), [sx, sy] = at(42);
+  const string = `<line x1="${f(px)}" y1="${f(py)}" x2="${f(hx)}" y2="${f(hy)}" stroke="${C.text}" stroke-width="${f(sw * 0.55)}" stroke-linecap="round"/>`;
+  const bob = `<circle cx="${f(hx)}" cy="${f(hy)}" r="${f(R * 0.2)}" fill="${halo}"/><circle cx="${f(hx)}" cy="${f(hy)}" r="${f(R * 0.11)}" fill="${hot}"/>`;
+  const bar = `<line x1="${f(px - R * 0.34)}" y1="${f(py)}" x2="${f(px + R * 0.34)}" y2="${f(py)}" stroke="${C.text}" stroke-width="${f(sw * 1.1)}" stroke-linecap="round"/><circle cx="${f(px)}" cy="${f(py)}" r="${f(R * 0.06)}" fill="${C.text}"/>`;
+  const fill = dark ? `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(R * 1.02)}" fill="${C.bg0}" opacity="0.6"/>` : '';
+  return `<g>${fill}
+    ${glowOn ? `<g filter="url(#blurM)" opacity="0.9">${arc}${echoes}<circle cx="${f(hx)}" cy="${f(hy)}" r="${f(R * 0.26)}" fill="${halo}"/></g>` : ''}
+    ${arc}${echoes}${string}${bar}${bob}
+  </g>`;
+}
+const markFn = (...a) => (B.mark === 'pendulum' ? pendulumMark(...a) : mark(...a));
 
 // ---------- photon trails: a ball bouncing in a rectangle ----------
 function boxTrail(x0, y0, w, h, sx, sy, ang, len, color, width, op) {
@@ -122,7 +151,7 @@ const text = (x, y, size, s, fill, anchor = 'start', op = 1) =>
   const W = 800;
   const svg = `${svgOpen(W, W)}${defs(W, W)}${background(W, W)}
   <circle cx="400" cy="400" r="400" fill="url(#bg)" opacity="0.4"/>
-  ${mark(400, 400, 270)}
+  ${markFn(400, 400, 270)}
   </svg>`;
   await out('profile_800', W, W, svg);
 }
@@ -133,10 +162,10 @@ const text = (x, y, size, s, fill, anchor = 'start', op = 1) =>
   const R = 150, markD = (R + R * 0.075 * 3.6) * 2; // ring + ticks
   const gap = 64, pad = 40;
   const textMax = SW - pad * 2 - markD - gap;
-  const name = B.name.toUpperCase();
+  const name = upper(B.name);
   const nameSize = fitSize(name, textMax, 230);
-  const line2 = B.bannerLine.toUpperCase();
-  const tag = B.tagline.toUpperCase();
+  const line2 = upper(B.bannerLine);
+  const tag = upper(B.tagline);
   const tagSize = fitSize(tag, textMax, 84);
   const l2Size = fitSize(line2, textMax, 52);
   const blockW = Math.max(textWidth(name, nameSize), textWidth(tag, tagSize), textWidth(line2, l2Size));
@@ -161,7 +190,7 @@ const text = (x, y, size, s, fill, anchor = 'start', op = 1) =>
   <g filter="url(#blurS)">${trails.map((t) => t.svg).join('')}</g>${trails.map((t) => t.svg).join('')}
   <g filter="url(#blurM)">${dots}</g>${dots}
   <ellipse cx="${W / 2}" cy="${H / 2}" rx="${SW * 0.6}" ry="${SH * 0.85}" fill="${C.bg0}" opacity="0.8" filter="url(#blurXL)"/>
-  ${mark(gx + markD / 2, H / 2, R)}
+  ${markFn(gx + markD / 2, H / 2, R)}
   ${text(tx, yT, tagSize, tag, C.accent)}
   ${glow(text(tx, yN, nameSize, name, C.core), 'blurM', 0.8)}
   ${text(tx, yN, nameSize, name, C.text)}
@@ -176,7 +205,7 @@ const text = (x, y, size, s, fill, anchor = 'start', op = 1) =>
   const W = 150;
   const svg = `${svgOpen(W, W)}${defs(W, W)}
   <circle cx="75" cy="75" r="62" fill="${C.bg0}" opacity="0.55"/>
-  ${mark(75, 75, 52, { ticks: true, glowOn: false, dark: false })}
+  ${markFn(75, 75, 52, { ticks: true, glowOn: false, dark: false })}
   </svg>`;
   await out('watermark_150', W, W, svg);
 }
@@ -212,7 +241,7 @@ const T = B.thumb;
   const TZ = { x: 90, y: 250, w: 840, h: 430 }; // title zone
   const CZ = { y: 720, h: 120 }; // counter zone
   const AZ = { x: 140, y: 900, w: 720, h: 560 }; // simulation frame
-  const title = T.title.toUpperCase();
+  const title = upper(T.title);
   const wrap = fitWrap(title, TZ.w, TZ.h - 70, 150, 3, 1.02);
   const kicker = `${T.series} #${T.number}`;
   const lines = wrap.lines.map((l, i) => {
@@ -237,7 +266,7 @@ const T = B.thumb;
   const W = 1280, H = 720;
   const TZ = { x: 64, y: 110, w: 640, h: 330 };
   const AZ = { x: 790, y: 120, w: 420, h: 420 };
-  const title = T.title.toUpperCase();
+  const title = upper(T.title);
   const wrap = fitWrap(title, TZ.w, TZ.h, 130, 3, 1.02);
   const lines = wrap.lines.map((l, i) => {
     const y = capBase(TZ.y + i * wrap.size * 1.02, wrap.size);
