@@ -25,7 +25,7 @@ Verified (2026-11-20 ~01:20, setelah perapian): `npm run typecheck` bersih; `npm
 Operasi nyata (jangan percaya catatan ini; tanya keadaan sebenarnya, hanya baca): `node tools/state.ts`. Pada 01:20 studio pid 83344 berjalan, idle, kode terkini (`codeStale: false`), antrean 0, tanpa render/batch/unggahan. `npm run dev` untuk merender/mengunggah; `npm run dev:watch` hanya bila tidak ada render atau unggahan.
 
 Unfinished / unknown (menunggu pemilik):
-- **Tahap 4 perapian** (usulan, belum ada yang dihapus atau dipindah): lihat tabel di bawah.
+- **Tahap 4 perapian**: pemilik menyetujui "semua yang aman" (2026-11-20); dieksekusi hanya `data/videos-ui-checks/` (kosong), `prototypes/output/` (62 MB) dan `output/thumbs/` (33 MB cache). Sisanya TETAP menunggu keputusan (tidak dapat dibuat ulang atau perlu keputusan lain): lihat tabel.
 - Unggah Photon Lab: jadwal 8 uploaded / 1 failed (`v-mwm5fvnr16gu`, 429 batas unggah channel) / 223 planned. Tugas terjadwal `upload-next-8-photon-lab` (20 Nov 13:00 WIB) tidak dibatalkan; keputusan pemilik soal slot failed dan penyebab 429 belum ada (`docs/work-log.md`, bagian pemeriksaan API). Kuota YouTube per unggahan belum terverifikasi (dokumen resmi 1 unit vs data nyata ±3.500 unit untuk 8 unggahan).
 - Plasma Pendulum: 245 video siap (`channel` benar, cover ada), tersambung, Upload Off; diunggah manual oleh pemilik. Fourier Loom: 245 video + folder serah-terima `output/serah-terima-video-fourier-loom/` siap, belum diserahkan ke teman; tidak ada unggah/penjadwalan.
 - 15 video panjang (kompilasi 16:9) siap unggah, belum diunggah, belum diputar manusia; uploader studio belum mendukung video panjang.
@@ -47,17 +47,17 @@ Ukuran per 2026-11-20. "Kode" = dirujuk kode/skrip (grep di apps, packages, tool
 | Item | Isi | Ukuran | Kode? | Usulan |
 |---|---|---|---|---|
 | `work/` | coretan analisis/bench: skrip `.mjs`, frame dan PNG perbandingan, `main.ts.bak-uxv2` | 94 MB | hanya `tools/compare.sh` menulis ke `work/cmp`; `docs/ux-v2.md` menyebut skripnya | arsipkan ke luar repo, lalu hapus; simpan `cdp.mjs`/`shots.mjs`/`flows.mjs` bila ingin mengulang ukur UX |
-| `prototypes/output/` | render prototipe lama (tidak dilacak) | 62 MB | tidak (dibuat ulang oleh `prototypes/lib/render-node.mjs`) | hapus; 13 berkas terlacak di `prototypes/` dipakai `tools/fit-camera.mjs`, `serve.mjs`, `state-hash.mjs` dan `docs/report.md`: simpan |
+| `prototypes/output/` | render prototipe lama (tidak dilacak) | 62 MB | tidak (dibuat ulang oleh `prototypes/lib/render-node.mjs`) | **DIHAPUS 2026-11-20 (disetujui pemilik)**; 13 berkas terlacak di `prototypes/` dipakai `tools/fit-camera.mjs`, `serve.mjs`, `state-hash.mjs` dan `docs/report.md`: simpan |
 | `references/` | 18 video kompetitor (2 folder) | 606 MB | `tools/compare.sh`, `style-evidence.ts --ref`; `docs/analysis.md` | simpan (sumber analisis, tidak bisa dibuat ulang); bila ruang sempit pindah ke disk luar |
 | gambar docs | sudah dikompres (45,8 → 23,7 MB); 3 tangkapan layar identik di `docs/evidence/ux-v2/after/pane-*-768.jpg` + `videos-400-dark`/`videos-detail-400` (±0,25 MB) | 23,7 MB | `flows.json` menyebut namanya | simpan; hapus 3 salinan identik bila pemilik setuju |
 | `data/backups/` | cadangan `videos.json`/`jobs.json` (rotasi 50 terbaru + harian 60 hari) | 116 MB | ya (`store.ts`, `job-store.ts` menulis dan memangkas sendiri) | simpan; hanya pangkas manual yang > 30 hari bila perlu ruang |
 | `data/videos.pre-fourier.json`, `videos.pre-plasma.json` | titik kembali sebelum batch Plasma dan Fourier | 1,6 + 0,8 MB | tidak (dirujuk `docs/work-log.md`) | arsipkan; hapus setelah pemilik yakin batch benar |
 | `data/schedule.json.bak` | cadangan otomatis rencana jadwal | 62 KB | ya (`schedule-plan.ts` membuatnya) | simpan (dibuat ulang bila dihapus) |
 | `data/backup-pre-upload-2026-11-19/` | salinan `schedule.json` + `videos.json` sebelum unggah | 1,9 MB | tidak | simpan sampai unggahan lanjutan stabil, lalu hapus |
-| `data/videos-ui-checks/` | folder kosong | 0 B | tidak | hapus (folder kosong) |
+| `data/videos-ui-checks/` | folder kosong | 0 B | tidak | **DIHAPUS 2026-11-20 (disetujui pemilik)** |
 | `Sim Studio.app`, `Buka Studio.command` | peluncur macOS pemilik | 0,7 MB | `location.txt` mencatat jalur proyek; `.command` memanggil `apps/server/server.ts` | simpan, tidak diubah |
 | `output/` | hasil render: serah-terima Fourier 9,2 GB, video panjang ±6,1 GB, Shorts Photon/Plasma, 14 MP4 uji awal tanpa record (±105 MB) | 39 GB (193 GB bebas) | tidak (dibaca studio saat berjalan) | simpan dulu; setelah folder serah-terima diserahkan, hapus (bisa dibuat ulang `tools/handover-fourier.ts`, ±18 mnt); putuskan 14 MP4 uji |
-| cache | `output/thumbs` 33 MB (cache galeri, dibuat ulang), `data/thumbnails` 323 MB (cover/thumbnail yang dipakai unggah) | 356 MB | ya | `output/thumbs` boleh dihapus; `data/thumbnails` simpan |
+| cache | `output/thumbs` 33 MB (cache galeri, dibuat ulang), `data/thumbnails` 323 MB (cover/thumbnail yang dipakai unggah) | 356 MB | ya | `output/thumbs` **DIHAPUS 2026-11-20 (disetujui pemilik; dibuat ulang otomatis oleh studio)**; `data/thumbnails` simpan |
 | `.git` | riwayat; membesar 60 → 77 MB karena blob JPEG baru (blob PNG lama tetap di riwayat) | 74 MB | — | `git gc` sudah dijalankan (60 → 77 → 74 MB); memperkecil riwayat butuh filter-branch, tidak diusulkan |
 | 11 ekspor tanpa pemakai | `dpow`, `segParam`, `simKeys`, `bankRoles`, `ROLES`, `ICON_NAMES`, `MODE_LABEL`/`MODE_HINT`, `closeStyleEditor`, `styleThumbs`, `FOURIER_CHANNEL`, `buildFourierPlan` (nol rujukan di apps/packages/tools/tests) | < 60 baris | tidak | hapus saat studio memang akan di-restart (sebagian di `apps/server/`, menjadikan studio `codeStale`); `dpow` bagian API matematika deterministik, simpan bila ragu |
 | duplikat byte-identik | `branding/brands/{fourier-loom,tangent-loom}/…` (8 berkas: profil, watermark, 4 contoh, 2 svg) | ±0,4 MB | ya (dibangun ulang `build.mjs`/`pack.mjs`) | simpan |
