@@ -135,6 +135,12 @@ Pilihan perintah: `npm run dev` untuk merender/mengunggah, `npm run dev:watch` h
 - Contoh nyata: dua render 12 dtk Main-3 (galton-board, sync-lines) di studio uji port 5391 dengan data sementara; studio uji dimatikan; studio asli tidak disentuh. `npm test` 297/297 lulus, tsc bersih.
 - Belum: koneksi channel ke uploader studio, render video untuk channel ini, pemasangan di YouTube (semua pekerjaan terpisah, atas persetujuan pemilik).
 
+## Paket serah-terima channel Fourier Loom untuk TEMAN pemilik (2026-11-19) — selesai
+- Channel ke-3 dibuat dan dikelola oleh TEMAN pemilik (bukan pemilik Sim); pemilik hanya membuat bahan video. Jangan menunggu kabar dari pemilik soal pembuatan channel.
+- Folder `output/channel-kit-fourier-loom/` + `output/channel-kit-fourier-loom.zip` (bukan di git), README Indonesia berisi to-do. Bangun ulang satu perintah: `node branding/pack.mjs fourier-loom` (membangun kit utama + cadangan Tangent Loom / @TangentLoom, lalu pemeriksaan otomatis: kata terlarang 0 temuan, ukuran gambar/berkas, rujukan README, panjang README, tanpa path/nama pribadi; gagal = exit 1). `--no-build` memakai gambar yang ada; `--check <folder>` hanya memeriksa.
+- Teks channel ada di blok `copy` pada `branding/brands/fourier-loom.json` dan `tangent-loom.json`; nama/handle ditolak = ubah JSON lalu jalankan ulang perintah di atas. Tes: `tests/channel-kit.test.ts`.
+- Nama menu YouTube dari halaman bantuan resmi: Settings > Channel > Basic info/Advanced settings (Audience) dan youtube.com/verify terkonfirmasi; Customization (Profile atau Branding/Basic info) dan Upload defaults tidak sepenuhnya terkonfirmasi, README menulis "nama menu bisa sedikit berbeda".
+
 ## Evidence
 - 2026-11-19 08:46: `npm run typecheck` lulus; `npm test` 223 lulus, 0 gagal (tes baru: job-queue +1, batch-run 5, youtube +4 untuk kuota, housekeeping 6, dev-watch 1, ux +1). Semua tanpa jaringan nyata, tanpa kredit, tanpa unggahan.
 - Uji nyata di studio uji (port lain, Google palsu): halaman Videos menampilkan "Waiting for quota", "Try now", hitungan "1 uploading", dan banner "Heads up" untuk disk; studio uji dimatikan sesudahnya. Belum diuji: kuota YouTube sungguhan, jam reset sungguhan (hanya fungsi `nextQuotaReset` diuji pada tanggal tetap), Mac tidur, `caffeinate` sungguhan di bawah render panjang.

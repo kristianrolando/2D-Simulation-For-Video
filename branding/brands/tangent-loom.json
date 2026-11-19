@@ -1,0 +1,68 @@
+{
+  "name": "Tangent Loom",
+  "handle": "@TangentLoom",
+  "tagline": "Math you can watch.",
+  "bannerLine": "Loops, waves & satisfying simulations · New Shorts weekly",
+  "textCase": "none",
+  "mark": "lissajous",
+  "bgLinear": [
+    "#000000",
+    "#101217",
+    "#004d13"
+  ],
+  "gridSize": 59,
+  "gridOpacity": "0.17",
+  "colors": {
+    "bg0": "#000000",
+    "bg1": "#101217",
+    "bg2": "#004d13",
+    "core": "#e8eefc",
+    "glow": "#7f93c8",
+    "hi": "#9be36b",
+    "accent": "#ffd23f",
+    "text": "#eef2ff",
+    "muted": "#c8d2eb",
+    "grid": "#939db4"
+  },
+  "fonts": {
+    "display": "DejaVu Sans Bold",
+    "displayFile": "assets/fonts/DejaVuSans-Bold.ttf",
+    "fallback": "DejaVu Sans, sans-serif"
+  },
+  "examples": {
+    "cover": "example_galton-board_cover_1080x1920.jpg",
+    "thumb": "example_sync-lines_thumb_1280x720.jpg"
+  },
+  "thumb": {
+    "series": "Curve",
+    "number": "008",
+    "title": "Where does the line touch?",
+    "counterLabel": "Touches",
+    "counterValue": "24"
+  },
+  "backup": "",
+  "copy": {
+    "category": "Science & Technology",
+    "language": "English (US)",
+    "description": "Loops, waves and curves that trace themselves: satisfying physics and math simulations in 2D.\nNew Shorts every week. Watch a pattern appear, then find out why it had to.\n\nEvery video is a real simulation computed with exact, repeatable math: bouncing balls, swinging arms, rolling waves, chance turning into a curve. No CGI, no tricks.\nTake a guess before the answer appears, then tell us in the comments what you expected.\n\nSubscribe and watch the next loop close.",
+    "keywords": [
+      "satisfying",
+      "physics simulation",
+      "math simulation",
+      "lissajous curve",
+      "tangent line",
+      "bell curve",
+      "galton board",
+      "oddly satisfying",
+      "2D simulation",
+      "science shorts",
+      "math shorts",
+      "geometry"
+    ],
+    "playlists": [
+      "Loops That Close",
+      "Chance Draws a Shape",
+      "Waves & Curves"
+    ]
+  }
+}

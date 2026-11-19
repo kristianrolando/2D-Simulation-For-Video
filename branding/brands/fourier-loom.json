@@ -5,7 +5,11 @@
   "bannerLine": "Waves, curves & satisfying simulations · New Shorts weekly",
   "textCase": "none",
   "mark": "lissajous",
-  "bgLinear": ["#000000", "#101217", "#004d13"],
+  "bgLinear": [
+    "#000000",
+    "#101217",
+    "#004d13"
+  ],
   "gridSize": 59,
   "gridOpacity": "0.17",
   "colors": {
@@ -35,5 +39,30 @@
     "title": "Will the loop close?",
     "counterLabel": "Loops",
     "counterValue": "64"
+  },
+  "backup": "tangent-loom",
+  "copy": {
+    "category": "Science & Technology",
+    "language": "English (US)",
+    "description": "Waves, curves and loops that draw themselves: satisfying physics and math simulations in 2D.\nNew Shorts every week. Watch a pattern form, then see why it had to.\n\nEvery video is a real simulation computed with exact, repeatable math: bouncing balls, swinging arms, rolling waves, chance turning into a curve. No CGI, no tricks.\nMake a guess before the answer shows up, then tell us in the comments what you expected.\n\nSubscribe and watch the next curve take shape.",
+    "keywords": [
+      "satisfying",
+      "physics simulation",
+      "math simulation",
+      "lissajous curve",
+      "harmonograph",
+      "bell curve",
+      "galton board",
+      "oddly satisfying",
+      "2D simulation",
+      "science shorts",
+      "math shorts",
+      "geometry"
+    ],
+    "playlists": [
+      "Curves That Close",
+      "Chance Draws a Shape",
+      "Waves & Loops"
+    ]
   }
 }
