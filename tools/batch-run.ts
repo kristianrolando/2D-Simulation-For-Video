@@ -11,9 +11,12 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import type { PlanItem } from './batch-plan.ts';
+import { headOf, reconcile, lockHolder, type JobLite } from './batch-chain.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PLAN = path.join(ROOT, 'data/batch/plan.json'), STATE = path.join(ROOT, 'data/batch/state.json'), PAUSE = path.join(ROOT, 'data/batch/PAUSE');
+const BATCH = process.env.SIM_BATCH_DIR ? path.resolve(process.env.SIM_BATCH_DIR) : path.join(ROOT, 'data/batch'); // SIM_BATCH_DIR: tests only
+const LOCK = path.join(BATCH, '.runner.lock');
+const PLAN = path.join(BATCH, 'plan.json'), STATE = path.join(BATCH, 'state.json'), PAUSE = path.join(BATCH, 'PAUSE');
 const args = process.argv.slice(2);
 const opt = (k: string, d?: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const DRY = args.includes('--dry-run');
@@ -35,9 +38,21 @@ async function api(p: string, init?: RequestInit) { const r = await fetch(BASE +
 
 const plan: { items: PlanItem[] } = JSON.parse(fs.readFileSync(PLAN, 'utf8'));
 const state = readState();
-const todo = plan.items.filter(i => (!only || i.key.includes(only) || i.sceneId.includes(only)) && !(state[i.key] && state[i.key].status !== 'error' && state[i.key].status !== 'stopped'));
+const wanted = () => plan.items.filter(i => (!only || i.key.includes(only) || i.sceneId.includes(only)) && !(state[i.key] && state[i.key].status !== 'error' && state[i.key].status !== 'stopped'));
+// What the studio knows comes first: a render the owner already started again ("Render again") is that same video, not a new one to send.
+let studioJobs: JobLite[] | null = null;
+try { studioJobs = await api('/api/jobs'); } catch { /* studio not running: a dry run still works from the saved state */ }
+if (studioJobs && reconcile(state, studioJobs) && !DRY) writeState(state);
+let todo = wanted();
 console.log(`plan ${plan.items.length} · done or sent ${Object.values(state).filter(e => e.status === 'done').length} · to send ${Math.min(todo.length, LIMIT)} · width ${WIDTH} · free disk ${freeGB().toFixed(0)} GB · load ${os.loadavg()[0].toFixed(1)} (pause above ${MAX_LOAD})`);
 if (DRY) { for (const i of todo.slice(0, Math.min(LIMIT, 15))) console.log('  would send', i.key); if (todo.length > 15 && LIMIT > 15) console.log(`  … and ${Math.min(todo.length, LIMIT) - 15} more`); process.exit(0); }
+
+// one runner at a time on this plan (a second one would send every video twice)
+const holder = lockHolder(fs.existsSync(LOCK) ? fs.readFileSync(LOCK, 'utf8') : null, pid => { try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === 'EPERM'; } });
+if (holder) throw new Error(`another batch runner is already running (pid ${holder}). Stop it first.`);
+fs.mkdirSync(path.dirname(LOCK), { recursive: true }); fs.writeFileSync(LOCK, String(process.pid));
+const unlock = () => { try { if (fs.readFileSync(LOCK, 'utf8').trim() === String(process.pid)) fs.rmSync(LOCK, { force: true }); } catch { /* gone */ } };
+process.on('exit', unlock);
 
 // preflight: the studio must be up, idle enough, and running the current code
 const st = await api('/api/status');
@@ -50,12 +65,13 @@ let sent = 0, errorsInRow = 0, lastSend = 0;
 const inflight = new Map<string, PlanItem>();   // key -> item, sent but not finished
 for (const i of plan.items) if (state[i.key] && (state[i.key].status === 'queued' || state[i.key].status === 'running')) inflight.set(i.key, i);   // sent by an earlier run, still going
 
+let jobsNow: JobLite[] = studioJobs ?? [];
 async function refresh() {
-  const jobs: any[] = await api('/api/jobs');
+  const jobs: any[] = await api('/api/jobs'); jobsNow = jobs;
   for (const [key] of inflight) {
-    const e = state[key]; const j = jobs.find(x => x.id === e.jobId);
+    const e = state[key]; const j = headOf(jobs, e.jobId);   // follows "Render again" to the newest job of this video
     if (!j) continue;
-    e.status = j.status;
+    e.jobId = j.id; e.status = j.status;
     if (j.status === 'done') { e.doneAt = Date.now(); e.secs = j.started && j.finished ? Math.round((j.finished - j.started) / 1000) : undefined; e.sizeMB = j.size ? +(j.size / 1e6).toFixed(1) : undefined; errorsInRow = 0; inflight.delete(key); }
     else if (j.status === 'error' || j.status === 'stopped') { e.error = j.error ?? j.note; e.doneAt = Date.now(); errorsInRow++; inflight.delete(key); }
   }
@@ -74,7 +90,14 @@ while ((todo.length || inflight.size) && !stopping) {
   if (at < 0) { await sleep(3000); continue; }
   const item = todo.splice(at, 1)[0];
   try {
-    const j = await api('/api/jobs', { method: 'POST', body: JSON.stringify({ sceneId: item.sceneId, params: item.params }) });
+    // a video that already has a stopped or failed job is run AGAIN through the studio's own link (no duplicate, and the studio refuses
+    // with 409 when somebody already started it again); a video never sent gets a new job
+    const prev = state[item.key]?.jobId;
+    let j: any;
+    if (prev && jobsNow.some(x => x.id === prev)) {
+      try { j = await api(`/api/jobs/${prev}/again`, { method: 'POST', body: '{}' }); }
+      catch (e) { if (/409/.test(String(e))) { console.log('skipped', item.key, '(already started again)'); continue; } throw e; }
+    } else j = await api('/api/jobs', { method: 'POST', body: JSON.stringify({ sceneId: item.sceneId, params: item.params }) });
     state[item.key] = { jobId: j.id, status: j.status, sentAt: Date.now() }; inflight.set(item.key, item); sent++; lastSend = Date.now(); writeState(state);
     console.log(`sent ${sent}${LIMIT < Infinity ? '/' + LIMIT : ''} ${item.key}  (${todo.length} left, ${inflight.size} in flight)`);
   } catch (e) { console.log('could not send', item.key, e instanceof Error ? e.message : e); errorsInRow++; }
