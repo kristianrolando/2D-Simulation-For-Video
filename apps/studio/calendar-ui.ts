@@ -3,13 +3,13 @@
 import { calendarEntries, groupByDay, monthWeeks, monthOf, shiftMonth, startMonth, CAL_LABEL, type CalEntry, type CalState } from '../../packages/publish/calendar.ts';
 import { wibParts } from '../../packages/publish/schedule.ts';
 import type { Video } from '../../packages/publish/index.ts';
-import { calendarInput, CALENDAR_NOTE, type Format } from './videos-nav.ts';
+import { calendarInput, CALENDAR_NOTE, NO_CHANNEL, type Format } from './videos-nav.ts';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, unknown> = {}, ...kids: (Node | string)[]) => { const e = document.createElement(tag); Object.assign(e, props); e.append(...kids); return e; };
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const STATES: CalState[] = ['planned', 'scheduled', 'published', 'uploading', 'waiting', 'failed'];
-export interface CalendarDeps { host: HTMLElement; videos: () => Video[]; /** which videos the page shows: the upload plan is for Shorts, so a Long-only calendar has no plan slots */ format: () => Format; sceneName: (id: string) => string; open: (videoId: string) => void }
+export interface CalendarDeps { host: HTMLElement; videos: () => Video[]; /** which videos the page shows: the upload plan is for Shorts, so a Long-only calendar has no plan slots */ format: () => Format; /** the channel chosen on the page ('' = all): only its videos and plan slots show */ channel?: () => string; sceneName: (id: string) => string; open: (videoId: string) => void }
 
 export function initCalendar(d: CalendarDeps) {
   let plan: { slots: any[] } | null = null, month = '', day = '', loaded = false, error = '';
@@ -21,7 +21,7 @@ export function initCalendar(d: CalendarDeps) {
   const dayLabel = (date: string) => { const [y, m, dd] = date.split('-').map(Number); return `${DAYS[(new Date(Date.UTC(y, m - 1, dd)).getUTCDay() + 6) % 7]} ${dd} ${MONTHS[m - 1]}`; };
 
   function render() {
-    const inp = calendarInput(plan, d.videos(), d.format()), entries = calendarEntries(inp.plan as { slots: any[] } | null, inp.videos), by = groupByDay(entries), today = wibParts(Date.now()).date;
+    const inp = calendarInput(plan, d.videos(), d.format(), d.channel?.() ?? ''), entries = calendarEntries(inp.plan as { slots: any[] } | null, inp.videos), by = groupByDay(entries), today = wibParts(Date.now()).date;
     if (!month) month = startMonth(entries);
     const [y, m] = month.split('-').map(Number), weeks = monthWeeks(y, m);
     const count = (s: CalState) => entries.filter(e => e.state === s).length;
@@ -60,7 +60,7 @@ export function initCalendar(d: CalendarDeps) {
       panel.append(el('h3', {}, `${dayLabel(day)} · ${sel.length} video${sel.length === 1 ? '' : 's'}`));
       for (const e of sel) panel.append(row(e));
     } else panel.hidden = true;
-    const note = CALENDAR_NOTE[d.format()];
+    const ch = d.channel?.() ?? '', note = [CALENDAR_NOTE[d.format()], ch ? `Only the videos of ${ch === NO_CHANNEL ? 'no channel' : ch} are shown (change it with the channel cards above).` : ''].filter(Boolean).join(' ');
     d.host.replaceChildren(head, sum, ...(note ? [el('p', { className: 'cal-note msg' }, note)] : []), ...(error ? [el('p', { className: 'cal-err' }, error)] : []), legend, grid, panel);
   }
   const dominant = (list: CalEntry[]): CalState => STATES.find(s => list.some(e => e.state === s) && s !== 'planned') ?? 'planned';

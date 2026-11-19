@@ -118,6 +118,10 @@
         <button id="vModeCompile" type="button" aria-pressed="false" title="Join Shorts into long 16:9 videos: suggest, edit, build">Build long video</button>
       </div>
     </header>
+    <details id="vChannels" class="vchannels" open>
+      <summary id="vSummary"></summary>
+      <div id="vCards" class="vcards" role="group" aria-label="Channels"></div>
+    </details>
     <div id="vBar" class="vbar">
       <div id="vChips" class="chips" role="group" aria-label="Filter by status"></div>
       <input id="vSearch" type="search" placeholder="Search videos…  ( / )" aria-label="Search videos" autocomplete="off" spellcheck="false">
@@ -125,6 +129,7 @@
       <select id="vScene" aria-label="Filter by simulation"></select>
       <select id="vStyle" aria-label="Filter by style"></select>
       <select id="vSort" aria-label="Sort videos"></select>
+      <button id="vSortDir" type="button" class="iconbtn" aria-label="Sort direction: normal" title="Turn the sort order around"></button>
       <details class="menu" id="vExport"><summary>More</summary>
         <div class="menu-body">
           <label class="sel" title="Language of the suggested title, description and tags (interface stays English)">Suggestions <select id="vLang"><option value="en">English</option><option value="id">Indonesian</option></select></label>
@@ -136,8 +141,9 @@
         </div>
       </details>
     </div>
+    <div id="vActive" class="vactive" role="status" hidden><span></span> <button id="vReset" type="button" class="link">Reset filters</button></div>
     <div id="vReadOnly" class="vnotice ro" role="status" hidden><span></span></div>
-    <div id="vUntracked" class="vnotice info" role="status" hidden><span></span> <button id="vAddAll" type="button" class="primary"></button> <button id="vDismissUntracked" type="button" class="link">Dismiss</button></div>
+    <div id="vUntracked" class="vnotice info" role="status" hidden><div class="vnbody"><b></b><span class="vhelp"></span></div> <button id="vAddAll" type="button" class="primary"></button> <button id="vDismissUntracked" type="button" class="link">Hide</button></div>
     <div id="vNotice" class="vnotice" role="status" hidden><span></span> <button type="button" class="link">Dismiss</button></div>
     <div id="vCal" class="vcal" hidden></div>
     <div id="vCompile" class="vcompile" hidden></div>

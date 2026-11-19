@@ -7,16 +7,13 @@
 // always add up to All, and a chip never promises rows the list will not show. The channel cards and the summary line are different on purpose:
 // they say what a channel holds in total (all formats, all statuses), whatever the other filters are.
 import { filterVideos, STATUS_LABEL, STATUSES, type Video, type Status } from '../../packages/publish/index.ts';
-import { inFormat, formatOf, type Format } from './videos-nav.ts';
+import { inFormat, formatOf, NO_CHANNEL, channelKey, type Format } from './videos-nav.ts';
 
-/** value of the "no channel" choice in the channel menu / filter (a name can never contain this character) */
-export const NO_CHANNEL = '\u0001none';
 export interface ViewState { format: Format; channel: string; status: Status | 'all'; query: string; scene: string; style: string }
 export const NO_VIEW: ViewState = { format: 'all', channel: '', status: 'all', query: '', scene: '', style: '' };
 export interface ViewCtx { sceneName: (id: string) => string; styleName: (id: string) => string; /** the "needs you" shortcut (failed / uploading uploads), or none */ extra?: (v: Video) => boolean }
 
-/** the channel group a video is in: its channel name, or NO_CHANNEL when the record carries none */
-export const channelKey = (v: { channel?: string }): string => v.channel?.trim() || NO_CHANNEL;
+export { NO_CHANNEL, channelKey };
 
 type Skip = 'format' | 'channel' | 'status' | undefined;
 /** the rows for the filters; `skip` leaves one group out (to count what clicking a choice of that group would show) */

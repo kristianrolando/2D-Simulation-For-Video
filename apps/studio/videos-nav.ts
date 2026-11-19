@@ -66,6 +66,8 @@ export function bannerVisible(o: { files: string[]; dismissedSig: string; readOn
 export const readDismissed = (s: Store) => { try { return s.get(DISMISS_KEY) ?? ''; } catch { return ''; } };
 export function dismissBanner(s: Store, files: string[]) { try { s.set(DISMISS_KEY, filesSig(files)); } catch { /* not remembered */ } }
 export const bannerText = (n: number) => `${n} render${n === 1 ? '' : 's'} in output/ ${n === 1 ? 'is' : 'are'} not in this list yet.`;
+/** what the banner means, in plain words (the headline is bannerText) */
+export const bannerHelp = (n: number) => `${n === 1 ? 'It is a finished video file' : 'They are finished video files'} that the studio never recorded as ${n === 1 ? 'a video' : 'videos'} (made before tracking began, or outside the studio). Adding ${n === 1 ? 'it' : 'them'} gives ${n === 1 ? 'it' : 'each'} a draft title and description; nothing is uploaded, changed or deleted.`;
 export const addConfirmText = (n: number) => `Add ${n} render${n === 1 ? '' : 's'} from output/ to the list? Nothing is uploaded or deleted; each gets a draft title and description.`;
 
 // ---------------- sort and filter ----------------
@@ -90,6 +92,9 @@ export function sortVideos<T extends Video>(vs: T[], by: Sort, reverse = false):
   else out.sort(newest);
   return reverse ? out.reverse() : out;
 }
+/** value of the "no channel" choice (a name can never contain this character) and the group a video is in: its channel name, or NO_CHANNEL when it has none */
+export const NO_CHANNEL = '\u0001none';
+export const channelKey = (v: { channel?: string }): string => v.channel?.trim() || NO_CHANNEL;
 export interface Filters { status: string; query: string; scene: string; style: string; focus: string; channel?: string }
 export const NO_FILTERS: Filters = { status: 'all', query: '', scene: '', style: '', focus: '', channel: '' };
 export const hasFilters = (f: Filters) => f.status !== 'all' || f.query.trim() !== '' || f.scene !== '' || f.style !== '' || f.focus !== '' || !!f.channel;
@@ -105,7 +110,12 @@ export const optionsOf = (vs: Pick<Video, 'sceneId' | 'style'>[]) => ({ scenes: 
 // ---------------- calendar ----------------
 /** What the calendar gets for a format: the upload plan is for Shorts only, so a Long-only calendar has no plan slots and shows just the
  *  long videos the owner marked Scheduled or Published with a date. In "All" both appear and long ones carry a "Long" mark. */
-export function calendarInput<T extends K>(plan: { slots: unknown[] } | null, vs: T[], f: Format) { return { plan: f === 'long' ? null : plan, videos: inFormat(vs, f) }; }
+export function calendarInput<T extends K & { id?: string; channel?: string }>(plan: { slots: any[] } | null, vs: T[], f: Format, channel = '') {
+  let list = inFormat(vs, f); if (channel) list = list.filter(v => channelKey(v) === channel);
+  // a channel is on: only the plan slots of ITS videos stay (the plan file is one list of slots for the videos of its channel)
+  const ids = new Set(list.map(v => v.id));
+  return { plan: f === 'long' ? null : channel && plan ? { ...plan, slots: plan.slots.filter(s => ids.has(s.videoId)) } : plan, videos: list };
+}
 export const CALENDAR_NOTE: Record<Format, string> = {
   all: 'Long videos are marked "Long". They are not part of the Shorts upload plan: only a long video with a date you entered shows here.',
   shorts: '',
