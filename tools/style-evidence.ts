@@ -90,5 +90,5 @@ g.fillStyle = '#111'; g.fillRect(0, 0, sheet.width, sheet.height); g.font = '18p
 [['Reference', ref], ...styles.map(s => [getTheme(s).name, frames[s]] as const)].forEach(([name, px], k) => {
   g.putImageData(new ImageData(px as Uint8ClampedArray, W, H), k * W, 34); g.fillText(String(name), k * W + 8, 24);
 });
-fs.writeFileSync(path.join(outDir, `${sceneId}-vs-reference.png`), sheet.toBuffer('image/png'));
+fs.writeFileSync(path.join(outDir, `${sceneId}-vs-reference.jpg`), sheet.toBuffer('image/jpeg', 80));   // JPEG: docs images stay under 700 KiB (docs/conventions.md)
 console.log(md);

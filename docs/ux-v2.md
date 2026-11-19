@@ -125,7 +125,7 @@ Hanya yang bernilai. Tidak ada fitur baru yang bukan perbaikan navigasi/kejelasa
 
 ## 8. Hasil Tahap 2 (2026-11-18)
 
-Cara ukur: Chrome headless pribadi (profil sementara, tidak menyentuh Chrome Anda) lewat `work/cdp.mjs`, `work/shots.mjs`, `work/flows.mjs`; studio uji di port lain dengan salinan data (dihapus sesudahnya, data asli tidak ditulis). Bukti gambar: `docs/evidence/ux-v2/before/` dan `docs/evidence/ux-v2/after/` (studio dan Videos, terang dan gelap, 1440×900, 1280×720, 400×860, plus laci 1024, panel 400/768, daftar→detail Videos). Angka mentah: `before/metrics.json`, `after/metrics.json`, `after/flows.json`.
+Cara ukur: Chrome headless pribadi (profil sementara, tidak menyentuh Chrome Anda) lewat `work/cdp.mjs`, `work/shots.mjs`, `work/flows.mjs` (sejak 2026-11-20 `work/` dihapus; ketiganya ada di arsip `~/Documents/sim-studio-archive/work-2026-11-20.zip`, ekstrak ke `work/` untuk mengukur ulang); studio uji di port lain dengan salinan data (dihapus sesudahnya, data asli tidak ditulis). Bukti gambar: `docs/evidence/ux-v2/before/` dan `docs/evidence/ux-v2/after/` (studio dan Videos, terang dan gelap, 1440×900, 1280×720, 400×860, plus laci 1024, panel 400/768, daftar→detail Videos). Angka mentah: `before/metrics.json`, `after/metrics.json`, `after/flows.json`.
 
 | Ukuran | Sebelum | Sesudah |
 |---|---|---|
@@ -161,4 +161,4 @@ Yang berubah, per usulan:
 - Layar sentuh sungguhan, Safari/Firefox, dan ponsel fisik tidak diuji (hanya Chrome headless dengan lebar dan agen emulasi).
 - FPS preview tidak dinilai.
 - Waktu muat tidak dibandingkan angka demi angka setelah perubahan.
-- Daftar alat uji (`work/*.mjs`) bukan bagian studio; boleh dihapus.
+- Daftar alat uji (`work/*.mjs`) bukan bagian studio; sudah dihapus dari repo lokal dan disimpan di arsip zip di atas.
