@@ -128,6 +128,13 @@ Pilihan perintah: `npm run dev` untuk merender/mengunggah, `npm run dev:watch` h
 - Uji kecil SELESAI 2026-11-20 00:35: 10/10 done, 0 gagal, rata-rata 22 dtk; semua `channel` = Plasma Pendulum + `channelId` UCeQFzt0… (benar), status rendered, 1080×1920@60, 23,6–53,5 dtk; cover 1080×1920 dibuat lewat API studio untuk 10 itu. Lembar kontak dari video nyata: `data/batch-plasma/test10-contactsheet.png`, `test10-covers.png`. Catatan: judul publikasi penulis studio untuk pasangan galton `p≠0,5` berbunyi "bell curve" padahal papan miring (juga di Photon); diperbaiki di langkah judul. Menunggu persetujuan pemilik untuk render massal (per 50).
 - Tahap berikutnya: render massal, lembar kontak, persetujuan pemilik, lalu render per 50.
 
+## Channel ke-3 Fourier Loom: KIT BRANDING (2026-11-19) — selesai, channel BELUM dibuat, tidak ada yang dipasang
+- Pemilik memilih nama **Fourier Loom** (@FourierLoom, 404 pada 2026-11-19; cadangan **Tangent Loom** @TangentLoom, juga 404). Merek dagang USPTO tidak terverifikasi (basis data tidak bisa diakses); TikTok/Instagram tidak terverifikasi.
+- Acuan visual: preset Main-3 (`style-presets/main-3.json`, dilacak git di `70adf08`, isi tidak diubah). Kit: `branding/brands/fourier-loom.json` + `branding/brands/fourier-loom/` (README berisi identitas, teks channel, langkah pemilik, kontras, cara membangun ulang). Bangun: `node branding/build.mjs fourier-loom`; cek: `node branding/check-contrast.mjs fourier-loom`.
+- Kode: `branding/build.mjs` dapat lambang `"lissajous"` + kunci opsional `gridSize`, `gridOpacity`, `colors.hi`; `check-contrast.mjs` kunci opsional `examples`. Photon Lab dan Plasma Pendulum dibangun ulang: git status bersih, jadi keluaran identik byte-per-byte.
+- Contoh nyata: dua render 12 dtk Main-3 (galton-board, sync-lines) di studio uji port 5391 dengan data sementara; studio uji dimatikan; studio asli tidak disentuh. `npm test` 297/297 lulus, tsc bersih.
+- Belum: koneksi channel ke uploader studio, render video untuk channel ini, pemasangan di YouTube (semua pekerjaan terpisah, atas persetujuan pemilik).
+
 ## Evidence
 - 2026-11-19 08:46: `npm run typecheck` lulus; `npm test` 223 lulus, 0 gagal (tes baru: job-queue +1, batch-run 5, youtube +4 untuk kuota, housekeeping 6, dev-watch 1, ux +1). Semua tanpa jaringan nyata, tanpa kredit, tanpa unggahan.
 - Uji nyata di studio uji (port lain, Google palsu): halaman Videos menampilkan "Waiting for quota", "Try now", hitungan "1 uploading", dan banner "Heads up" untuk disk; studio uji dimatikan sesudahnya. Belum diuji: kuota YouTube sungguhan, jam reset sungguhan (hanya fungsi `nextQuotaReset` diuji pada tanggal tetap), Mac tidur, `caffeinate` sungguhan di bawah render panjang.
