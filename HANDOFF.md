@@ -4,7 +4,7 @@
 - task_status: partial
 - handoff: ready
 - writer: none
-- updated_at: 2026-11-19T15:45:00+0700
+- updated_at: 2026-11-19T17:10:00+0700
 - language: id
 
 Satu-satunya checkpoint proyek ini. Perbarui di akhir tiap langkah kerja yang substansial, bukan hanya di akhir sesi.
@@ -86,6 +86,15 @@ Pilihan perintah: `npm run dev` untuk merender/mengunggah, `npm run dev:watch` h
 - Kode: `apps/studio/videos-nav.ts` (murni) + `videos-nav.css`, perubahan di `videos.ts`, `index.html`, `calendar-ui.ts`, `main.ts`, `packages/publish/calendar.ts` (`kind`), `server.ts` (hanya `untrackedFiles`). Tes: `tests/videos-nav.test.ts` (6). Tidak menyentuh data/videos.json, jadwal, status, mesin render, YouTube.
 - Terverifikasi di studio uji (port lain, salinan data): Shorts/Long/All, terang dan gelap, lebar 1280, 768 dan 375, hash + back/forward, localStorage, banner tutup dan konfirmasi, Clear filters, `/`, panah pada pemilih format, kalender per format, keadaan kosong Long. Belum: pembaca layar sungguhan; layar sangat lebar.
 - Tes lama yang kadang gagal ternyata penyebabnya satu: port uji yang ditolak `fetch` ("bad port": 6000, 6665–6669, 6679, 6697) atau dipakai macOS (5000, 7000 = AirPlay). Perbaikan: `tests/ports.ts` (`usablePort`) dipakai semua tes studio, plus batas tunggu start 45 dtk. `npm test` 259 lulus 4× berturut-turut, `tsc` bersih.
+
+## Kontras UI + tombol "Show MP4 in folder" untuk Long (2026-11-19 ~17:10) — selesai
+- Penyebab dikonfirmasi: dua blok `.seg` di `style.css`; yang belakangan menimpa warna teks menjadi `--text` sementara latar status tetap (rasio 1,1–1,25 gelap, 2,7–3,0 terang). Sekarang satu blok `.seg`, tiap tombol status memasang latar + `--on-solid` bersama.
+- Temuan audit lain (semua diperbaiki lewat token/aturan): batas kolom/pilihan `--field-line` 1,3–1,5:1 gelap dan 2,8:1 terang (kini #6f7a97 / #7a849c, ≥3:1), placeholder gelap 3,6:1 (kini `::placeholder` = `--muted`), tanggal dan chip kalender di luar bulan (opacity .45 → warna muted). Tidak ada warna keras baru di luar token.
+- Ukur ulang (`tools/contrast-audit.js`, 20 tampilan × 2 mode, ~24.000 pengukuran): 0 di bawah AA; 44 kontrol nonaktif dikecualikan WCAG. Belum diukur: hover/fokus, tooltip, strip render dengan job nyata (dicek dengan baris contoh).
+- Tes pencegah: `tests/contrast.test.ts` (token ≥ AA kedua mode; aturan "latar pressed/on harus punya warna teks"; satu blok `.seg`); terbukti gagal pada CSS lama. Aturan di `docs/ui-modes.md`.
+- Tombol "Show MP4 in folder" di detail Long (`compile-ui.ts`), memakai POST /api/reveal. Aturan nama berkas dipindah ke `apps/server/reveal.ts` (hanya nama polos di output/, .mp4/.jpg/.txt; `../`, path absolut, `\`, NUL ditolak 400; tidak ada 404; semua berkas output/ asli lolos). `SIM_NO_OPEN=1` (hanya tes) mencegah membuka Finder. Tes `tests/reveal.test.ts`. Tombol untuk thumbnail/.txt tidak ditambahkan: berkasnya satu folder dengan MP4 di Finder.
+- Tambahan kecil: header detail video membungkus di layar sempit (tombol terpotong).
+- Studio asli belum di-restart: butuh restart saat idle agar CSS/tombol/rute baru aktif.
 
 ## Evidence
 - 2026-11-19 08:46: `npm run typecheck` lulus; `npm test` 223 lulus, 0 gagal (tes baru: job-queue +1, batch-run 5, youtube +4 untuk kuota, housekeeping 6, dev-watch 1, ux +1). Semua tanpa jaringan nyata, tanpa kredit, tanpa unggahan.

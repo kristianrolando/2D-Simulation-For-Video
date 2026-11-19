@@ -32,6 +32,7 @@ import { installLog } from './log.ts';
 import { checkHealth, MIN_FREE_GB, type Health } from './health.ts';
 import { sweep } from './sweep.ts';
 import { createAwake } from './awake.ts';
+import { revealTarget } from './reveal.ts';
 import { createCompileService, type CompileService } from './compile-service.ts';
 import { outFileFor } from '../../packages/compile/index.ts';
 import type { Compilation } from '../../packages/compile/index.ts';
@@ -484,12 +485,13 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     json(res, 200, { ...publicJob(j), warnings: errors }); return true;
   }
   if (p === '/api/reveal' && req.method === 'POST') {
-    // show a finished render in Finder / Explorer; only files inside output/ can be named
-    const b = await readBody(req); const file = path.join(OUT, path.basename(String(b.file ?? '')));
-    if (!fs.existsSync(file)) { json(res, 404, { error: 'That file is no longer in output/.' }); return true; }
-    const [cmd, args] = process.platform === 'darwin' ? ['open', ['-R', file]] : process.platform === 'win32' ? ['explorer', [`/select,${file}`]] : ['xdg-open', [OUT]];
-    try { const c = spawn(cmd, args, { stdio: 'ignore', detached: true }); c.on('error', () => {}); c.unref(); json(res, 200, { ok: true, path: file }); }
-    catch { json(res, 500, { error: 'Could not open the file manager.', path: file }); }
+    // show a finished render or long video in Finder / Explorer; only a plain file name inside output/ is accepted (apps/server/reveal.ts)
+    const b = await readBody(req), t = revealTarget(OUT, b.file);
+    if (!t.ok) { json(res, t.status, { error: t.error }); return true; }
+    if (process.env.SIM_NO_OPEN) { json(res, 200, { ok: true, path: t.file }); return true; } // SIM_NO_OPEN: tests only (no file manager is opened)
+    const [cmd, args] = process.platform === 'darwin' ? ['open', ['-R', t.file]] : process.platform === 'win32' ? ['explorer', [`/select,${t.file}`]] : ['xdg-open', [OUT]];
+    try { const c = spawn(cmd, args, { stdio: 'ignore', detached: true }); c.on('error', () => {}); c.unref(); json(res, 200, { ok: true, path: t.file }); }
+    catch { json(res, 500, { error: 'Could not open the file manager.', path: t.file }); }
     return true;
   }
   if (/^\/api\/compil/.test(p) && compiles && await compiles.api(req, res, url)) return true; // long videos (the Compile page)
