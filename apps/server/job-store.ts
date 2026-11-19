@@ -66,6 +66,14 @@ export function parseJobs(text: string): { ok: true; jobs: JobRecord[]; skipped:
   return { ok: true, jobs, skipped };
 }
 
+/** The records worth keeping on disk, oldest first: every queued or running job (never dropped, however many there are, or the
+ *  next job to run could vanish from a long queue) plus the newest KEEP_JOBS of the finished ones. */
+export function pruneJobs<T extends { status: JobStatus; created: number }>(jobs: T[]): T[] {
+  const live = (j: T) => j.status === 'queued' || j.status === 'running';
+  const finished = jobs.filter(j => !live(j)).sort((a, b) => b.created - a.created).slice(0, KEEP_JOBS);
+  return [...jobs.filter(live), ...finished].sort((a, b) => a.created - b.created);
+}
+
 export interface JobStoreOptions { io?: typeof fs; now?: () => Date; /** false for a second, read-only studio: it must never write the file */ canWrite?: () => boolean }
 export function openJobStore(dir: string, opts: JobStoreOptions = {}) {
   const io = opts.io ?? fs, nowFn = opts.now ?? (() => new Date()), canWrite = opts.canWrite ?? (() => true);
@@ -92,7 +100,7 @@ export function openJobStore(dir: string, opts: JobStoreOptions = {}) {
   /** write the newest jobs; the file on disk is copied to backups/ first. A read-only studio does nothing. */
   function save(jobs: JobRecord[]) {
     if (!canWrite()) return;
-    const keep = [...jobs].sort((a, b) => b.created - a.created).slice(0, KEEP_JOBS).reverse().map(j => ({ ...j }));
+    const keep = pruneJobs(jobs).map(j => ({ ...j }));
     try {
       const old = readText(file);
       if (old !== null && parseJobs(old).ok) { writeAtomic(path.join(backups, `jobs-${stamp(nowFn())}.json`), old); for (const f of backupFiles().slice(KEEP_BACKUPS)) { try { io.rmSync(path.join(backups, f), { force: true }); } catch { /* ignore */ } } }

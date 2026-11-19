@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
-import { openJobStore, parseJobs, sanitizeJob, isOurWorker, killGroup, processAlive, isComplete, strayRequests, removeFiles, tempFilesOf, partialFilesOf, KEEP_JOBS, type JobRecord } from '../apps/server/job-store.ts';
+import { openJobStore, parseJobs, sanitizeJob, isOurWorker, killGroup, processAlive, isComplete, strayRequests, removeFiles, tempFilesOf, partialFilesOf, KEEP_JOBS, pruneJobs, type JobRecord } from '../apps/server/job-store.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const WORKER = path.join(ROOT, 'apps/server/worker.ts');
@@ -42,6 +42,19 @@ test('job list file: clean records only, newest kept, atomic with backups, damag
   assert.deepEqual(openJobStore(lone).load(), []);
   // a newer schema is not overwritten blindly
   assert.equal(parseJobs(JSON.stringify({ schemaVersion: 99, jobs: [] })).ok, false);
+});
+
+test('a long queue is never cut: every queued or running job stays on disk, only finished ones are trimmed', () => {
+  const dir = fs.mkdtempSync(path.join(T, 'long-')), s = openJobStore(dir);
+  const queued = Array.from({ length: KEEP_JOBS + 20 }, (_, i) => rec(`q-${String(i).padStart(3, '0')}`, { status: i === 0 ? 'running' : 'queued', created: 1e12 + i }));
+  const done = Array.from({ length: KEEP_JOBS + 10 }, (_, i) => rec(`d-${String(i).padStart(3, '0')}`, { created: 1e12 + 1000 + i }));
+  s.save([...done, ...queued]);
+  const back = s.load();
+  assert.equal(back.filter(j => j.status === 'queued' || j.status === 'running').length, KEEP_JOBS + 20, 'the oldest queued job (the next to run) is still there');
+  assert.ok(back.some(j => j.id === 'q-000' && j.status === 'running'));
+  assert.equal(back.filter(j => j.status === 'done').length, KEEP_JOBS, 'finished jobs are still trimmed');
+  assert.equal(back.filter(j => j.status === 'done')[0].id, 'd-010', 'the newest finished ones are the ones kept');
+  assert.deepEqual(pruneJobs([]), []);
 });
 
 test('a read-only studio never writes the job list', () => {
