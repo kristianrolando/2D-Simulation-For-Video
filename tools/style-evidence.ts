@@ -6,7 +6,7 @@
 //   dRef    mean absolute RGB difference to the reference frame (0..255)
 //   luma    mean brightness
 // plus the pairwise mean difference between styles. Writes a markdown table and a side-by-side sheet.
-//   node tools/style-evidence.ts [--scene focal-reflection] [--ref <file.mp4>] [--refAt 0.6] [--at 0.6] [--out docs/styles]
+//   node tools/style-evidence.ts [--scene focal-reflection] [--ref <file.mp4>] [--refAt 0.6] [--at 0.6] [--out docs/evidence/styles]
 import './../apps/server/host.ts';
 import { createCanvas, ImageData } from '@napi-rs/canvas';
 import { spawnSync } from 'node:child_process';
@@ -21,7 +21,7 @@ const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0
 const ROOT = path.resolve(import.meta.dirname, '..');
 const sceneId = opt('--scene', 'focal-reflection');
 const refFile = opt('--ref', fs.readdirSync(path.join(ROOT, 'references')).find(f => f.includes('pK5TgMQsWRQ'))!);
-const at = +opt('--at', '0.6'), refAt = +opt('--refAt', '0.6'), outDir = opt('--out', path.join(ROOT, 'docs/styles'));
+const at = +opt('--at', '0.6'), refAt = +opt('--refAt', '0.6'), outDir = opt('--out', path.join(ROOT, 'docs/evidence/styles'));
 const params = JSON.parse(opt('--params', '{}'));
 const W = 270, H = 480; // analysis resolution
 

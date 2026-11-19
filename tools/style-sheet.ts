@@ -1,5 +1,5 @@
 // Render the same scene frame in every style, side by side (visual comparison sheet).
-//   node tools/style-sheet.ts <sceneId> [--at 0.6] [--params '{...}'] [--styles a,b] [--scale 0.4] [--out docs/styles/x.png]
+//   node tools/style-sheet.ts <sceneId> [--at 0.6] [--params '{...}'] [--styles a,b] [--scale 0.4] [--out docs/evidence/styles/x.png]
 import '../apps/server/host.ts';
 import { createCanvas } from '@napi-rs/canvas';
 import fs from 'node:fs';
@@ -27,7 +27,7 @@ styles.forEach((s, k) => {
   sg.fillStyle = '#fff'; sg.font = '26px DejaVuSansBold'; sg.fillText(getTheme(s).name, k * W + 12, 36);
   console.log(`${s}: ${(performance.now() - t0).toFixed(0)} ms`);
 });
-const out = opt('--out', `docs/styles/${id}-sheet.png`)!;
+const out = opt('--out', `docs/evidence/styles/${id}-sheet.png`)!;
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, sheet.toBuffer('image/png'));
 console.log('wrote', out);

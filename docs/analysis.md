@@ -1,7 +1,7 @@
 # Fase 1 — Analisis 18 video referensi
 
 Sumber: `references/*.mp4` (tidak diubah). Alat: `ffprobe`, `ffmpeg` (contact sheet 1 fps, frame resolusi penuh di momen kunci, strip 6 frame berurutan pada 60 fps, sampling piksel, spectrogram/waveform, `ebur128`, `silencedetect`).
-Contact sheet 1 fps tiap video ada di `docs/assets/sheets/<id>.png` (satu petak = 1 detik, baris dibaca kiri→kanan).
+Contact sheet 1 fps tiap video ada di `docs/evidence/reference-sheets/<id>.jpg` (satu petak = 1 detik, baris dibaca kiri→kanan).
 
 Singkatan ID dipakai di seluruh dokumen (ID YouTube di nama file).
 

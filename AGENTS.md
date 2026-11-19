@@ -19,3 +19,10 @@ Full procedure: the cross-agent-handoff skill, when installed.
 - Jangan melonggarkan batas (`~/Library/Application Support/Sim Studio/elevenlabs-guard.json`, `HARD_CEILING`), jangan mengubah `assets/sfx/ledger.json`, jangan mengulang panggilan yang gagal, jangan membeli atau mengubah paket. Tes hanya dengan klien palsu.
 - `.claude/settings.json` berisi aturan izin `ask` untuk `mcp__elevenlabs`: setiap panggilan konektor itu di Claude Code meminta klik pemilik. Jangan menghapus atau melonggarkannya.
 - Studio, render, dan pratinjau hanya memakai sampel yang ada di `assets/sfx/`. Rincian: `docs/sfx-credits.md`.
+
+## Konvensi (ringkas; rincian dan pengecualian: `docs/conventions.md`)
+- Nama berkas/folder yang dilacak: kebab-case huruf kecil, Inggris, tanpa spasi; id preset/style/scene/brand kebab-case dan id tersimpan tidak diganti.
+- Akar repo tetap sempit; dokumen baru di `docs/` + satu baris di `docs/README.md`; gambar bukti di `docs/evidence/`; skrip di `tools/` (datar) + satu baris di `tools/README.md`.
+- README = cara pakai, HANDOFF = status kerja saja, `docs/` = rujukan; satu topik satu dokumen. Dokumen internal Indonesia; teks layar studio dan YouTube English (US).
+- Jangan melacak `.log`, `.bak`, tmp, `.DS_Store`, render, atau data; berkas dilacak ≤ 1 MiB, gambar docs ≤ 700 KiB (kompres ke JPEG); tidak ada paket atau kode tanpa pemakai.
+- Pindah berkas dengan `git mv` dan perbarui semua rujukannya. Periksa: `node --test tests/conventions.test.ts` (ikut `npm test`).

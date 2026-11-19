@@ -1,5 +1,5 @@
-// Compare two bench JSON files (docs/bench/*.json) as a markdown table.
-//   node tools/bench-compare.ts docs/bench/baseline-node.json docs/bench/after-node.json
+// Compare two bench JSON files (docs/evidence/bench/*.json) as a markdown table.
+//   node tools/bench-compare.ts docs/evidence/bench/baseline-node.json docs/evidence/bench/after-node.json
 import fs from 'node:fs';
 const [a, b] = process.argv.slice(2).map(f => JSON.parse(fs.readFileSync(f, 'utf8')).results as any[]);
 const pct = (x: number, y: number) => (x ? `${(((y - x) / x) * 100).toFixed(0)} %` : '');

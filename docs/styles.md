@@ -35,7 +35,7 @@ Setiap style berbeda di 6–7 dari 7 sumbu, baik dari referensi maupun satu sama
 
 ## 3. Bukti perbedaan
 
-Dihasilkan oleh `node tools/style-evidence.ts` (tabel: `docs/styles/focal-reflection-evidence.md`, gambar: `docs/styles/focal-reflection-vs-reference.png`) dan dijaga oleh `tests/theme.test.ts` (selisih piksel rata-rata antar-style > 12/255 pada dua scene). Lembar per scene: `docs/styles/<scene>-sheet.png`.
+Dihasilkan oleh `node tools/style-evidence.ts` (tabel: `docs/evidence/styles/focal-reflection-evidence.md`, gambar: `docs/evidence/styles/focal-reflection-vs-reference.jpg`) dan dijaga oleh `tests/theme.test.ts` (selisih piksel rata-rata antar-style > 12/255 pada dua scene). Lembar per scene: `docs/evidence/styles/<scene>-sheet.png`.
 
 
 ## 4. Style editor (styles made in the studio)
@@ -71,7 +71,7 @@ a style of its own: pick a style (Classic, Riso, a style you made...), then pick
 that style. It works in every scene. Do not confuse it with a **scene preset** (the cards in the gallery marked
 "scene preset", `presets/*.json`): those are bundles of scene settings and are read-only in the studio.
 
-![The same three scenes with no preset, with Main-1 and with Amber Mono](styles/style-presets-sheet.png)
+![The same three scenes with no preset, with Main-1 and with Amber Mono](evidence/styles/style-presets-sheet.jpg)
 
 *(Same three scenes, same counters: only the look changes. Made from the code with the presets above.)*
 
@@ -123,3 +123,67 @@ is the very same object as before, so the frames, the audio and the MP4 are byte
 Code: `packages/theme/index.ts` (`sanitizeStylePreset`, `applyStylePreset`, `captureStylePreset`, `themeOf`),
 `packages/theme/style-preset.ts` (file check), `packages/theme/node.ts` (folder), `apps/server/server.ts`
 (`/api/style-presets`), `apps/studio/main.ts` (the section). Tests: `tests/style-preset.test.ts`.
+
+## 6. Background settings (per style)
+
+Every style offers its own background controls in the studio (right panel, under the style cards): colour pickers,
+sliders and choices grouped with icons, a few colour presets that go together, and a Reset button. The preview
+changes live; the settings are remembered per style and go into the render, so the MP4 matches the preview.
+They are stored in the scene parameter `bgSettings` (JSON of the values that differ from the defaults):
+
+```bash
+npm run render -- galton-board --params '{"style":"riso","bgSettings":"{\"paper\":\"#fbe9a8\",\"pattern\":\"grain\"}"}'
+```
+
+Out-of-range numbers are clamped, colours that would hurt readability are pulled back (`lumaMin`/`lumaMax`), and
+anything missing or invalid falls back to the default without an error.
+
+**Declaring background parameters for a new style.** Add a `background` block to `themes/<id>.json`. The studio builds
+the controls from it, so no UI code is needed:
+
+```json
+"background": {
+  "params": {
+    "paper":  { "type": "color",  "label": "Paper colour", "group": "Paper", "icon": "📄",
+                "default": "#f6eedf", "lumaMin": 0.7, "target": "color.bg.0" },
+    "dots":   { "type": "number", "label": "Dot size", "group": "Texture", "icon": "🔘",
+                "default": 18, "min": 8, "max": 40, "step": 1, "unit": "px", "target": "texture.spacing" },
+    "pattern": { "type": "enum",  "label": "Pattern", "group": "Texture", "icon": "🔘",
+                "default": "halftone", "options": ["halftone", "grain", "none"], "target": "texture.kind" }
+  },
+  "presets": [
+    { "id": "default", "name": "Classic", "values": {} },
+    { "id": "sun", "name": "Sunny paper", "values": { "paper": "#fbe9a8", "dots": 24 } }
+  ]
+}
+```
+
+- `target` is the token (or list of tokens) the setting overrides: `color.bg.0/1/2`, `color.bgAngle`, `color.bgCx`, `color.bgCy`, `color.wall`, `color.wallGlow`, `color.accent`, `line.glow`, `texture.kind/color/amount/spacing/vignette`, and so on. `palettes.*` rebuilds every ball palette as a tonal ramp of one colour.
+- Keep `default` equal to the token's value (a test checks this), so an untouched style looks exactly as designed.
+- Choose `min`/`max` and `lumaMin`/`lumaMax` so every allowed value stays readable and on-identity.
+- Parameter names, groups and counts are yours: styles do not have to share any (Classic offers glow and a grid, Riso a halftone, Terminal scanlines).
+- Invalid parameters or presets are dropped with a warning when the theme loads; `npm test` fails if a shipped theme has any.
+
+## 7. Adding a style (token reference)
+
+Add **one file**, `themes/<id>.json`; nothing else changes. Start by copying an existing theme. Every token you leave
+out, or that is invalid, falls back to `classic`, and the server prints a warning naming it. The studio picks the new file
+up on the next page load, without a restart.
+
+| Token group | What it controls |
+|---|---|
+| `color.*` | background stops (`bg`, `bgMode`), text, accent, walls (`wall`, `wallGlow` = second ink / shadow, `wall2`), focus, pegs, sun, planets |
+| `palettes.*` | `cyclic` (many balls), `timeline` (colour over time), `spectrum` (pendulums), `sparks` (particles) |
+| `texture` | `none`, `grain`, `grid`, `scanlines`, `chalk`, `halftone` or `sunburst`; plus `amount`, `spacing` and `vignette` (painted once, free per frame) |
+| `line.style` | `neon`, `flat`, `misprint`, `sketch`, `technical`, `sticker` or `pixel`; plus a width factor and glow |
+| `ball.style`, `comet.style`, `spark`, `focus` | ball sprite (`glossy`, `flat`, `misprint`, `chalk`, `pixel`, `sticker`, `ring`); tail (`tail`, `flat`, `none`); particle shape; target marker |
+| `blend`, `trail` | how light accumulates (`lighter` on dark themes; `multiply`, `screen`, `source-over` for ink looks); trail alpha, width and haze factors |
+| `font.*` | family stack (end with a bundled DejaVu face), weight, sizes, case, alignment, `counterStyle` (`inline`, `stack`, `pill`, `bracket`, `tag`), `deco` (`highlight`, `underline`, `prompt`, `titleblock`) |
+| `motion.*` | easing of the counter pop and roll, the title entrance (`slide`, `drop`, `type`, `wipe`), the ripple easing, and the shake style |
+| `juice.*` | multipliers on the user's juice sliders; `flashMode` (`add`, `tint`, `invert`, `none`), flash colour, particle blend |
+| `audio.*` | `pitch` (semitones), `scale` (notes are snapped to it), `decay`, `roleMap` (e.g. `tick → pop`), `fx` (`lowpass`, `highpass`, `drive`, `crushRate`/`crushBits`, echo, doubler) |
+
+Fonts: system fonts (Futura, Menlo, Chalkduster, …) work in both the preview and the render. If a font is missing on
+a machine, the stack falls back to a bundled DejaVu face (`assets/fonts`, free licence).
+
+Save a look with **Save style preset** (Basic tab, under the style cards); it is written to `style-presets/<id>.json`. The scene presets in `presets/` ship with the studio and are not written by the interface.

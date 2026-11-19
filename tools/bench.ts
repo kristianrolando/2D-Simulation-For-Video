@@ -1,5 +1,5 @@
 // Performance benchmark (Node, offline renderer path). Draw cost per frame, total, memory.
-//   node tools/bench.ts [--out docs/bench-<name>.json] [--encode]
+//   node tools/bench.ts [--out docs/evidence/bench/<name>.json] [--encode]
 // Without --encode it measures simulation+drawing only (the part we control); --encode runs the
 // full job (ffmpeg + audio) through renderJob for wall-clock numbers.
 import '../apps/server/host.ts'; // bundled fonts + style themes

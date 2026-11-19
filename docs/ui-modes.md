@@ -62,4 +62,4 @@ event was missed. If neither storage nor the media query is available the studio
 
 ## Screenshots
 
-`docs/ui-modes/`: `studio-dark.jpg`, `studio-light.jpg`, `videos-dark.jpg`, `videos-light.jpg`.
+`docs/evidence/ui-modes/`: `studio-dark.jpg`, `studio-light.jpg`, `videos-dark.jpg`, `videos-light.jpg`.

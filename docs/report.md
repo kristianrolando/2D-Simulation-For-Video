@@ -82,7 +82,7 @@ Galat turun ≈ 16× saat langkah dibagi dua (konvergensi orde-4, sesuai teori R
 ### (b) Kemiripan visual
 
 Perbandingan frame pada titik waktu yang sama (baris atas = referensi, baris bawah = prototipe):
-`docs/assets/compare_p1.png`, `compare_p2.png`, `compare_p3.png`.
+`docs/evidence/compare/compare-p1.jpg`, `compare-p2.jpg`, `compare-p3.jpg`.
 
 **Waktu peristiwa** **[V]** (diukur dari kilatan fokus / onset audio referensi):
 
@@ -109,7 +109,7 @@ Bacaan: P1 setara dengan kemiripan antar-video kreator sendiri; P2 jauh di atas 
 
 - Statistik warna (luminans rata-rata area konten, ref vs proto): P1 0.096 vs 0.109 (t=20) dan 0.127 vs 0.171 (t=28.5), jadi **P1 10–35 % lebih terang** pada pertengahan–akhir. P2 dalam ±10 %. P3 chroma lebih rendah (0.039 vs 0.029 di t=12), artinya **pita P3 kurang saturasi**.
 
-**Audio** **[V]** — `docs/assets/audio_compare.png` (spectrogram berpasangan ref/proto untuk P1, P2, P3). Struktur event cocok (klik per pantulan yang makin rapat; chime per perihelion; nada per titik balik bandul + akor akhir). Loudness disamakan. Perbedaan dicatat di §5.
+**Audio** **[V]** — `docs/evidence/compare/audio-compare.jpg` (spectrogram berpasangan ref/proto untuk P1, P2, P3). Struktur event cocok (klik per pantulan yang makin rapat; chime per perihelion; nada per titik balik bandul + akor akhir). Loudness disamakan. Perbedaan dicatat di §5.
 
 ### (c) Determinisme
 
@@ -301,7 +301,7 @@ node prototypes/lib/render-node.mjs prototypes/p2-rosette/scene.js --hash /tmp/h
 node tools/serve.mjs   # lalu buka http://127.0.0.1:5173/prototypes/preview.html?scene=p3-pendulum
 ```
 
-Alat bantu analisis: `tools/compare.sh` (frame berdampingan), `tools/ssim.sh`, `tools/ssim_lo.sh`, `tools/colorstats.mjs`, `tools/state-hash.mjs` (hash state lintas runtime), `tools/fit-camera.mjs`, `tools/track.mjs`, `tools/sample.mjs`.
+Alat bantu analisis: `tools/compare.sh` (frame berdampingan), `tools/ssim.sh`, `tools/ssim-lo.sh`, `tools/colorstats.mjs`, `tools/state-hash.mjs` (hash state lintas runtime), `tools/fit-camera.mjs`, `tools/track.mjs`, `tools/sample.mjs`.
 
 ---
 
@@ -353,7 +353,7 @@ Tujuannya agar video tidak terlihat meniru referensi. Desain lengkap ada di `doc
 - **Render nyata [V]:** scene cermin elips dirender penuh dalam 5 style plus classic (`output/styles/ellipse-*.mp4`; 1900 frame, H.264 High, 1080×1920, 60 fps, BT.709, AAC 44,1 kHz stereo, −19,8 sampai −20,2 LUFS).
 - **Render dari tombol studio [V]:** gravity-bounce dengan Candy Pop; job membawa `style: "candy"` dan frame-nya benar.
 
-**Bukti perbedaan [V]** (`node tools/style-evidence.ts`; gambar `docs/styles/ellipse-mp4-frames-t19.png`, `docs/styles/focal-reflection-vs-reference.png`):
+**Bukti perbedaan [V]** (`node tools/style-evidence.ts`; gambar `docs/evidence/styles/ellipse-mp4-frames-t19.jpg`, `docs/evidence/styles/focal-reflection-vs-reference.jpg`):
 
 | | latar mirip referensi | tinta referensi (cyan/emas) | jarak histogram hue (maks 2) | selisih rata-rata ke referensi |
 |---|---|---|---|---|
@@ -368,7 +368,7 @@ Tujuannya agar video tidak terlihat meniru referensi. Desain lengkap ada di `doc
 
 - **Antar-style:** selisih piksel rata-rata 34–209 (dari 255). Tes menjaga agar selisih ini > 12 di dua scene.
 - **Pasangan terlemah:** Terminal vs Classic, 24. Keduanya gelap, tetapi hue-nya hampir saling lepas (1,90).
-- **Audio:** keenam audio berbeda hash (tes). Centroid spektrum 2,3–4,5 kHz vs classic 5,6 kHz; spektrogram di `docs/styles/audio-spectrograms.png`, tabel di `docs/styles/audio-compare.md`.
+- **Audio:** keenam audio berbeda hash (tes). Centroid spektrum 2,3–4,5 kHz vs classic 5,6 kHz; spektrogram di `docs/evidence/styles/audio-spectrograms.jpg`, tabel di `docs/evidence/styles/audio-compare.md`.
 
 **Audio per style.** ElevenLabs: **0 credit**. Tidak ada suara baru; perbedaan dibuat dari pustaka 8 sampel yang sudah ada plus synth:
 - transposisi dan kuantisasi ke skala;
@@ -386,8 +386,8 @@ Tujuannya agar video tidak terlihat meniru referensi. Desain lengkap ada di `doc
 - **Classic sebelum → sesudah** (Node, 19 preset, draw per frame): sama dalam batas noise.
   - mirrors-ellipse p95 22,2 → 22,0 ms; render penuh 33,0 → 30,9 s.
   - Harmonograph sempat tampak +72%, tetapi pada pengukuran terpisah baseline 15,7 ms dan versi baru 8,8 ms (p50): itu efek urutan di dalam satu proses benchmark.
-  - Baseline: `docs/bench/pre-theme-*.json`; sesudah: `post-theme-*.json`.
-- **Biaya per style** (Node, resolusi penuh, draw p95 ms, `docs/bench/style-*-node.json`):
+  - Baseline: `docs/evidence/bench/pre-theme-*.json`; sesudah: `post-theme-*.json`.
+- **Biaya per style** (Node, resolusi penuh, draw p95 ms, `docs/evidence/bench/style-*-node.json`):
 
   | preset | classic | riso | chalk | terminal | candy | blueprint |
   |---|---|---|---|---|---|---|
@@ -407,7 +407,7 @@ Tujuannya agar video tidak terlihat meniru referensi. Desain lengkap ada di `doc
 - **Font sistem:** font dipakai dari macOS (Avenir Next Condensed, Chalkduster, PT Mono, Arial Rounded, DIN Condensed). Di mesin lain tumpukan font jatuh ke DejaVu bawaan; fallback ini teruji di kode, tetapi tampilannya belum dilihat di mesin lain.
 - **Audio didengar:** belum ada orang yang mendengarkan audio style. Perbedaannya hanya terukur (hash, spektrum, level jeda).
 - **Classic tetap default:** pengguna perlu memilih style sendiri. Pilihan terakhir diingat studio per browser.
-- **Lembar per scene sudah ada** (`docs/styles/*-sheet.png`), tetapi render MP4 penuh baru dibuat untuk satu scene (cermin elips) dalam semua style, plus gravity-bounce dalam Candy Pop.
+- **Lembar per scene sudah ada** (`docs/evidence/styles/*-sheet.jpg`), tetapi render MP4 penuh baru dibuat untuk satu scene (cermin elips) dalam semua style, plus gravity-bounce dalam Candy Pop.
 
 ### 11.2 Background yang bisa diatur per style (2026-11-18)
 
@@ -441,7 +441,7 @@ Memperluas sistem tema yang ada, tanpa sistem baru. Setiap berkas `themes/<id>.j
   - fallback untuk 9 jenis masukan rusak di 6 style;
   - deklarasi yang cacat dibuang dengan peringatan;
   - perubahan terlihat di semua 8 scene, sedangkan pengaturan default tidak mengubah piksel sama sekali.
-- **Preview vs render [V], 2 style** (`docs/styles/background-preview-vs-render.md`, gambar `docs/styles/background-custom-mp4.png`): gravity-bounce 8 s, pengaturan diubah di studio, MP4 dirender lewat CLI. Warna 7 blok latar di preview browser vs MP4 beda rata-rata 0,55/255 (classic) dan 0,61/255 (riso). Pengaturan itu sendiri menggeser latar 5,8 dan 25,1, jadi kecocokan bukan karena tidak ada perubahan.
+- **Preview vs render [V], 2 style** (`docs/evidence/styles/background-preview-vs-render.md`, gambar `docs/evidence/styles/background-custom-mp4.jpg`): gravity-bounce 8 s, pengaturan diubah di studio, MP4 dirender lewat CLI. Warna 7 blok latar di preview browser vs MP4 beda rata-rata 0,55/255 (classic) dan 0,61/255 (riso). Pengaturan itu sendiri menggeser latar 5,8 dan 25,1, jadi kecocokan bukan karena tidak ada perubahan.
 - **Studio [V]:** panel muncul, klik preset dan geser slider mengubah preview dan tersimpan; di classic panel menampilkan 4 grup dan 5 preset.
 - **Classic tetap identik byte-per-byte [V]** pada 8 scene terhadap tree sebelum tema.
 - **Performa [V]:** draw p95 riso 4,0 ms (galton) dan 18,1 ms (cermin elips); blueprint 17,6 ms, sama seperti sebelumnya.
@@ -454,7 +454,7 @@ Memperluas sistem tema yang ada, tanpa sistem baru. Setiap berkas `themes/<id>.j
 
 ### 11.3 UX dan visual studio (2026-11-18)
 
-Audit berbasis bukti dulu (alur dari nol di 1440×900 dan 1280×720), lalu 10 perbaikan yang disetujui. Screenshot: `docs/ux/before/` dan `docs/ux/after/`. Tidak ada scene, style, atau fitur tracking baru; kode simulasi, render queue, dan render 1080×1920 @60 fps tidak diubah.
+Audit berbasis bukti dulu (alur dari nol di 1440×900 dan 1280×720), lalu 10 perbaikan yang disetujui. Screenshot: `docs/evidence/ux-v1/before/` dan `docs/evidence/ux-v1/after/`. Tidak ada scene, style, atau fitur tracking baru; kode simulasi, render queue, dan render 1080×1920 @60 fps tidak diubah.
 
 **Temuan utama (sebelum):** setelah klik Render tidak ada yang berubah di layar karena daftar render ada di y=2171 dari panel kanan setinggi 2281 px; parameter utama scene baru mulai di y=1350 (di bawah 6 kartu style dan panel background 633 px); galeri 20 kartu tanpa pencarian; error jaringan saat render tidak menampilkan apa pun; statistik mentah selalu tampil; Reset dipakai dua kali dengan arti beda.
 
@@ -501,7 +501,7 @@ Audit berbasis bukti dulu (alur dari nol di 1440×900 dan 1280×720), lalu 10 pe
 
 ### 11.4 Alur video YouTube dan tracking publikasi (2026-11-18)
 
-Tidak ada upload otomatis dan tidak ada permintaan kredensial; semuanya berkas lokal. Scene, style, dan mesin render (`render-job.ts`, `worker.ts`) tidak diubah; server hanya mencatat render yang dimulai dari studio. Cara pakai di README ("Videos: texts, status and tracking"). Gambar: `docs/videos/`.
+Tidak ada upload otomatis dan tidak ada permintaan kredensial; semuanya berkas lokal. Scene, style, dan mesin render (`render-job.ts`, `worker.ts`) tidak diubah; server hanya mencatat render yang dimulai dari studio. Cara pakai di README ("Videos: texts, status and tracking"). Gambar: `docs/evidence/videos/`.
 
 **Dibuat:**
 - **Metadata** (`packages/publish`): judul (plus 2 ide judul), deskripsi, tag, hashtag, catatan. Terisi otomatis dari hook scene (atau pertanyaan layout bila kosong), deskripsi scene, nama style, dan topik; bisa diedit, ada penghitung dan peringatan lembut sesuai batas YouTube (100/5000/500/60, lihat 11.4.1), tombol salin per kolom, "salin semua", dan "Suggest again". Format Shorts 1080×1920 @60 fps.
@@ -625,7 +625,7 @@ Semuanya hanya memakai dmath, dan hash state golden-nya tercatat.
 Galeri dengan thumbnail yang dirender sekali di server (dicache dengan kunci hash parameter), filter kategori, langkah 1-2-3, dan antrean render yang di-update di tempat (tanpa membangun ulang DOM).
 
 ### Fase 5 — performa
-Lihat tabel di `docs/bench/` (`node tools/bench-compare.ts`). Perbaikan yang **terukur**:
+Lihat tabel di `docs/evidence/bench/` (`node tools/bench-compare.ts`). Perbaikan yang **terukur**:
 - **Offset shake di-snap ke piksel utuh**: p95 elips 38 → 23 ms. Shake sub-piksel memaksa semua blit layar penuh melalui resampling bilinear.
 - **`bakeStatic`**: dinding neon digabung ke latar sekali saja, sehingga ada satu blit layar penuh lebih sedikit per frame.
 - **`TrailHistory`** menggantikan layer yang di-fade: harmonograf p50 11,0 → 8,7 ms, RSS −16 MB. Ini juga menghilangkan garis hantu 8-bit yang tidak pernah hilang.
@@ -634,7 +634,7 @@ Lihat tabel di `docs/bench/` (`node tools/bench-compare.ts`). Perbaikan yang **t
 
 #### Angka sebelum → sesudah [V]
 
-**Render offline (Node, set preset yang sama, urutan sama, satu proses).** Scene lama kini membawa juice dan tetap lebih cepat. Tabel dihasilkan oleh `node tools/bench-compare.ts docs/bench/baseline-node.json docs/bench/after-node-same-set.json`:
+**Render offline (Node, set preset yang sama, urutan sama, satu proses).** Scene lama kini membawa juice dan tetap lebih cepat. Tabel dihasilkan oleh `node tools/bench-compare.ts docs/evidence/bench/baseline-node.json docs/evidence/bench/after-node-same-set.json`:
 
 | preset | draw p50 ms | draw p95 ms | draw max ms | full render s | RSS peak MB |
 |---|---|---|---|---|---|
@@ -730,7 +730,7 @@ Seed, tombol **🎲 Random**, kotak angka seed, dan teks hook otomatis (yang men
 | Butir | Hasil |
 |---|---|
 | Tes | **99 lulus, 0 gagal** (sebelumnya 72; 27 baru: 20 di `tests/templates.test.ts` dan 7 kasus golden), `tsc` bersih |
-| Tiap varian dilihat | lembar frame per varian di `docs/templates/` (hammer: split/octagon, box/circle/candy, survive/triangle/chalk, split/triangle/blueprint, box/ring/terminal; sync: orbits, lid, slider, close) |
+| Tiap varian dilihat | lembar frame per varian di `docs/evidence/templates/` (hammer: split/octagon, box/circle/candy, survive/triangle/chalk, split/triangle/blueprint, box/ring/terminal; sync: orbits, lid, slider, close) |
 | Seed sama = sama | state simulasi **identik bit demi bit** antara Chrome (preview) dan Node (render) di 5 kasus (hammer split, hammer box, orbits, close, slider; 3–6 frame tiap kasus); juga sama di kualitas preview rendah vs penuh (tes). Cara memeriksa: `node tools/state-sig.ts <scene> '<params>' <frame,...>` dan potongan kode yang sama di konsol browser (`window.__studio`). |
 | Piksel preview vs render | selisih rata-rata 1,0–1,6 dari 255 di 4 dari 5 frame uji; **7,7 / 255 di mode `close` detik 40** (ratusan garis tambahan menumpuk, rasterizer Chrome dan Skia berbeda; tidak diselidiki lebih jauh) |
 | Render lengkap + audio | 4 MP4 1080×1920 @60, H.264 BT.709, AAC 44,1 kHz: `hammer-smash-split-seed7` (55 s), `hammer-smash-box-circle` (55 s), `sync-lines-orbits-seed7` (40 s), `sync-lines-close-pi` (45 s), semuanya di `output/`. Kecepatan render: hammer 1,5–1,6× real-time (5,4–6,5 ms gambar per frame), sync 2,6–2,9×. Loudness terukur −14,6 … −21,6 LUFS sebelum normalisasi. |
@@ -852,7 +852,7 @@ Rencana yang disetujui: `docs/youtube-upload-plan.md`. Rencana itu memuat fakta 
 
 ## 16. UX v2: tata letak responsif, Videos yang menunjuk langkah berikutnya (2026-11-18)
 
-Dasar: `docs/ux-v2.md` (audit, 7 usulan U1–U7, hasil terukur, bukti sebelum/sesudah di `docs/ux-v2/`). Pembanding hanya dibaca: `/Users/aldo/Animation-Claude-Video-V2` (kode UI, rencana UI, satu tampilan nyata); hanya prinsipnya yang dipakai, tanpa nama, ikon, atau palet khasnya.
+Dasar: `docs/ux-v2.md` (audit, 7 usulan U1–U7, hasil terukur, bukti sebelum/sesudah di `docs/evidence/ux-v2/`). Pembanding hanya dibaca: `/Users/aldo/Animation-Claude-Video-V2` (kode UI, rencana UI, satu tampilan nyata); hanya prinsipnya yang dipakai, tanpa nama, ikon, atau palet khasnya.
 
 Berkas: `apps/studio/{index.html,main.ts,videos.ts,ux.ts,style.css}`, baru `apps/studio/icons.ts`; `apps/server/{status.ts,server.ts}` (+`codeStale`); tes `tests/{ux,status,mode}.test.ts` diperluas (149 lulus). Tidak disentuh: mesin render, scene, `themes/`, data Videos, `references/`.
 

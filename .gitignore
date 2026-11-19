@@ -1,12 +1,27 @@
+# Aturan: docs/conventions.md §4 (apa yang tidak boleh dilacak)
+
+# dependensi (npm install)
 node_modules/
+
+# hasil render: MP4, thumbnail, paket serah-terima (besar, bisa dibuat ulang)
 output/
-work/
 prototypes/output/
-.DS_Store
-# competitor videos used only for study (not ours, large)
-references/
-# the owner's own records, thumbnails and backups (personal state; the studio keeps its own backups)
+
+# catatan pribadi pemilik: daftar video, antrean, jadwal, batch, thumbnail, cadangan (studio menyimpan cadangannya sendiri)
 data/
-# local tool settings
+
+# video kompetitor untuk dipelajari saja (bukan milik kita, besar)
+references/
+
+# kertas coretan analisis dan bench lokal
+work/
+
+# pengaturan alat lokal
 .claude/settings.local.json
+
+# sampah sistem dan sementara
+.DS_Store
 *.log
+*.bak
+*.tmp
+*.orig
