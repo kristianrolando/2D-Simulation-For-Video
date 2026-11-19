@@ -4,7 +4,7 @@
 - task_status: partial
 - handoff: ready
 - writer: none
-- updated_at: 2026-11-20T04:15:00+0700
+- updated_at: 2026-11-20T08:30:00+0700
 - language: id
 
 Satu-satunya checkpoint proyek ini. Perbarui di akhir tiap langkah kerja yang substansial, bukan hanya di akhir sesi.
@@ -154,6 +154,15 @@ Pilihan perintah: `npm run dev` untuk merender/mengunggah, `npm run dev:watch` h
 - Catatan: dua video Photon lama (`preset:billiard-golden-circle`, `table:circle`) memang sama persis; jadi 489 tanda tangan unik dari 490 Photon+Plasma.
 - Perkiraan: ±26 dtk/video → ±1 jam 46 menit (+jeda beban), ±9,3 GB, 5 tahap (10 uji + 50×4 + 35); disk bebas 213 GB.
 - BLOKIR penandaan channel: studio memberi video baru `channel` = nama channel AKTIF + `channelId` (server.ts `channelExtra`; Photon Lab aktif, Upload On). Tanpa kode baru, video Fourier akan bertanda Photon Lab + channelId Photon (berisiko ikut terunggah/terjadwal). Tidak ada API untuk menandai "Fourier Loom" tanpa channelId (PUT /api/videos/:id/channel hanya menerima channel terhubung). Perlu opsi kode baru (mis. variabel lingkungan) lalu studio asli di-restart (kode baru membuat `codeStale`, batch-run menolak) — keputusan pemilik; belum ada kode server yang diubah.
+
+## Halaman Videos: angka per channel, filter, pilih banyak (2026-11-20) — selesai, studio asli BELUM di-restart
+- Commit: `9edff4d` (modul murni `apps/studio/videos-view.ts` + urutan baru + pencarian channel/id), `ffb9b80` (angka di menu/chip/ringkasan/kartu, filter diingat, Reset, banner), `3f75b10` (channel manual + aksi massal di server), `4e46fa2` (UI pilih banyak, tambah channel manual, kalender), `2613fb8` (nama field, README). Tes baru: `tests/videos-view.test.ts` (10), `tests/videos-channels.test.ts` (6). `npm test` 329 lulus, tsc bersih.
+- Aturan hitung (satu sumber, README "Videos: channels, numbers…"): angka chip/menu = jumlah baris bila diklik dengan semua filter lain tetap berlaku; kartu dan ringkasan = isi channel seluruhnya.
+- Channel manual: `settings.manualChannels` di `data/videos.json` (maks 12; tanpa channelId; tidak pernah jadi tujuan unggah — `/api/videos/:id/youtube/check` menolak dengan pesan). Endpoint: `POST /api/channels/manual`, `/api/channels/manual/remove` (hanya bila tak ada video), `PUT /api/videos/:id/channel` dan `PUT /api/videos/channel` menerima `{channelName}`; aksi massal `POST /api/videos/manual-bulk` dan `/manual-bulk/undo` (hanya Rendered tanpa catatan unggah; Scheduled/Published/terunggah dilewati dan dilaporkan).
+- Diperiksa di studio uji port 5394 (HOME palsu, salinan data, dimatikan): 509 video, 3 channel, banner 14 render; dua tema (kontras ≥ 4,5 pada elemen baru), lebar 375 dan desktop, kalender mengikuti channel, Build long video tanpa strip, konsol tanpa error, field tanpa nama diberi nama.
+- Banner 14 render: berkas `output/` dari render awal 17–18 Nov (uji preset scene: mirrors-*, orbit-rosette, pendulum-wave, galton-board, 2× gravity-bounce, focal-reflection-ellipse, hammer-smash-box-circle, sync-lines-close-pi, sync-lines-orbits-seed7) yang tidak punya record; 14 berkas, ±105 MB (hammer-smash) sisanya kecil. Tidak ada yang diimpor atau dihapus. Bila ditambahkan, entri baru memakai channel AKTIF saat itu.
+- Temuan yang TIDAK dikerjakan: (1) Build long video tidak punya filter channel (perpustakaan klip server-side menggabung Short channel mana pun; Long baru bertanda channel aktif) — usul: `library()` menerima channel dan satu kompilasi satu channel. (2) Grup "No channel" tidak pernah muncul dari server karena record lama dibaca sebagai Photon Lab (disengaja); menu menampilkannya hanya bila ada record kosong. (3) Daftar menggambar semua baris sekaligus (509 sekarang, ±750 dengan Fourier Loom); belum diukur lambatnya — usul: daftar bertahap/virtual bila > 1000. (4) Batch Fourier Loom: studio tetap menandai video baru dengan channel aktif; kini video bisa diberi tanda "Fourier Loom" sesudah render lewat More → Channel for the videos shown… (tanpa kode server baru), tapi penandaan otomatis saat render butuh opsi server + restart (keputusan pemilik).
+- Restart studio asli diperlukan agar semua ini aktif (kode server berubah: endpoint baru, `settings.manualChannels`); hanya saat idle dan atas persetujuan pemilik.
 
 ## Evidence
 - 2026-11-19 08:46: `npm run typecheck` lulus; `npm test` 223 lulus, 0 gagal (tes baru: job-queue +1, batch-run 5, youtube +4 untuk kuota, housekeeping 6, dev-watch 1, ux +1). Semua tanpa jaringan nyata, tanpa kredit, tanpa unggahan.
