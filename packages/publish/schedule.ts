@@ -116,7 +116,29 @@ export function pickBalanced(cands: Cand[], slots: number[], o: PickOptions): Pi
 // ---------------- plan file (data/schedule.json) ----------------
 export type SlotStatus = 'planned' | 'uploading' | 'uploaded' | 'failed';
 export interface PlanSlot { slot: string; wib: string; videoId: string; sceneId: string; title: string; status: SlotStatus; youtubeId?: string; error?: string; updatedAt?: string; relaxed?: string[] }
-export interface SchedulePlan { version: 1; createdAt: string; seed: number; timezone: 'WIB (UTC+7)'; slotsWib: string[]; slots: PlanSlot[]; skipped: { id: string; file: string; reason: string }[]; reserve: { id: string; sceneId: string; title: string; reason: string }[] }
+export interface SchedulePlan { version: 1; createdAt: string; seed: number; timezone: 'WIB (UTC+7)'; slotsWib: string[]; slots: PlanSlot[]; skipped: { id: string; file: string; reason: string }[]; reserve: { id: string; sceneId: string; title: string; reason: string }[];
+  /** the channel this plan uploads to (name). Absent in the plan written before channels existed: that one is Photon Lab's. */
+  channel?: string }
+
+// ---------------- one plan per channel ----------------
+/** The plan written before channels existed (data/schedule.json) belongs to this channel. */
+export const LEGACY_PLAN_CHANNEL = 'Photon Lab';
+/** file name of a channel's plan inside data/: Photon Lab keeps data/schedule.json (unchanged); any other channel schedule-<slug>.json */
+export function planFileFor(channel: string): string {
+  if (channel === LEGACY_PLAN_CHANNEL) return 'schedule.json';
+  const slug = channel.toLowerCase().normalize('NFKD').replace(/[^\w]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+  return `schedule-${slug || 'channel'}.json`;
+}
+/** the channel a plan is for: its own field, else (the old file) Photon Lab */
+export const planChannel = (plan: Pick<SchedulePlan, 'channel'>) => plan.channel || LEGACY_PLAN_CHANNEL;
+/** does a video belong to the channel named on the command line (a name or a channel id)? Older records without a channel are Photon Lab's. */
+export const videoOnChannel = (v: { channel?: string; channelId?: string }, nameOrId: string, name = nameOrId) =>
+  (!!v.channelId && v.channelId === nameOrId) || (v.channel || LEGACY_PLAN_CHANNEL) === name;
+/** "uploadLimitExceeded" holds only that channel; assume it lasts a day (YouTube does not say). '' = not held. */
+export function limitHold(limitAt: string, now = Date.now()): string {
+  const t = Date.parse(limitAt || '');
+  return Number.isFinite(t) && now - t < 24 * 3600e3 ? new Date(t + 24 * 3600e3).toISOString() : '';
+}
 
 /** the slots that may still be uploaded: planned ones only; a slot that is uploading, uploaded or failed is never started again by itself */
 export const nextToUpload = (plan: SchedulePlan, now: number, minLeadMin = MIN_LEAD_MIN) =>

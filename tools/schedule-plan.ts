@@ -1,7 +1,11 @@
 // Plan the YouTube schedule for the rendered videos (5 slots a day, WIB). Read-only on videos.json and output/; the only thing it writes is
 // data/schedule.json (atomic, with one backup). It never talks to YouTube and never starts an upload.
-//   node tools/schedule-plan.ts                 dry run: prints the table and the skipped list
-//   node tools/schedule-plan.ts --write         also saves data/schedule.json (refuses to overwrite a plan that already has uploads, unless --replan)
+// One plan per channel, same WIB slots for each (counted per channel). --channel is required: the tool never guesses which channel.
+//   node tools/schedule-plan.ts --channel "Photon Lab"               dry run: prints the table and the skipped list (writes nothing)
+//   node tools/schedule-plan.ts --channel "Photon Lab" --write       also saves the plan: Photon Lab → data/schedule.json (as before),
+//                                                                    another channel → data/schedule-<name>.json (refuses to overwrite a plan
+//                                                                    that already has uploads, unless --replan)
+//   --channel takes the channel name or its id (UC…). Only videos marked for that channel are planned.
 //   options: --seed N (default 20261119)  --now ISO (tests)  --json
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,17 +15,25 @@ import { sanitizeVideo, uploadProblems, uploadThumbName, type Video, type FileFa
 import { checkQuality } from '../packages/publish/quality.ts';
 import { topicFor, factsFor } from '../packages/publish/describe.ts';
 import { imageSize, isShortsRatio, THUMB_MAX_BYTES } from '../packages/publish/cover.ts';
-import { buildSlots, pickBalanced, wibParts, SLOTS_WIB, type Cand, type SchedulePlan, type PlanSlot } from '../packages/publish/schedule.ts';
+import { buildSlots, pickBalanced, wibParts, SLOTS_WIB, planFileFor, videoOnChannel, type Cand, type SchedulePlan, type PlanSlot } from '../packages/publish/schedule.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2), opt = (k: string, d = '') => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const DATA = process.env.SIM_DATA_DIR ? path.resolve(process.env.SIM_DATA_DIR) : path.join(ROOT, 'data');
 const OUT = process.env.SIM_OUT_DIR ? path.resolve(process.env.SIM_OUT_DIR) : path.join(ROOT, 'output');
-const PLAN = path.join(DATA, 'schedule.json');
 const SEED = Number(opt('--seed', '20261119')), NOW = opt('--now') ? Date.parse(opt('--now')) : Date.now();
+const CH_ARG = opt('--channel').trim();
+if (!CH_ARG) {
+  console.error('Which channel? Every channel has its own plan, so the tool does not guess. Run it again with --channel and the channel name (or id), for example:\n  node tools/schedule-plan.ts --channel "Photon Lab"\nNothing was written.');
+  process.exit(2);
+}
 
 const store = JSON.parse(fs.readFileSync(path.join(DATA, 'videos.json'), 'utf8'));
-const all: Video[] = store.videos.map((x: unknown) => sanitizeVideo(x)).filter((v: Video | null): v is Video => !!v);
+const every: Video[] = store.videos.map((x: unknown) => sanitizeVideo(x)).filter((v: Video | null): v is Video => !!v);
+// an id on the command line: the name comes from the videos that carry it
+const CHANNEL = /^UC[\w-]{10,}$/.test(CH_ARG) ? every.find(v => v.channelId === CH_ARG)?.channel ?? CH_ARG : CH_ARG;
+const PLAN = path.join(DATA, planFileFor(CHANNEL));
+const all: Video[] = every.filter(v => videoOnChannel(v, CH_ARG, CHANNEL));
 
 function probe(file: string): FileFacts {
   let st: fs.Stats; try { st = fs.statSync(file); } catch { return { exists: false, width: 0, height: 0, durationSec: 0, sizeBytes: 0, mtimeMs: 0 }; }
@@ -63,7 +75,7 @@ const { placed, reserve } = pickBalanced(good.map(g => g.cand), slots, { seed: S
 const byId = new Map(good.map(g => [g.v.id, g.v]));
 
 const plan: SchedulePlan = {
-  version: 1, createdAt: new Date(NOW).toISOString(), seed: SEED, timezone: 'WIB (UTC+7)', slotsWib: [...SLOTS_WIB], skipped,
+  version: 1, channel: CHANNEL, createdAt: new Date(NOW).toISOString(), seed: SEED, timezone: 'WIB (UTC+7)', slotsWib: [...SLOTS_WIB], skipped,
   slots: placed.map(p => { const v = byId.get(p.cand.id)!; return { slot: new Date(p.slot).toISOString(), wib: `${wibParts(p.slot).date} ${wibParts(p.slot).time}`, videoId: v.id, sceneId: v.sceneId, title: v.title, status: 'planned', ...(p.relaxed.length ? { relaxed: p.relaxed } : {}) } as PlanSlot; }),
   reserve: reserve.map(c => ({ id: c.id, sceneId: c.sceneId, title: byId.get(c.id)!.title, reason: 'only its own scene was left to put it next to (no two videos of one scene in a row)' })),
 };
@@ -71,14 +83,14 @@ const plan: SchedulePlan = {
 if (args.includes('--json')) console.log(JSON.stringify(plan, null, 1));
 else {
   const sc: Record<string, number> = {}; for (const s of plan.slots) sc[s.sceneId] = (sc[s.sceneId] ?? 0) + 1;
-  console.log(`now ${new Date(NOW).toISOString()} · seed ${SEED} · rendered candidates ${good.length + skipped.length} · eligible ${good.length} · skipped ${skipped.length} · scheduled ${plan.slots.length} · reserve ${plan.reserve.length}`);
+  console.log(`channel ${CHANNEL} → ${path.relative(ROOT, PLAN)} · now ${new Date(NOW).toISOString()} · seed ${SEED} · rendered candidates ${good.length + skipped.length} · eligible ${good.length} · skipped ${skipped.length} · scheduled ${plan.slots.length} · reserve ${plan.reserve.length}`);
   console.log('composition', JSON.stringify(sc), plan.slots.some(s => s.relaxed) ? `· relaxed rules at ${plan.slots.filter(s => s.relaxed).length} slots` : '');
   console.log(`first ${plan.slots[0]?.wib} · last ${plan.slots.at(-1)?.wib}`);
   if (args.includes('--table')) for (const s of plan.slots) console.log(`${s.wib}\t${s.videoId}\t${s.sceneId}\t${s.title}`);
 }
 if (args.includes('--write')) {
   const old: SchedulePlan | null = fs.existsSync(PLAN) ? JSON.parse(fs.readFileSync(PLAN, 'utf8')) : null;
-  if (old?.slots.some(s => s.status !== 'planned') && !args.includes('--replan')) throw new Error('data/schedule.json already has uploads; refusing to overwrite it (use the runner to continue it).');
+  if (old?.slots.some(s => s.status !== 'planned') && !args.includes('--replan')) throw new Error(`${path.basename(PLAN)} already has uploads; refusing to overwrite it (use the runner to continue it).`);
   fs.mkdirSync(DATA, { recursive: true });
   if (old) fs.copyFileSync(PLAN, PLAN + '.bak');
   fs.writeFileSync(PLAN + '.tmp', JSON.stringify(plan, null, 1)); fs.renameSync(PLAN + '.tmp', PLAN);

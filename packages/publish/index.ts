@@ -36,6 +36,12 @@ export interface Video {
   youtube?: YoutubeState;
   /** the YouTube channel this video is made for (a display name). Older lists have none and read as DEFAULT_CHANNEL. Not editable from the page. */
   channel: string;
+  /** the YouTube channel id behind `channel`, once known (chosen in the studio, or set by the upload). Absent on older records:
+   *  those go to the studio's first connected channel (Photon Lab). Locked once the video is scheduled, published or on YouTube. */
+  channelId?: string;
+  /** set when the owner uploaded this video by hand in YouTube Studio and marked it here (ISO time of the mark). Status is then
+   *  Published; the studio never uploads it and it is never part of an upload plan. Can be undone while the uploader has no video id. */
+  uploadedManually?: string;
   /** 'long' = a 16:9 long video built from Shorts (the Compile page); absent for every Short, so older lists stay valid */
   kind?: 'long';
   /** the long video record (data/compilations/<id>.json) this entry tracks */
@@ -106,6 +112,21 @@ const dateOnly = (x: unknown) => (typeof x === 'string' && /^\d{4}-\d\d-\d\d$/.t
 const dateTime = (x: unknown) => (typeof x === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(x) && !Number.isNaN(Date.parse(x)) ? x : '');
 const safeFile = (x: unknown) => (typeof x === 'string' ? x.replace(/[\\/]/g, '').slice(0, 200) : '');
 
+/** A video's channel can no longer be changed once it is scheduled, published, marked as uploaded by hand, or has an upload record. */
+export function channelLocked(v: Pick<Video, 'status' | 'youtube' | 'uploadedManually'>): string {
+  if (v.youtube) return 'This video already has an upload record, so its channel is fixed.';
+  if (v.uploadedManually) return 'This video is marked as uploaded by hand, so its channel is fixed. Undo the mark first.';
+  if (v.status === 'scheduled' || v.status === 'published') return 'A scheduled or published video keeps its channel.';
+  return '';
+}
+/** "abc123XYZ_-" or any YouTube link → the 11-character video id ('' when it is neither) */
+export function youtubeIdOf(s: string): string {
+  const t = s.trim();
+  if (/^[\w-]{11}$/.test(t)) return t;
+  const m = /(?:shorts\/|live\/|youtu\.be\/|[?&]v=)([\w-]{11})(?![\w-])/.exec(t);
+  return m && isYoutubeUrl(t) ? m[1] : '';
+}
+
 export function newId(now: Date = new Date()): string { return 'v-' + now.getTime().toString(36) + Math.random().toString(36).slice(2, 6); }
 
 /** a stored record -> a valid Video, or null when it is not even an object. Bad fields fall back to defaults. */
@@ -125,6 +146,8 @@ export function sanitizeVideo(raw: unknown, now: string = new Date().toISOString
     coverFile: safeFile(raw.coverFile), coverText: str(raw.coverText, 120),
     scheduledAt: dateTime(raw.scheduledAt), publishedAt: dateOnly(raw.publishedAt), youtubeUrl: str(raw.youtubeUrl, 400).trim(),
     createdAt: created, updatedAt: isoOr(raw.updatedAt, created), channel: str(raw.channel, 120).trim() || DEFAULT_CHANNEL,
+    ...(typeof raw.channelId === 'string' && /^[\w-]{1,60}$/.test(raw.channelId) ? { channelId: raw.channelId } : {}),
+    ...(typeof raw.uploadedManually === 'string' && !Number.isNaN(Date.parse(raw.uploadedManually)) ? { uploadedManually: raw.uploadedManually } : {}),
     ...(isObj(raw.youtube) ? { youtube: sanitizeYoutube(raw.youtube) } : {}),
     ...(raw.kind === 'long' ? { kind: 'long' as const, compilationId: str(raw.compilationId, 80) } : {}),
   };
