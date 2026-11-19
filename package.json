@@ -4,8 +4,7 @@
   "type": "module",
   "version": "0.1.0",
   "dependencies": {
-    "@napi-rs/canvas": "^0.1.65",
-    "dejavu-fonts-ttf": "^2.37.3"
+    "@napi-rs/canvas": "^0.1.65"
   },
   "devDependencies": {
     "@types/node": "^22.15.21",
