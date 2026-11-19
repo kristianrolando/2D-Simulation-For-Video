@@ -171,6 +171,66 @@ Langkah yang perlu keputusan ditandai **[K]**, dan rekomendasi saya ada di bagia
 
 **Status server untuk ikon menu bar** (opsional, kecil): `/api/status` ditambah `uploading: {percent}` tanpa judul, supaya ikon bisa menulis "Mengunggah 45%".
 
+## 3b. Dua channel (2026-11-19)
+
+Satu klien OAuth (satu proyek Google Cloud) dipakai untuk beberapa channel. Kuota harian milik proyek, jadi **satu kuota bersama**. Proyek kedua untuk menambah kuota tidak dibuat (melanggar ketentuan API YouTube).
+
+**Penyimpanan** (`youtube.json`, mode 600): `client`, `connections: [{ channelId, name, handle, refresh, scope, connectedAt, disconnected?, uploadEnabled, uploads{day,count}, limitAt? }]`, `activeChannelId`, `defaults`, `quota{day,units,uploads}` (bersama).
+- **Migrasi sekali jalan:** berkas lama (`refresh` + `channel` di puncak) dibaca sebagai satu koneksi dengan `uploadEnabled: true`, lalu ditulis ulang atomik. Berkas lama disalin dulu ke `youtube.json.bak-single-channel` (600). Format lama tetap terbaca.
+- Access token per channel, hanya di memori. `redact()` menyaring semua refresh token dan semua access token.
+
+**Koneksi**
+- Alur PKCE loopback yang sama. Channel (Brand Account) dipilih di halaman Google.
+- Channel pertama (atau channel yang pernah terhubung, misalnya izin kedaluwarsa) langsung disimpan, seperti dulu.
+- Channel **baru tambahan** hanya disimpan setelah pemilik menekan "Connect <nama>" di halaman studio berikutnya. Token konfirmasi acak, sekali pakai, 15 menit, dan hanya di memori. Batal = izin dicabut lagi.
+- Channel yang masih terhubung ditolak ("already connected").
+- Koneksi tambahan mulai dengan **Upload from Sim Studio: Off**.
+- **Disconnect** per channel: hanya izin channel itu yang dicabut; yang lain tetap terhubung.
+
+**Penjagaan unggah** (`assertCanUpload` di `youtube.ts`, dipanggil uploader dan server)
+- Berlaku untuk: unggah baru, Continue/resume, unggahan yang menunggu kuota, Set the thumbnail again, dan skip-thumbnail.
+- Syaratnya: channel terhubung dan sakelarnya On. Bila Off: "Uploads from Sim Studio are turned off for this channel" (HTTP 409).
+- Channel tujuan sebuah video ditentukan berurutan:
+  1. `youtube.channelId` record unggahan;
+  2. `channelId` video;
+  3. nama channel;
+  4. record lama tanpa channel ("Photon Lab") → koneksi pertama.
+- Selain itu: tolak. Tidak pernah ada tebakan ke channel lain.
+- Semua panggilan satu unggahan (insert, processing, thumbnail, publish, cari unggahan) memakai token channel itu. Server tiruan menolak token channel lain (403), dan tes memastikan hitungannya 0.
+- `consentKey` memuat `channelId|nama`. Dialog konfirmasi menulis channel dengan huruf tebal.
+
+**Kuota dan batas**
+- `quota` bersama: unit + jumlah unggahan hari ini (hari Pacific).
+- Per koneksi: `uploads` hari ini dan `limitAt` saat YouTube menjawab `uploadLimitExceeded` (400/429) untuk channel itu saja.
+- `tools/schedule-run.ts` menahan channel itu 24 jam. Channel lain tetap jalan.
+- Antrean "Waiting for quota" yang lama tetap sama: satu unggahan pada satu waktu untuk semua channel.
+
+**Jadwal**
+- Satu rencana per channel. Photon Lab = `data/schedule.json` (tidak berubah); channel lain = `data/schedule-<nama>.json`. Field `channel` ada di rencana baru.
+- `schedule-plan.ts` wajib `--channel`.
+- `schedule-run.ts` tanpa `--channel` hanya memakai `data/schedule.json`. Rencana itu milik Photon Lab: berkasnya sendiri yang menyebut channelnya, atau rencana itu sudah ada sebelum ada channel. Tidak ada tebakan.
+  - **Sengaja menyimpang dari brief:** `--channel` tidak diwajibkan untuk rencana lama ini. Alasannya, tugas terjadwal `upload-next-8-photon-lab` (20 Nov 13:00 WIB) memanggil `node tools/schedule-run.ts --count 8` tanpa `--channel`.
+  - Untuk channel lain, `--count` adalah dry run sampai diberi `--yes`.
+- Slot WIB sama untuk tiap channel, dihitung per rencana.
+
+**Model video**
+- `channel` (nama) tetap ada.
+- `channelId` (opsional): dipilih di UI; dikunci saat terjadwal, terbit, ditandai manual, atau punya record unggahan.
+- `uploadedManually` (ISO): ditandai lewat "Mark as uploaded manually" → status Published, tanpa panggilan YouTube, dapat dibatalkan selama uploader tidak punya `videoId`.
+- Tidak ada status baru, jadi chip, filter, kalender, dan kontras tidak berubah.
+
+**Endpoint baru**
+- `PUT /api/youtube/active`
+- `PUT /api/youtube/upload-enabled` (`confirmName` wajib untuk menyalakan channel non-aktif)
+- `POST /api/youtube/disconnect {channelId}`
+- `POST /oauth/youtube/confirm`
+- `PUT /api/videos/:id/channel` dan `PUT /api/videos/channel {ids}`
+- `POST /api/videos/:id/manual` dan `…/manual/undo`
+- `POST /api/open-youtube-studio` (hanya membuka https://studio.youtube.com)
+- `POST /api/reveal {where:'thumbnails'}`
+
+**Tes:** `tests/channels.test.ts` (15 tes, server studio nyata + Google tiruan multi-channel).
+
 ## 4. Tes dan verifikasi
 
 **Server YouTube tiruan** (`tests/fake-google.ts`, lokal di port acak). Server studio diarahkan ke sana lewat variabel uji (`SIM_GOOGLE_FAKE`) dengan `HOME` sementara, sehingga tidak menyentuh Application Support asli. Skenario:

@@ -4,7 +4,7 @@
 - task_status: partial
 - handoff: ready
 - writer: none
-- updated_at: 2026-11-19T20:00:00+0700
+- updated_at: 2026-11-19T23:00:00+0700
 - language: id
 
 Satu-satunya checkpoint proyek ini. Perbarui di akhir tiap langkah kerja yang substansial, bukan hanya di akhir sesi.
@@ -102,7 +102,19 @@ Pilihan perintah: `npm run dev` untuk merender/mengunggah, `npm run dev:watch` h
 - Tugas 2: pemilik memilih **Plasma Pendulum** (@PlasmaPendulum). Kit selesai di `branding/brands/plasma-pendulum.json` + `branding/brands/plasma-pendulum/` (README berisi identitas, teks channel, langkah YouTube Studio, cara pakai Main-2; aset png/svg; `node branding/build.mjs plasma-pendulum`; `node branding/check-contrast.mjs plasma-pendulum`). `build.mjs` menerima id brand; Photon Lab tetap identik (git bersih). Cover contoh dari 2 render nyata 12 dtk (Main-2) di studio uji port 5392, data sementara (dimatikan). Channel BELUM dibuat pemilik; studio masih satu koneksi (Photon Lab). `style-presets/main-2.json` milik pemilik, belum di-commit, tidak diubah.
 - Kandidat (cek 2026-11-19): handle @VioletVector, @AmethystAxis, @NebulaBounce, @PlasmaPendulum, @MagentaMechanics, @VioletKinetics = 404 di youtube.com (bebas); @Hyperviolet SUDAH DIPAKAI (dicoret). Langkah "buat channel di YouTube Studio sampai kolom nama" tidak dilakukan (create_channel mengalihkan ke channel Photon Lab; alur channel baru butuh klik akun).
 
-- Channel Plasma Pendulum disetel di Chrome pemilik (2026-11-19 ~20:00): channel sudah dibuat pemilik (@PlasmaPendulum); terpasang profil, banner, watermark, deskripsi (ejaan AS), kata kunci, setelan unggah, 3 playlist Private. Made for Kids = No (disetel atas persetujuan pemilik). Menunggu pemilik: negara (opsional), verifikasi telepon, email/tautan. Hubungkan channel kedua ke uploader Sim Studio: DITUNDA (butuh dukungan dua channel; jangan sentuh youtube.ts/uploader.ts sebelum itu). Detail: `branding/brands/plasma-pendulum/README.md`.
+- Channel Plasma Pendulum disetel di Chrome pemilik (2026-11-19 ~20:00): channel sudah dibuat pemilik (@PlasmaPendulum); terpasang profil, banner, watermark, deskripsi (ejaan AS), kata kunci, setelan unggah, 3 playlist Private. Made for Kids = No (disetel atas persetujuan pemilik). Menunggu pemilik: negara (opsional), verifikasi telepon, email/tautan. Dukungan dua channel di uploader: kode selesai 2026-11-19 (lihat bagian "Dua channel di Sim Studio"); koneksi nyata Plasma Pendulum menunggu pemilik. Detail: `branding/brands/plasma-pendulum/README.md`.
+
+## Dua channel di Sim Studio (2026-11-19 ~23:00) — kode selesai, BELUM aktif di studio asli
+- Commit `c51f45a` (kredensial multi-koneksi + migrasi), `c707081` (model data + jadwal per channel), `e77822b` (uploader/server per channel, unggah manual), `24a4567` (UI), dan dokumen (commit berikut).
+- Rincian teknis: `docs/youtube-upload-plan.md` §3b. Cara pakai: README "Two channels", "Uploading by hand", dan "Uploading to the second channel later".
+- Tes: `tests/channels.test.ts` (15, Google tiruan multi-channel, termasuk regresi Photon Lab lewat `schedule-run --count 1` tanpa `--channel`). `npm test` 289 lulus, `tsc` bersih. Branding Photon Lab dan Plasma Pendulum identik setelah dibangun ulang.
+- UI dicek di studio uji port 5393 (HOME palsu, salinan data, Google tiruan; sudah dimatikan): dua baris koneksi, sakelar, pemilih channel, bantuan unggah manual + Mark/Undo, kalender menyebut channel, kontras teks ≥ 4,5 di mode gelap dan terang, tanpa error konsol.
+- Studio asli (pid 69773) masih KODE LAMA. Saat di-restart (hanya setelah pemilik bilang tidak ada render/unggahan berjalan), `youtube.json` asli dimigrasi sekali: cadangan `youtube.json.bak-single-channel`, Photon Lab = koneksi pertama, Upload On. `data/videos.json` mendapat `channel` (lihat bagian sebelumnya).
+- Tugas terjadwal `upload-next-8-photon-lab` (20 Nov 13:00 WIB) tetap jalan dengan kode baru: tanpa `--channel` memakai `data/schedule.json` (Photon Lab). Langkah 1 tugas itu berhenti bila `codeStale`, jadi studio harus di-restart sebelum 13:00 atau tugas melapor dan berhenti.
+- Menunggu pemilik:
+  - Menghubungkan Plasma Pendulum di dunia nyata (YouTube settings → Connect another channel… → pilih channel di Google → "Connect Plasma Pendulum"). Masuknya bawaan Upload Off.
+  - Menyalakan Upload untuk Plasma Pendulum, satu unggahan uji, atau jadwal massal: masing-masing hanya dengan persetujuan di chat.
+- Belum terverifikasi: tidak ada panggilan Google nyata. Biaya kuota sebenarnya per unggahan: dokumen (2026-11-18) menyebut unggahan punya ember 100/hari sendiri; brief pemilik menyebut 1.600 unit; data 19 Nov (8 unggahan, ±3.500 unit) cocok dengan dokumen. Teks UI tidak menyebut angka per unggahan.
 
 ## Evidence
 - 2026-11-19 08:46: `npm run typecheck` lulus; `npm test` 223 lulus, 0 gagal (tes baru: job-queue +1, batch-run 5, youtube +4 untuk kuota, housekeeping 6, dev-watch 1, ux +1). Semua tanpa jaringan nyata, tanpa kredit, tanpa unggahan.
