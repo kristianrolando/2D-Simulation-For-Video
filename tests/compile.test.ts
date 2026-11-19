@@ -1,5 +1,6 @@
 // Long videos: the pure parts (chapters, selection and order, texts and their checker), the record on disk, the build (tiny real clips, a
 // real ffmpeg: stop in the middle, continue without redoing finished clips) and one real studio on another port (throw-away folders).
+import { usablePort } from './ports.ts';
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -206,7 +207,7 @@ test('one builder at a time; a lock left by a killed build is taken over; loudne
 
 // ---------------- a real studio (throw-away folders, another port) ----------------
 test('the studio builds a long video through its queue: stop, build again, texts, thumbnail, the Videos list, and the Shorts stay untouched', { timeout: 300000 }, async () => {
-  const data = path.join(T, 'srv-data'), out = path.join(T, 'srv-out'), port = 8100 + Math.floor(Math.random() * 300), base = `http://127.0.0.1:${port}`;
+  const data = path.join(T, 'srv-data'), out = path.join(T, 'srv-out'), port = usablePort(8100 + Math.floor(Math.random() * 300)), base = `http://127.0.0.1:${port}`;
   fs.mkdirSync(data, { recursive: true }); fs.mkdirSync(out, { recursive: true });
   const shorts: Video[] = [];
   for (const [i, container] of ['circle', 'square', 'triangle', 'ring'].entries()) {

@@ -1,5 +1,6 @@
 // Style editor: forms become ordinary theme files; shipped styles are never overwritten or deleted; a custom style renders
 // every scene without touching the simulation; the API works end to end in a throw-away themes folder.
+import { usablePort } from './ports.ts';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -134,14 +135,14 @@ test('a custom style renders every scene; it changes the picture and never the s
 
 // ---------------- API, end to end in a throw-away themes folder ----------------
 const T = fs.mkdtempSync(path.join(os.tmpdir(), 'sim-style-api-'));
-const PORT = 5950 + Math.floor(Math.random() * 40), BASE = `http://127.0.0.1:${PORT}`;
+const PORT = usablePort(5950 + Math.floor(Math.random() * 40)), BASE = `http://127.0.0.1:${PORT}`;
 let server: ChildProcess | null = null, log = '';
 before(async () => {
   const themes = path.join(T, 'themes'); fs.mkdirSync(themes); for (const f of fs.readdirSync(THEME_DIR)) if (f.endsWith('.json')) fs.copyFileSync(path.join(THEME_DIR, f), path.join(themes, f));
   fs.mkdirSync(path.join(T, 'data')); fs.mkdirSync(path.join(T, 'out'));
   server = spawn(process.execPath, ['apps/server/server.ts'], { cwd: ROOT, env: { ...process.env, HOME: path.join(T, 'home'), PORT: String(PORT), SIM_DATA_DIR: path.join(T, 'data'), SIM_OUT_DIR: path.join(T, 'out'), SIM_THEME_DIR: themes }, stdio: ['ignore', 'pipe', 'pipe'] });
   server.stdout!.on('data', d => { log += d; }); server.stderr!.on('data', d => { log += d; });
-  for (let i = 0; i < 80; i++) { try { if ((await fetch(`${BASE}/api/themes`)).ok) return; } catch { /* starting */ } await new Promise(r => setTimeout(r, 150)); }
+  for (let i = 0; i < 300; i++) { try { if ((await fetch(`${BASE}/api/themes`)).ok) return; } catch { /* starting */ } await new Promise(r => setTimeout(r, 150)); }
   throw new Error('studio did not start:\n' + log);
 });
 after(() => { server?.kill(); fs.rmSync(T, { recursive: true, force: true }); });

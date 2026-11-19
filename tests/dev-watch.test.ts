@@ -1,6 +1,7 @@
 // `npm run dev:watch` (node --watch apps/server/server.ts): a server file changes while a render runs. The watcher restarts the studio;
 // the render must come back as Stopped (never lost), its worker must not survive, nothing may be left behind, and the new server
 // must know it is current. Throw-away folders and another port; only the modification time of one server file is touched (no content).
+import { usablePort } from './ports.ts';
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -18,7 +19,7 @@ async function until<V>(fn: () => Promise<V | false>, ms = 60000): Promise<V> { 
 
 test('dev:watch restarts the studio on a server file change: the running render becomes Stopped, no orphan worker, no leftovers, the new server is current', { timeout: 180000 }, async () => {
   assert.equal(JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).scripts['dev:watch'], 'node --watch apps/server/server.ts', 'the test runs exactly what the script runs');
-  const data = path.join(T, 'data'), out = path.join(T, 'out'), port = 6950 + Math.floor(Math.random() * 40), base = `http://127.0.0.1:${port}`;
+  const data = path.join(T, 'data'), out = path.join(T, 'out'), port = usablePort(6950 + Math.floor(Math.random() * 40)), base = `http://127.0.0.1:${port}`;
   fs.mkdirSync(data); fs.mkdirSync(out);
   watcher = spawn(process.execPath, ['--watch', 'apps/server/server.ts'], { cwd: ROOT, detached: true, stdio: 'ignore', env: { ...process.env, HOME: path.join(T, 'home'), PORT: String(port), SIM_DATA_DIR: data, SIM_OUT_DIR: out } });
   const status = async () => { const s: any = await (await fetch(base + '/api/status', { signal: AbortSignal.timeout(2000) })).json(); return s.app === 'sim-studio' ? s : false; };

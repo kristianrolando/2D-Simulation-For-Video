@@ -1,4 +1,5 @@
 // GET /api/status: the light summary the macOS menu bar app polls.
+import { usablePort } from './ports.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -51,7 +52,7 @@ test('status: only loopback callers are accepted', () => {
 });
 
 test('GET /api/status on a real server: JSON, small, fast, and the server is the studio', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sim-status-')), port = 5300 + Math.floor(Math.random() * 400);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sim-status-')), port = usablePort(5300 + Math.floor(Math.random() * 400));
   const child = spawn(process.execPath, ['apps/server/server.ts'], { cwd: path.resolve(import.meta.dirname, '..'), env: { ...process.env, PORT: String(port), SIM_DATA_DIR: dir }, stdio: 'ignore' });
   try {
     let res: Response | null = null;

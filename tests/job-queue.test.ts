@@ -1,6 +1,7 @@
 // The render queue survives a restart: jobs are kept in data/jobs.json, a job that was running becomes "Stopped", worker processes
 // (one process group each) never outlive the studio, leftovers are swept, and "Render again" reproduces the same video.
 // Real studio servers run in throw-away folders; nothing here touches the real data/ or output/.
+import { usablePort } from './ports.ts';
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -100,8 +101,9 @@ test('leftover files: only requests nobody owns, temp files and half-written out
 // ---------------- real studio servers, restarted ----------------
 let nextPort = 6100 + Math.floor(Math.random() * 400) * 4;
 interface Studio { proc: ChildProcess; port: number; base: string; log: () => string; stop: (sig?: NodeJS.Signals) => Promise<void> }
+const freePort = () => (nextPort = usablePort(nextPort + 4));
 async function startStudio(dir: string): Promise<Studio> {
-  const port = (nextPort += 4), data = path.join(dir, 'data'), out = path.join(dir, 'out'); fs.mkdirSync(data, { recursive: true }); fs.mkdirSync(out, { recursive: true });
+  const port = freePort(), data = path.join(dir, 'data'), out = path.join(dir, 'out'); fs.mkdirSync(data, { recursive: true }); fs.mkdirSync(out, { recursive: true });
   let log = ''; const proc = spawn(process.execPath, ['apps/server/server.ts'], { cwd: ROOT, env: { ...process.env, HOME: path.join(dir, 'home'), PORT: String(port), SIM_DATA_DIR: data, SIM_OUT_DIR: out }, stdio: ['ignore', 'pipe', 'pipe'] });
   procs.push(proc); proc.stdout!.on('data', d => { log += d; }); proc.stderr!.on('data', d => { log += d; });
   const base = `http://127.0.0.1:${port}`;

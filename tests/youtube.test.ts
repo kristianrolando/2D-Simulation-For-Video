@@ -1,5 +1,6 @@
 // YouTube upload, end to end against a local stand-in of Google (tests/fake-google.ts): a real studio server with its own
 // HOME (so ~/Library/Application Support is a temp folder), its own data/ and output/. Nothing here talks to Google.
+import { usablePort } from './ports.ts';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -13,7 +14,7 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const T = fs.mkdtempSync(path.join(os.tmpdir(), 'sim-yt-'));
 const HOME = path.join(T, 'home'), DATA = path.join(T, 'data'), OUT = path.join(T, 'out');
 const SUPPORT = path.join(HOME, 'Library', 'Application Support', 'Sim Studio');
-const PORT = 5700 + Math.floor(Math.random() * 200);
+const PORT = usablePort(5700 + Math.floor(Math.random() * 200));
 const BASE = `http://127.0.0.1:${PORT}`;
 let fake: Awaited<ReturnType<typeof startFakeGoogle>>;
 let server: ChildProcess | null = null, serverLog = '';
@@ -37,7 +38,7 @@ async function startServer() {
   serverLog = '';
   server = spawn(process.execPath, ['apps/server/server.ts'], { cwd: ROOT, env: { ...process.env, HOME, PORT: String(PORT), SIM_DATA_DIR: DATA, SIM_OUT_DIR: OUT, SIM_GOOGLE_FAKE: fake.url, SIM_YT_POLL_MS: '150', SIM_YT_QUOTA_WAIT_MS: '1500', SIM_YT_TICK_MS: '200', SIM_YT_CHUNK: String(256 * 1024) }, stdio: ['ignore', 'pipe', 'pipe'] });
   server.stdout!.on('data', d => { serverLog += d; }); server.stderr!.on('data', d => { serverLog += d; });
-  for (let i = 0; i < 80; i++) { try { if ((await fetch(`${BASE}/api/status`)).ok) return; } catch { /* starting */ } await sleep(150); }
+  for (let i = 0; i < 300; i++) { try { if ((await fetch(`${BASE}/api/status`)).ok) return; } catch { /* starting */ } await sleep(150); }
   throw new Error('studio did not start:\n' + serverLog);
 }
 async function stopServer(sig: NodeJS.Signals = 'SIGTERM') { if (!server) return; const s = server; server = null; const done = new Promise(r => s.on('exit', r)); s.kill(sig); await done; }

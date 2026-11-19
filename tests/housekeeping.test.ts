@@ -1,5 +1,6 @@
 // Housekeeping: the machine health check, the hourly sweep, the time-stamped and size-limited log, keeping the Mac awake, and the
 // state tool. Probes, spawns and clocks are handed in; one real studio checks the pieces together (throw-away folders, other port).
+import { usablePort } from './ports.ts';
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -81,7 +82,7 @@ test('state tool: read-only summary, JSON mode, "not running" when no studio ans
 
 test('a real studio: time-stamped log lines, health problems shown in /api/status, a render refused (clearly) on a full disk, the Mac kept awake only with work', { timeout: 60000 }, async () => {
   const dir = fs.mkdtempSync(path.join(T, 'srv-')), data = path.join(dir, 'data'), out = path.join(dir, 'out'); fs.mkdirSync(data); fs.mkdirSync(out);
-  const port = 6600 + Math.floor(Math.random() * 300);
+  const port = usablePort(6600 + Math.floor(Math.random() * 300)); // fetch refuses some ports (tests/ports.ts)
   fs.writeFileSync(path.join(out, 'ghost.request.json'), '{}'); fs.writeFileSync(path.join(out, 'ghost.wav'), 'x'); const old = (Date.now() - 3 * 3600e3) / 1000; fs.utimesSync(path.join(out, 'ghost.wav'), old, old);
   let log = ''; const proc = spawn(process.execPath, ['apps/server/server.ts'], { cwd: ROOT, env: { ...process.env, HOME: path.join(dir, 'home'), PORT: String(port), SIM_DATA_DIR: data, SIM_OUT_DIR: out, SIM_MIN_FREE_GB: '99999999' }, stdio: ['ignore', 'pipe', 'pipe'] });
   procs.push(proc); proc.stdout!.on('data', d => { log += d; }); proc.stderr!.on('data', d => { log += d; });

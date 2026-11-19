@@ -1,6 +1,7 @@
 // Style presets: a look (background + colours + font) laid over ANY style and applied to ANY scene. It never changes scene
 // parameters, juice or the simulation; without a preset nothing changes; old scene-format files cannot break anything;
 // files are written atomically.
+import { usablePort } from './ports.ts';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -169,7 +170,7 @@ test('delete removes a style preset and nothing else', () => {
 
 // ---------------- API, end to end in throw-away folders ----------------
 const A = fs.mkdtempSync(path.join(os.tmpdir(), 'sim-sp-api-'));
-const PORT = 5990 + Math.floor(Math.random() * 40), BASE = `http://127.0.0.1:${PORT}`;
+const PORT = usablePort(5990 + Math.floor(Math.random() * 40)), /* fetch refuses some ports (tests/ports.ts) */ BASE = `http://127.0.0.1:${PORT}`;
 const SPDIR = path.join(A, 'style-presets'), PRDIR = path.join(A, 'presets');
 let server: ChildProcess | null = null, log = '';
 before(async () => {
@@ -180,7 +181,7 @@ before(async () => {
   fs.writeFileSync(path.join(PRDIR, 'ghost-scene.json'), JSON.stringify({ sceneId: 'does-not-exist', params: {} }));
   server = spawn(process.execPath, ['apps/server/server.ts'], { cwd: ROOT, env: { ...process.env, HOME: path.join(A, 'home'), PORT: String(PORT), SIM_DATA_DIR: path.join(A, 'data'), SIM_OUT_DIR: path.join(A, 'out'), SIM_STYLE_PRESET_DIR: SPDIR, SIM_PRESETS_DIR: PRDIR }, stdio: ['ignore', 'pipe', 'pipe'] });
   server.stdout!.on('data', d => { log += d; }); server.stderr!.on('data', d => { log += d; });
-  for (let i = 0; i < 80; i++) { try { if ((await fetch(`${BASE}/api/style-presets`)).ok) return; } catch { /* starting */ } await new Promise(r => setTimeout(r, 150)); }
+  for (let i = 0; i < 300; i++) { try { if ((await fetch(`${BASE}/api/style-presets`)).ok) return; } catch { /* starting */ } await new Promise(r => setTimeout(r, 150)); }
   throw new Error('studio did not start:\n' + log);
 });
 after(() => { server?.kill(); fs.rmSync(A, { recursive: true, force: true }); });
