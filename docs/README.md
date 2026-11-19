@@ -25,6 +25,7 @@ Dokumen baru wajib ditambahkan di sini (diperiksa `tests/conventions.test.ts`). 
 | [analysis.md](analysis.md) | Fase 1: analisis 18 video referensi (contact sheet di `evidence/reference-sheets/`) |
 | [report.md](report.md) | Fase 2–3: laporan prototipe dan rancangan sistem; sumber angka/pengukuran awal (dirujuk komentar kode) |
 | [ux-v2.md](ux-v2.md) | audit dan hasil UX v2 (tata letak responsif, ikon, token); bukti di `evidence/ux-v2/` |
+| [work-log.md](work-log.md) | catatan kerja selesai yang dipindah dari HANDOFF (batch, jadwal, video panjang, channel, navigasi Videos, temuan kuota YouTube) |
 
 ## Gambar dan data bukti (`evidence/`)
 Gambar dikompres (batas per berkas di `conventions.md`); jangan menaruh gambar di luar folder ini. Hanya berkas `.md` yang perlu didaftarkan.
