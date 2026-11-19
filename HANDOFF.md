@@ -25,7 +25,7 @@ Verified (2026-11-20 ~01:20, setelah perapian): `npm run typecheck` bersih; `npm
 Operasi nyata (jangan percaya catatan ini; tanya keadaan sebenarnya, hanya baca): `node tools/state.ts`. Pada 01:20 studio pid 83344 berjalan, idle, kode terkini (`codeStale: false`), antrean 0, tanpa render/batch/unggahan. `npm run dev` untuk merender/mengunggah; `npm run dev:watch` hanya bila tidak ada render atau unggahan.
 
 Unfinished / unknown (menunggu pemilik):
-- **Tahap 4 perapian**: pemilik menyetujui "semua yang aman" (2026-11-20); dieksekusi hanya `data/videos-ui-checks/` (kosong), `prototypes/output/` (62 MB) dan `output/thumbs/` (33 MB cache). Sisanya TETAP menunggu keputusan (tidak dapat dibuat ulang atau perlu keputusan lain): lihat tabel.
+- **Tahap 4 perapian**: pemilik menyetujui "semua yang aman" (2026-11-20); dieksekusi hanya `data/videos-ui-checks/` (kosong), `prototypes/output/` (62 MB) dan `output/thumbs/` (33 MB cache). `work/` (94 MB) juga sudah diarsipkan lalu dihapus. Sisanya TETAP menunggu keputusan (tidak dapat dibuat ulang atau perlu keputusan lain): lihat tabel.
 - Unggah Photon Lab: jadwal 8 uploaded / 1 failed (`v-mwm5fvnr16gu`, 429 batas unggah channel) / 223 planned. Tugas terjadwal `upload-next-8-photon-lab` (20 Nov 13:00 WIB) tidak dibatalkan; keputusan pemilik soal slot failed dan penyebab 429 belum ada (`docs/work-log.md`, bagian pemeriksaan API). Kuota YouTube per unggahan belum terverifikasi (dokumen resmi 1 unit vs data nyata ±3.500 unit untuk 8 unggahan).
 - Plasma Pendulum: 245 video siap (`channel` benar, cover ada), tersambung, Upload Off; diunggah manual oleh pemilik. Fourier Loom: 245 video + folder serah-terima `output/serah-terima-video-fourier-loom/` siap, belum diserahkan ke teman; tidak ada unggah/penjadwalan.
 - 15 video panjang (kompilasi 16:9) siap unggah, belum diunggah, belum diputar manusia; uploader studio belum mendukung video panjang.
@@ -46,7 +46,7 @@ Ukuran per 2026-11-20. "Kode" = dirujuk kode/skrip (grep di apps, packages, tool
 
 | Item | Isi | Ukuran | Kode? | Usulan |
 |---|---|---|---|---|
-| `work/` | coretan analisis/bench: skrip `.mjs`, frame dan PNG perbandingan, `main.ts.bak-uxv2` | 94 MB | hanya `tools/compare.sh` menulis ke `work/cmp`; `docs/ux-v2.md` menyebut skripnya | arsipkan ke luar repo, lalu hapus; simpan `cdp.mjs`/`shots.mjs`/`flows.mjs` bila ingin mengulang ukur UX |
+| `work/` | coretan analisis/bench: skrip `.mjs`, frame dan PNG perbandingan, `main.ts.bak-uxv2` | 94 MB | hanya `tools/compare.sh` menulis ke `work/cmp`; `docs/ux-v2.md` menyebut skripnya | **DIARSIPKAN lalu DIHAPUS 2026-11-20 (disetujui pemilik)**: `~/Documents/sim-studio-archive/work-2026-11-20.zip` (209 berkas, 94,9 MB, diuji `unzip -t`); skrip `cdp.mjs`/`shots.mjs`/`flows.mjs` ada di zip |
 | `prototypes/output/` | render prototipe lama (tidak dilacak) | 62 MB | tidak (dibuat ulang oleh `prototypes/lib/render-node.mjs`) | **DIHAPUS 2026-11-20 (disetujui pemilik)**; 13 berkas terlacak di `prototypes/` dipakai `tools/fit-camera.mjs`, `serve.mjs`, `state-hash.mjs` dan `docs/report.md`: simpan |
 | `references/` | 18 video kompetitor (2 folder) | 606 MB | `tools/compare.sh`, `style-evidence.ts --ref`; `docs/analysis.md` | simpan (sumber analisis, tidak bisa dibuat ulang); bila ruang sempit pindah ke disk luar |
 | gambar docs | sudah dikompres (45,8 → 23,7 MB); 3 tangkapan layar identik di `docs/evidence/ux-v2/after/pane-*-768.jpg` + `videos-400-dark`/`videos-detail-400` (±0,25 MB) | 23,7 MB | `flows.json` menyebut namanya | simpan; hapus 3 salinan identik bila pemilik setuju |
