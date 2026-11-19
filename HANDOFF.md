@@ -174,6 +174,13 @@ Pilihan perintah: `npm run dev` untuk merender/mengunggah, `npm run dev:watch` h
 
 - `branding/brands/fourier-loom/README.md` diganti panduan setup channel berbahasa Indonesia (64 baris, tanpa menyebut channel lain atau alat internal); tidak dipakai `branding/pack.mjs`.
 
+## Pemeriksaan YouTube API Photon Lab + unggah terjadwal lanjutan (sesi "MAIN 3", jam sistem 2026-11-19 23:30 WIB) — DITAHAN, belum ada unggahan
+- Keadaan nyata: jadwal 8 uploaded / 1 failed (v-mwm5fvnr16gu) / 223 planned; studio pid 83344 kode terkini; batch Fourier MAIN 2 tahap 2 jalan (load 7,8–8,1, runner sudah menunggu "load too high"). Photon Lab terhubung (tanpa "Connect again"), Upload On, aktif; kuota studio hari ini 73 unit, 0 unggahan, reset 15:00 WIB. Catatan: tanggal di catatan lama (2026-11-20) mendahului jam sistem.
+- Cadangan: `data/backup-pre-upload-2026-11-19/` (schedule.json, videos.json; salinan).
+- Dokumen resmi (developers.google.com determine_quota_cost): videos.insert = 1 unit, ember sendiri 100 panggilan/hari; thumbnails.set = 50 unit dari 10.000. Itu bertentangan dengan angka lama 1.600 unit; biaya nyata per unggahan tidak tercatat di log studio (Sim Studio.log hanya 60 baris, tanpa data kuota), jadi belum terverifikasi.
+- 429 "This channel has reached its own upload limit for now": datang setelah tepat 8 unggahan dalam ±24 menit (09:21–09:45 WIB), dari kode lama (tanpa `limitAt`, jadi penahan 24 jam studio tidak aktif). Penyebab TIDAK pasti: bisa batas unggah per channel (rolling, mungkin perlu verifikasi telepon) atau metrik "Video Uploads" per hari. Halaman bantuan resmi tidak menyebut batas harian. Belum ada percobaan ulang.
+- Keputusan tertunda: slot failed menghalangi runner (harus dipulihkan manual) dan tugas `upload-next-8-photon-lab` (20 Nov 13:00 WIB) TIDAK dibatalkan; menunggu jawaban pemilik.
+
 ## Evidence
 - 2026-11-19 08:46: `npm run typecheck` lulus; `npm test` 223 lulus, 0 gagal (tes baru: job-queue +1, batch-run 5, youtube +4 untuk kuota, housekeeping 6, dev-watch 1, ux +1). Semua tanpa jaringan nyata, tanpa kredit, tanpa unggahan.
 - Uji nyata di studio uji (port lain, Google palsu): halaman Videos menampilkan "Waiting for quota", "Try now", hitungan "1 uploading", dan banner "Heads up" untuk disk; studio uji dimatikan sesudahnya. Belum diuji: kuota YouTube sungguhan, jam reset sungguhan (hanya fungsi `nextQuotaReset` diuji pada tanggal tetap), Mac tidur, `caffeinate` sungguhan di bawah render panjang.
