@@ -27,3 +27,6 @@
 @media (max-width: 760px) { .vtop #vFormat, .vtop #vMode { order: 3; flex: 1 1 100%; } .vtop #vFormat button, .vtop #vMode button { flex: 1; padding-left: 6px; padding-right: 6px; } }
 /* small extra: on a phone the rows of a long list were squeezed to one line each (the title and the second line overlapped) */
 #vList .vrow { flex: none; }
+/* the header of a video's detail wraps on a narrow screen (its buttons were cut off at the right edge) */
+#vDetail .vhead { flex-wrap: wrap; } #vDetail .vhead .row { flex-wrap: wrap; gap: 6px; }
+@media (max-width: 760px) { #vDetail .vhead > div:first-child { flex: 1 1 100%; } }

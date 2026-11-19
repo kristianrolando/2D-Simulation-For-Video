@@ -35,12 +35,24 @@ category accent as text on its panels, on its own 18 % tint, and under the selec
 | **Dark** | 4.58 (white on the primary blue button) | body text 14.3, muted 6.1, label 11.3, links 12.9 |
 | **Light** | 4.66 (green "published" on its cell) | body text 16.2, muted 6.3, label 9.6, links 6.1 |
 
-In the browser a scan of every visible text element (computed colours, backgrounds composited) found **no text below
-4.5:1** in either mode on: the studio (Basic and Advanced tabs), the render history popup, the help dialog, the Videos list
-and detail, the coverage map and the Export menu (about 140 to 205 texts per view). Pictures and video are excluded.
+**Rules (added after active status buttons turned out unreadable: two `.seg` blocks, one painting the background and one the text colour,
+ended up as pale on pale).**
 
-Not covered by WCAG text rules and kept as before: decorative borders in the dark mode (light mode uses stronger control
-borders, about 3:1).
+- A rule that paints a pressed / selected / "on" background must set its **text colour in the same rule**. Status buttons and chips use
+  the status colour with `--on-solid` (dark ink on the pale dark-mode colours, white on the deep light-mode ones); the plain switches use
+  `--seg-on` with `--text`. There is one `.seg` block.
+- Component borders (fields, selects, buttons) must be 3:1 against the surface behind them: `--field-line` is tuned for that in both modes.
+- Placeholders use `--muted` (`::placeholder`), never the browser default grey. Dimming is done with a muted colour, not `opacity`
+  (the calendar's days outside the month).
+- `tests/contrast.test.ts` fails if a key token pair (text, muted, links, primary button, status ink on its colour, banners, field borders)
+  drops below AA in either mode, or if a pressed/on rule sets a background without a text colour.
+
+**Whole-page measurement:** `tools/contrast-audit.js` (load it in the open studio, then `window.__audit()`) measures every visible text,
+placeholder, icon and form-control border with the backgrounds composited, and lists what is below 4.5:1 (3:1 for large text, icons and
+borders). The last run covered 20 views in each mode (studio Basic and Advanced, help, settings drawer, style editor, Videos list, menu,
+coverage map, four video details, YouTube dialog, Long list and detail, calendar, Build long video with suggestion and detail), about 24,000
+measurements, and found **nothing below AA**. Disabled controls (44 in those views) are exempt under WCAG and not counted. Not measured:
+hover and focus states, tooltips, the render strip while a real job runs (checked with sample rows), and text over pictures (none found).
 
 ## Auto
 
