@@ -6,7 +6,7 @@
 //    or the list starts empty, and `notice` says what happened in plain words.
 import fs from 'node:fs';
 import path from 'node:path';
-import { SCHEMA_VERSION, sanitizeVideo, newId, toCsv, isLang, type SuggestLang, type Video, type VideoStore } from '../../packages/publish/index.ts';
+import { SCHEMA_VERSION, sanitizeVideo, newId, toCsv, isLang, sanitizeManualChannels, type SuggestLang, type Video, type VideoStore } from '../../packages/publish/index.ts';
 
 export interface Notice { level: 'info' | 'warn'; text: string }
 export interface StoreOptions {
@@ -46,7 +46,8 @@ export function parseStore(text: string, now: string = new Date().toISOString())
     seen.add(s.id); videos.push(s);
   }
   const st = obj.settings as Record<string, unknown> | undefined;
-  const settings = st && typeof st === 'object' && isLang(st.suggestLang) ? { suggestLang: st.suggestLang } : {};
+  const manualChannels = sanitizeManualChannels((st as Record<string, unknown> | undefined)?.manualChannels);
+  const settings = { ...(st && typeof st === 'object' && isLang(st.suggestLang) ? { suggestLang: st.suggestLang } : {}), ...(manualChannels.length ? { manualChannels } : {}) };
   return { ok: true, skipped, migrated, store: { schemaVersion: SCHEMA_VERSION, savedAt: typeof obj.savedAt === 'string' ? obj.savedAt : now, videos, settings } };
 }
 
@@ -183,7 +184,8 @@ export function openStore(dir: string, opts: StoreOptions = {}) {
     /** a read-only studio calls this now and then: if the other studio is gone, take over and reload from disk */
     retryLock(): boolean { if (canWrite()) return false; if (acquire()) { load(); return true; } return false; },
     close: release,
-    settings(): { suggestLang: SuggestLang } { return { suggestLang: isLang(state.settings?.suggestLang) ? state.settings!.suggestLang! : 'en' }; },
+    settings(): { suggestLang: SuggestLang; manualChannels: string[] } { return { suggestLang: isLang(state.settings?.suggestLang) ? state.settings!.suggestLang! : 'en', manualChannels: sanitizeManualChannels(state.settings?.manualChannels) }; },
+    setManualChannels(list: string[]) { save({ ...state, settings: { ...state.settings, manualChannels: sanitizeManualChannels(list) } }); },
     setSuggestLang(lang: SuggestLang) { save({ ...state, settings: { ...state.settings, suggestLang: lang } }); },
     list(): Video[] { return state.videos; },
     get(id: string): Video | undefined { return state.videos.find(v => v.id === id); },

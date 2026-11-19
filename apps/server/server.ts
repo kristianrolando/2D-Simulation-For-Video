@@ -20,7 +20,7 @@ import { openJobStore, isOurWorker, killGroup, processAlive, strayRequests, temp
 import * as yt from './youtube.ts';
 import { createUploader } from './uploader.ts';
 import { uploadProblems, consentKey, fileSig, MIN_LEAD_MIN, uploadThumbName, thumbProblem, type UploadOptions, type FileFacts } from '../../packages/publish/index.ts';
-import { patchVideo, DEFAULT_CHANNEL, channelLocked, youtubeIdOf, localDate, type Video } from '../../packages/publish/index.ts';
+import { patchVideo, DEFAULT_CHANNEL, channelLocked, youtubeIdOf, localDate, manualMarkProblem, manualNameProblem, type Video } from '../../packages/publish/index.ts';
 import { newVideoFor, hookFor } from '../../packages/publish/describe.ts';
 import { climaxSecFor, coverText } from '../../packages/publish/cover.ts';
 import { makeCovers } from './cover.ts';
@@ -396,7 +396,8 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     // the channel this video goes to (its own; older records: the studio's first channel). Never another one.
     const ch = yt.connectionFor(v, DEFAULT_CHANNEL), f = await probe(path.join(OUT, v.file)), o = uploadOptions(b);
     const problems = uploadProblems(v, f, o);
-    if (!ch) problems.unshift(yt.connections().length ? `This video is for the channel ${v.channel}, which is not connected to Sim Studio. Connect it in YouTube settings, or upload it by hand.` : 'YouTube is not connected. Open YouTube settings and connect a channel.');
+    if (!ch && !v.channelId && videos.settings().manualChannels.includes(v.channel)) problems.unshift(`${v.channel} is a channel added by hand (not connected to YouTube), so the studio never uploads to it. Upload this video by hand in YouTube Studio.`);
+    else if (!ch) problems.unshift(yt.connections().length ? `This video is for the channel ${v.channel}, which is not connected to Sim Studio. Connect it in YouTube settings, or upload it by hand.` : 'YouTube is not connected. Open YouTube settings and connect a channel.');
     else if (!ch.connected) problems.unshift(`The channel ${ch.name} is not connected (${ch.disconnected || 'no permission'}). Connect again in YouTube settings.`);
     else if (!ch.uploadEnabled) problems.unshift(yt.UPLOADS_OFF);
     if (ch && v.youtube?.channelId && v.youtube.channelId !== ch.id) problems.unshift('This video was sent to another channel before. The studio never sends it to a different one.');
@@ -499,6 +500,25 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     old.retriedBy = j.id; saveJobs(); broadcast(old);
     json(res, 200, { ...publicJob(j), warnings: errors }); return true;
   }
+  // channels added by hand: a name only. They group videos (and are marked on them); no connection, no upload, nothing sent anywhere.
+  if (p === '/api/channels/manual' && req.method === 'POST') {
+    if (videos.readOnly) throw new ReadOnlyError(videos.readOnlyReason);
+    const b = await readBody(req), name = String(b.name ?? '').trim(), bad = manualNameProblem(name);
+    if (bad) { json(res, 400, { error: bad }); return true; }
+    const taken = (n: string) => n.toLowerCase() === name.toLowerCase();
+    if (taken(DEFAULT_CHANNEL) || yt.connections().some(c => taken(c.name))) { json(res, 409, { error: `${name} is already a channel of the studio (a connected one). Pick it in the list instead.` }); return true; }
+    const list = videos.settings().manualChannels;
+    if (list.some(taken)) { json(res, 409, { error: `${name} is already in the list.` }); return true; }
+    if (list.length >= 12) { json(res, 409, { error: 'At most 12 channels can be added by hand.' }); return true; }
+    videos.setManualChannels([...list, name]); json(res, 200, { manualChannels: videos.settings().manualChannels }); return true;
+  }
+  if (p === '/api/channels/manual/remove' && req.method === 'POST') { // only a channel no video carries; nothing else changes
+    if (videos.readOnly) throw new ReadOnlyError(videos.readOnlyReason);
+    const name = String((await readBody(req)).name ?? '').trim();
+    const used = videos.list().filter(v => v.channel === name).length;
+    if (used) { json(res, 409, { error: `${used} video${used === 1 ? '' : 's'} still carry${used === 1 ? 'es' : ''} ${name}. Move them to another channel first.` }); return true; }
+    videos.setManualChannels(videos.settings().manualChannels.filter(n => n !== name)); json(res, 200, { manualChannels: videos.settings().manualChannels }); return true;
+  }
   // open YouTube Studio in the browser for a manual upload: always this one fixed address, nothing is sent anywhere
   if (p === '/api/open-youtube-studio' && req.method === 'POST') {
     const url = 'https://studio.youtube.com';
@@ -513,19 +533,45 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
   if ((chm && req.method === 'PUT') || (p === '/api/videos/channel' && req.method === 'PUT')) {
     if (videos.readOnly) throw new ReadOnlyError(videos.readOnlyReason);
     const b = await readBody(req), ids: string[] = chm ? [chm[1]] : Array.isArray(b.ids) ? b.ids.map(String) : [];
-    const c = yt.connection(String(b.channelId ?? ''));
-    if (!c) { json(res, 400, { error: 'Choose one of the channels in YouTube settings.' }); return true; }
+    // a connected channel (by id), or one added by hand (by name; it has no id and the studio never uploads to it)
+    const byHand = typeof b.channelName === 'string' ? b.channelName.trim() : '';
+    const c = byHand ? (videos.settings().manualChannels.includes(byHand) ? { id: '', name: byHand } : null) : yt.connection(String(b.channelId ?? ''));
+    if (!c) { json(res, 400, { error: byHand ? 'That channel was not added. Add it first.' : 'Choose one of the channels in YouTube settings.' }); return true; }
     const skipped: { id: string; reason: string }[] = [];
     videos.mutate(vs => {
       for (const id of ids) {
         const i = vs.findIndex(x => x.id === id); if (i < 0) { skipped.push({ id, reason: 'not in the list' }); continue; }
         const why = channelLocked(vs[i]); if (why) { skipped.push({ id, reason: why }); continue; }
-        vs[i] = { ...vs[i], channel: c.name, channelId: c.id, updatedAt: new Date().toISOString() };
+        const nv: Video = { ...vs[i], channel: c.name, updatedAt: new Date().toISOString() }; if (c.id) nv.channelId = c.id; else delete nv.channelId; vs[i] = nv;
       }
       return { videos: vs, result: null };
     });
     if (chm && skipped.length) { json(res, 409, { error: skipped[0].reason }); return true; }
     json(res, 200, { changed: ids.length - skipped.length, skipped, videos: videos.list().filter(v => ids.includes(v.id)).map(videoView) }); return true;
+  }
+  // the same for the videos the owner picked in the list (one confirmation in the page, with the count). Only Rendered videos without an upload
+  // record change; Scheduled, Published and uploaded ones are skipped and reported. Undo takes back only marks made this way.
+  if ((p === '/api/videos/manual-bulk' || p === '/api/videos/manual-bulk/undo') && req.method === 'POST') {
+    if (videos.readOnly) throw new ReadOnlyError(videos.readOnlyReason);
+    const b = await readBody(req), ids: string[] = Array.isArray(b.ids) ? [...new Set<string>(b.ids.map(String))].slice(0, 2000) : [], undo = p.endsWith('/undo');
+    const date = typeof b.date === 'string' && /^\d{4}-\d\d-\d\d$/.test(b.date) ? b.date : localDate();
+    const skipped: { id: string; reason: string }[] = []; let changed = 0;
+    videos.mutate(vs => {
+      for (const id of ids) {
+        const i = vs.findIndex(x => x.id === id); if (i < 0) { skipped.push({ id, reason: 'not in the list' }); continue; }
+        const v = vs[i];
+        if (undo) {
+          if (!v.uploadedManually) { skipped.push({ id, reason: 'not marked as uploaded by hand' }); continue; }
+          if (v.youtube?.videoId) { skipped.push({ id, reason: 'uploaded by the studio' }); continue; }
+          const n = { ...patchVideo(v, { status: 'rendered', publishedAt: '', youtubeUrl: '' }) }; delete n.uploadedManually; vs[i] = n; changed++;
+        } else {
+          const why = manualMarkProblem(v); if (why) { skipped.push({ id, reason: v.status === 'scheduled' || v.status === 'published' ? `already ${v.status}` : why }); continue; }
+          vs[i] = { ...patchVideo(v, { status: 'published', publishedAt: date }), uploadedManually: new Date().toISOString() }; changed++;
+        }
+      }
+      return { videos: vs, result: null };
+    });
+    json(res, 200, { changed, skipped, videos: videos.list().filter(v => ids.includes(v.id)).map(videoView) }); return true;
   }
   // "Mark as uploaded manually": the owner uploaded it in YouTube Studio by hand. Never calls YouTube; status → Published.
   const mm = /^\/api\/videos\/([\w-]+)\/manual(\/undo)?$/.exec(p);
@@ -539,8 +585,7 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
       const nv = videos.mutate(vs => { const i = vs.findIndex(x => x.id === v.id); const n = { ...patchVideo(vs[i], { status: 'rendered', publishedAt: '', youtubeUrl: '' }) }; delete n.uploadedManually; vs[i] = n; return { videos: vs, result: n }; });
       json(res, 200, { ok: true, video: videoView(nv) }); return true;
     }
-    if (v.youtube) { json(res, 409, { error: 'The studio already has an upload record for this video. It cannot be marked as uploaded by hand.' }); return true; }
-    if (v.status !== 'rendered') { json(res, 409, { error: 'Only a Rendered video can be marked as uploaded by hand.' }); return true; }
+    const why = manualMarkProblem(v); if (why) { json(res, 409, { error: why }); return true; }
     const raw = String(b.url ?? '').trim(), id = raw ? youtubeIdOf(raw) : '';
     if (raw && !id) { json(res, 400, { error: 'That is not a YouTube link or video id (11 characters).' }); return true; }
     const date = typeof b.date === 'string' && /^\d{4}-\d\d-\d\d$/.test(b.date) ? b.date : localDate();

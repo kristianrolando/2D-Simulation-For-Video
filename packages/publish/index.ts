@@ -80,7 +80,15 @@ export interface YoutubeState {
   /** the owner's upload choices, kept so a continued upload (even after a restart) uses exactly what was approved */
   opts?: { categoryId: string; language: string; madeForKids: boolean; synthetic: boolean; notify: boolean };
 }
-export interface Settings { suggestLang: 'en' | 'id' }
+export interface Settings { suggestLang: 'en' | 'id'; /** channels added by hand (a name only, no YouTube connection): videos can be marked for them, the studio never uploads to them */ manualChannels: string[] }
+/** a channel name the owner may add by hand: 2–60 characters, letters, digits, spaces and . _ - & ' ( ) only */
+export const manualNameProblem = (name: string): string => {
+  const n = name.trim();
+  if (n.length < 2 || n.length > 60) return 'A channel name has 2 to 60 characters.';
+  if (!/^[\p{L}\p{N}][\p{L}\p{N} ._&'()-]*$/u.test(n)) return 'Use letters, digits, spaces and . _ - & \' ( ) only.';
+  return '';
+};
+export const sanitizeManualChannels = (x: unknown): string[] => (Array.isArray(x) ? [...new Set(x.filter((n): n is string => typeof n === 'string' && !manualNameProblem(n)).map(n => n.trim()))].slice(0, 12) : []);
 export interface VideoStore { schemaVersion: number; savedAt: string; videos: Video[]; /** optional, so files written before it existed stay valid (no schema bump) */ settings?: Partial<Settings> }
 
 // ---------------- sanitising: anything read from disk or from the client goes through here ----------------
