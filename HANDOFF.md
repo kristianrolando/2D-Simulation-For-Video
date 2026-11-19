@@ -4,7 +4,7 @@
 - task_status: partial
 - handoff: ready
 - writer: none
-- updated_at: 2026-11-19T19:00:00+0700
+- updated_at: 2026-11-19T20:00:00+0700
 - language: id
 
 Satu-satunya checkpoint proyek ini. Perbarui di akhir tiap langkah kerja yang substansial, bukan hanya di akhir sesi.
@@ -101,6 +101,8 @@ Pilihan perintah: `npm run dev` untuk merender/mengunggah, `npm run dev:watch` h
   `data/videos.json` ASLI belum berisi `channel` di disk: studio asli (pid 69773) memakai kode lama; baru tertulis saat studio di-restart (aman, ada cadangan). Tanpa restart pun data lama terbaca sebagai Photon Lab.
 - Tugas 2: pemilik memilih **Plasma Pendulum** (@PlasmaPendulum). Kit selesai di `branding/brands/plasma-pendulum.json` + `branding/brands/plasma-pendulum/` (README berisi identitas, teks channel, langkah YouTube Studio, cara pakai Main-2; aset png/svg; `node branding/build.mjs plasma-pendulum`; `node branding/check-contrast.mjs plasma-pendulum`). `build.mjs` menerima id brand; Photon Lab tetap identik (git bersih). Cover contoh dari 2 render nyata 12 dtk (Main-2) di studio uji port 5392, data sementara (dimatikan). Channel BELUM dibuat pemilik; studio masih satu koneksi (Photon Lab). `style-presets/main-2.json` milik pemilik, belum di-commit, tidak diubah.
 - Kandidat (cek 2026-11-19): handle @VioletVector, @AmethystAxis, @NebulaBounce, @PlasmaPendulum, @MagentaMechanics, @VioletKinetics = 404 di youtube.com (bebas); @Hyperviolet SUDAH DIPAKAI (dicoret). Langkah "buat channel di YouTube Studio sampai kolom nama" tidak dilakukan (create_channel mengalihkan ke channel Photon Lab; alur channel baru butuh klik akun).
+
+- Channel Plasma Pendulum disetel di Chrome pemilik (2026-11-19 ~20:00): channel sudah dibuat pemilik (@PlasmaPendulum); terpasang profil, banner, watermark, deskripsi (ejaan AS), kata kunci, setelan unggah, 3 playlist Private. Menunggu pemilik: Made for Kids, negara (opsional), verifikasi telepon, email/tautan. Hubungkan channel kedua ke uploader Sim Studio: DITUNDA (butuh dukungan dua channel; jangan sentuh youtube.ts/uploader.ts sebelum itu). Detail: `branding/brands/plasma-pendulum/README.md`.
 
 ## Evidence
 - 2026-11-19 08:46: `npm run typecheck` lulus; `npm test` 223 lulus, 0 gagal (tes baru: job-queue +1, batch-run 5, youtube +4 untuk kuota, housekeeping 6, dev-watch 1, ux +1). Semua tanpa jaringan nyata, tanpa kredit, tanpa unggahan.
