@@ -4,7 +4,7 @@
 - task_status: partial
 - handoff: ready
 - writer: none
-- updated_at: 2026-11-19T23:00:00+0700
+- updated_at: 2026-11-20T00:10:00+0700
 - language: id
 
 Satu-satunya checkpoint proyek ini. Perbarui di akhir tiap langkah kerja yang substansial, bukan hanya di akhir sesi.
@@ -118,6 +118,13 @@ Pilihan perintah: `npm run dev` untuk merender/mengunggah, `npm run dev:watch` h
   - (selesai: Menghubungkan Plasma Pendulum) di dunia nyata (YouTube settings → Connect another channel… → pilih channel di Google → "Connect Plasma Pendulum"). Masuknya bawaan Upload Off.
   - Menyalakan Upload untuk Plasma Pendulum, satu unggahan uji, atau jadwal massal: masing-masing hanya dengan persetujuan di chat.
 - Belum terverifikasi: tidak ada panggilan Google nyata. Biaya kuota sebenarnya per unggahan: dokumen (2026-11-18) menyebut unggahan punya ember 100/hari sendiri; brief pemilik menyebut 1.600 unit; data 19 Nov (8 unggahan, ±3.500 unit) cocok dengan dokumen. Teks UI tidak menyebut angka per unggahan.
+
+## Batch Plasma Pendulum (mulai 2026-11-20) — rencana selesai, render BELUM dimulai
+- Rencana: `node tools/batch-plan-plasma.ts` (companion; `tools/batch-plan.ts` tidak diubah, hash plan Photon dijaga tes) → `data/batch-plasma/plan.json`: 245 pasangan, Main-2 + classic, `handle` @PlasmaPendulum, `palette: theme`, parameter berbeda dari pasangan Photon (tanda tangan param beda dari semua Photon dan antar-Plasma), judul layar sendiri (maks 2 baris × 32 huruf), urutan berbeda (10 pertama = satu per scene, lalu acak berbenih; hammer-smash tidak berdampingan). Runner: `node tools/batch-run.ts --dir data/batch-plasma [--limit N]` (opsi `--dir` baru; tanpa itu tetap data/batch). Lembar kontak semua video: `node tools/batch-sheet.ts --dir data/batch-plasma --out <folder>`. Tes: `tests/batch-plasma.test.ts` (8).
+- Cadangan sebelum render: `data/videos.pre-plasma.json` (salinan penuh, di luar rotasi 50 cadangan store) dan `data/batch-plasma/photon-videos.snapshot.json` (sha256 tiap record yang ada: 264). Data `data/batch/` (Photon) tidak disentuh.
+- Perkiraan: 245 video ≈ 78 menit satu per satu (rata-rata Photon per pasangan), ≈ 7,4 GB; disk bebas 229 GB.
+- Syarat sebelum render: channel AKTIF studio = Plasma Pendulum (pemilik yang mengatur atau menyetujui di chat); video baru otomatis bertanda channel + channelId aktif. Setelah selesai: kembalikan channel aktif ke Photon Lab bila unggah Photon dari studio dilanjutkan.
+- Tahap berikutnya: uji `--limit 10`, lembar kontak, persetujuan pemilik, lalu render per 50.
 
 ## Evidence
 - 2026-11-19 08:46: `npm run typecheck` lulus; `npm test` 223 lulus, 0 gagal (tes baru: job-queue +1, batch-run 5, youtube +4 untuk kuota, housekeeping 6, dev-watch 1, ux +1). Semua tanpa jaringan nyata, tanpa kredit, tanpa unggahan.
