@@ -17,7 +17,9 @@ Uploading a video over 15 minutes also needs a channel verified with a phone num
    (copy buttons for title, description with hashtags and tags). Mark it Scheduled or Published yourself after you upload it.
 
 Terminal (same operations, for many at once, or while the studio does not have this code): `node tools/compile.ts plan` (dry run),
-`plan --write`, `list`, `check <slug>`, `texts <slug> [--title N]`, `build <slug|all>`, `thumb <slug>`, `verify <slug>`.
+`plan --write`, `list`, `check <slug>`, `texts <slug> [--title N]`, `build <slug|all>`, `thumb <slug>`, `verify <slug>`, and
+`export <slug|all>`, which writes `output/long-<slug>.txt` (title, description with chapters and hashtags, tags, file paths, summary), a copy of the
+thumbnail next to the MP4 (`long-<slug>-thumbnail.jpg`) and `output/long-videos-ready.md` (the list of everything ready to upload).
 The tool never edits `data/videos.json`; the studio adds the Videos entry the next time it starts with this code. While a studio that
 knows long videos is running, the tool refuses to write (the studio owns the records).
 

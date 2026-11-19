@@ -7,10 +7,13 @@
 //   node tools/compile.ts build <id|slug|all>           build (finished clips are reused; stop it any time and run it again)
 //   node tools/compile.ts thumb <id|slug>               make the 1280×720 thumbnail
 //   node tools/compile.ts verify <id|slug>              re-check a finished video (sizes, codecs, frames, a full decode, black frames)
+//   node tools/compile.ts export <id|slug|all>          write output/long-<slug>.txt (title, description, tags, chapters) and a copy of the thumbnail next to
+//                                                       the MP4, and output/long-videos-ready.md (the list of everything ready to upload)
 // The finished MP4 goes to output/ and the thumbnail to data/thumbnails/. The studio adds the entry to the Videos list the next time it
 // starts with this code (it never edits data/videos.json from here: the running studio owns that file).
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { sanitizeVideo, type Video } from '../packages/publish/index.ts';
 import { chapterLines, outFileFor, totalFrames, totalSeconds, type Compilation } from '../packages/compile/index.ts';
 import { partMinutes } from '../packages/compile/select.ts';
@@ -79,4 +82,22 @@ if (cmd === 'plan') {
       }
     }
   }
-} else die('Commands: plan | list | texts | check | build | thumb | verify (see the top of tools/compile.ts)');
+} else if (cmd === 'export') {
+  const key = args[1] ?? 'all', targets = key === 'all' ? list.filter(c => c.status === 'built') : [pick(key, list) ?? die(`No long video "${key}".`)];
+  const rows: string[] = [];
+  for (const c of targets) {
+    if (c.status !== 'built' || !c.file) { console.warn(`${c.slug}: not built, skipped`); continue; }
+    const base = path.join(OUT, `long-${c.slug}`), thumbSrc = path.join(THUMBS, c.thumbFile || ''), thumbOut = `${base}-thumbnail.jpg`;
+    if (c.thumbFile && fs.existsSync(thumbSrc)) fs.copyFileSync(thumbSrc, thumbOut);
+    const facts = spawnSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height,r_frame_rate,codec_name', '-of', 'csv=p=0', path.join(OUT, c.file)], { encoding: 'utf8' }).stdout.trim();
+    const iss = issuesOf(c);
+    const txt = [`TITLE\n${c.title}`, `DESCRIPTION (paste as it is; the hashtags are the last line)\n${c.description}\n\n${c.hashtags.join(' ')}`, `TAGS (comma separated)\n${c.tags.join(', ')}`,
+      `FILES\nvideo: ${path.join(OUT, c.file)}\nthumbnail (1280x720): ${thumbOut}`,
+      `SUMMARY\n${fmt(totalSeconds(c.clips))} long · ${c.clips.length} clips · ${(c.sizeBytes / 1e6).toFixed(0)} MB · ${facts} · text check: ${iss.length ? iss.map(i => i.text).join(' | ') : 'no problems'}`,
+      'NOT UPLOADED. The studio cannot upload long videos yet. Over 15 minutes YouTube needs a verified channel (phone number).'].join('\n\n') + '\n';
+    fs.writeFileSync(`${base}.txt`, txt);
+    rows.push(`| ${c.slug} | ${c.clips.length} | ${fmt(totalSeconds(c.clips))} | ${(c.sizeBytes / 1e6).toFixed(0)} MB | ${c.title.replace(/\|/g, '/')} | \`${c.file}\` · \`long-${c.slug}-thumbnail.jpg\` · \`long-${c.slug}.txt\` |`);
+    console.log(`${c.slug}: ${base}.txt`);
+  }
+  if (key === 'all' && rows.length) fs.writeFileSync(path.join(OUT, 'long-videos-ready.md'), `# Long videos ready to upload (not uploaded)\n\nMade ${new Date().toISOString().slice(0, 10)} by tools/compile.ts. Each row: video, thumbnail 1280x720 and a text file (title, description with chapters, tags) in output/.\n\n| Long video | Clips | Length | Size | Title | Files |\n|---|---|---|---|---|---|\n${rows.join('\n')}\n`);
+} else die('Commands: plan | list | texts | check | build | thumb | verify | export (see the top of tools/compile.ts)');
