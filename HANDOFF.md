@@ -4,7 +4,7 @@
 - task_status: partial
 - handoff: ready
 - writer: none
-- updated_at: 2026-11-19T13:40:00+0700
+- updated_at: 2026-11-19T15:45:00+0700
 - language: id
 
 Satu-satunya checkpoint proyek ini. Perbarui di akhir tiap langkah kerja yang substansial, bukan hanya di akhir sesi.
@@ -75,10 +75,17 @@ Pilihan perintah: `npm run dev` untuk merender/mengunggah, `npm run dev:watch` h
 ## Long video (kompilasi 16:9) — SELESAI sampai "siap unggah" (2026-11-19 ~13:35); belum diunggah
 - 15 long video dibangun dari 239 klip (7 kembar tidak dipakai; 3 Short gagal pemeriksa teks tidak dipakai), 9:20–13:45 menit, 1920×1080 60 fps H.264 + AAC, total sekitar 6,1 GB. Daftar: `output/long-videos-ready.md`. Per video di `output/`: `long-<slug>.mp4`, `long-<slug>-thumbnail.jpg` (1280×720), `long-<slug>.txt` (judul, deskripsi dengan bab, tag, hashtag). Catatan build: `data/compilations/build.log`; rekaman: `data/compilations/<id>.json` (15, status built); cache klip 6,1 GB di `data/compilations/cache/` (hapus lewat "Free disk" di halaman Compile atau biarkan untuk build ulang cepat).
 - Terverifikasi: tiap video lolos pemeriksaan di akhir build DAN `node tools/compile.ts verify <slug>` terpisah (resolusi, fps 60/1, h264 yuv420p, AAC 44,1 kHz stereo, jumlah frame = jumlah klip, durasi gambar = suara, decode penuh tanpa kesalahan, tanpa frame hitam); teks lolos pemeriksa (angka dan bab sesuai frame nyata). Frame lembar kontak dan 15 thumbnail dilihat.
-- Belum: tidak diputar/didengarkan manusia, tidak diunggah, studio asli (pid 22755, kode lama) belum di-restart, jadi halaman Compile dan entri "Long" di Videos baru muncul setelah restart saat tidak ada render/unggahan (entri dibuat otomatis saat start).
+- Belum: tidak diputar/didengarkan manusia, tidak diunggah, studio asli sudah di-restart (kode terbaru; 15 entri Long ada di Videos). Perubahan navigasi di bawah butuh restart lagi saat idle.
 - Kode (commit `3910825`, `6aa2b1f`, `3a62d69`, `1701294`; `tsc` bersih, `npm test` 253 lulus 3× berturut-turut): `packages/compile/`, `apps/server/compile-*.ts`, `tools/compile.ts`, `apps/studio/compile-ui.ts` + `compile.css`, dokumen `docs/compile.md`, bagian di README.
-  BELUM di-commit: kabel Videos di `apps/studio/videos.ts` + `apps/studio/index.html` (tombol Compile, lencana "Long", detail long); bercampur dengan pekerjaan kalender/jadwal yang belum di-commit, jadi commit keduanya bersama. Jangan `git stash` dan jangan `git add -A` sembarangan.
+  Kabel Videos (`videos.ts`, `index.html`) sudah di-commit bersama pekerjaan kalender/jadwal (`640f399`, `c08650f`).
 - Catatan pemilik: unggah long video >15 menit butuh channel terverifikasi (nomor telepon); semua video ini di bawah 15 menit. Uploader studio belum mendukung long video (hanya 1080×1920 sampai 3 menit): pekerjaan berikutnya yang terpisah. Jadwal dan status Shorts tidak diubah.
+
+## Navigasi halaman Videos (2026-11-19 ~15:45) — selesai, siap commit/ditinjau
+- Pemilih format All / Shorts / Long (hitungan per format; Short + Long = All) di atas chip status; memengaruhi daftar, chip, pencarian, kalender (rencana unggah hanya untuk Shorts; Long hanya tampil bila ada tanggal, ditandai "Long"), dan CSV. Diingat di localStorage (`studio.vformat`) dan di alamat: `#videos/long`, `#videos/shorts/calendar`, `#videos/long/build` (tombol back berjalan).
+- Mode: List / Calendar / "Build long video" (dulu "Compile"). Toolbar: pencarian lebar (`/` fokus, `Esc` hapus), menu simulasi dan gaya, urutan (terbaru, jadwal, judul), menu "More" (bahasa Suggestions, CSV format terpilih, cadangan JSON, YouTube, folder data). Banner "N renders…" ringkas, "Add all N…" meminta konfirmasi dan menambah persis berkas yang dihitung (`untrackedFiles` ditambahkan ke GET /api/videos, aditif), "Dismiss" diingat per daftar berkas (`studio.vdismiss`). Keadaan kosong: Long kosong → tombol Build long video; tanpa hasil → Clear filters.
+- Kode: `apps/studio/videos-nav.ts` (murni) + `videos-nav.css`, perubahan di `videos.ts`, `index.html`, `calendar-ui.ts`, `main.ts`, `packages/publish/calendar.ts` (`kind`), `server.ts` (hanya `untrackedFiles`). Tes: `tests/videos-nav.test.ts` (6). Tidak menyentuh data/videos.json, jadwal, status, mesin render, YouTube.
+- Terverifikasi di studio uji (port lain, salinan data): Shorts/Long/All, terang dan gelap, lebar 1280, 768 dan 375, hash + back/forward, localStorage, banner tutup dan konfirmasi, Clear filters, `/`, panah pada pemilih format, kalender per format, keadaan kosong Long. Belum: pembaca layar sungguhan; layar sangat lebar.
+- Tes lama yang kadang gagal ternyata penyebabnya satu: port uji yang ditolak `fetch` ("bad port": 6000, 6665–6669, 6679, 6697) atau dipakai macOS (5000, 7000 = AirPlay). Perbaikan: `tests/ports.ts` (`usablePort`) dipakai semua tes studio, plus batas tunggu start 45 dtk. `npm test` 259 lulus 4× berturut-turut, `tsc` bersih.
 
 ## Evidence
 - 2026-11-19 08:46: `npm run typecheck` lulus; `npm test` 223 lulus, 0 gagal (tes baru: job-queue +1, batch-run 5, youtube +4 untuk kuota, housekeeping 6, dev-watch 1, ux +1). Semua tanpa jaringan nyata, tanpa kredit, tanpa unggahan.

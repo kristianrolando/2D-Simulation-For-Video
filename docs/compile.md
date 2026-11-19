@@ -1,4 +1,4 @@
-# Long videos (Videos → Compile)
+# Long videos (Videos → Build long video)
 
 Joins finished Shorts (1080×1920) into **long 16:9 videos** (1920×1080, 60 fps, H.264 + AAC), with chapters, texts and a 1280×720
 thumbnail, ready to upload by hand. **Nothing is uploaded**: the studio's uploader only takes Shorts (1080×1920, up to 3 minutes), so a
@@ -7,7 +7,7 @@ Uploading a video over 15 minutes also needs a channel verified with a phone num
 
 ## How to use it
 
-1. Open **Videos → Compile**. **Suggest long videos** shows the lineup: one theme per scene and mode (hammer smash: split / box / survive,
+1. Open **Videos → Build long video** (the third view next to List and Calendar; the address is `#videos/long/build`). In **Videos → Long → List** a button takes you there too. **Suggest long videos** shows the lineup: one theme per scene and mode (hammer smash: split / box / survive,
    sync lines: lid / close / orbits / slider, and one mix of the scenes that have only a few clips), 9–18 minutes each.
 2. **Create** a draft (or **Create all as drafts**). Open one to look at the clips, their order, the five title ideas, the description with
    chapters, the tags and the checks.

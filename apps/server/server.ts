@@ -497,7 +497,8 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
   if (p === '/api/videos' && req.method === 'GET') {
     if (videos.readOnly && !videos.retryLock()) videos.reload(); // the other studio may be gone (take over), or it changed the list (show the new one)
     if (videos.list().some(v => v.status === 'scheduled' && v.youtube?.videoId)) syncSoon();
-    json(res, 200, { videos: videos.list().map(videoView), notice: videos.takeNotice(), untracked: untrackedRenders().length, dataDir: path.relative(ROOT, DATA) || '.', readOnly: videos.readOnly, readOnlyReason: videos.readOnlyReason, settings: videos.settings() }); return true;
+    const unrecorded = untrackedRenders().map(u => u.file); // the page names exactly these files when it asks to add them, so nothing is added that the owner did not see counted
+    json(res, 200, { videos: videos.list().map(videoView), notice: videos.takeNotice(), untracked: unrecorded.length, untrackedFiles: unrecorded, dataDir: path.relative(ROOT, DATA) || '.', readOnly: videos.readOnly, readOnlyReason: videos.readOnlyReason, settings: videos.settings() }); return true;
   }
   // the upload plan (data/schedule.json, written by tools/schedule-plan.ts), read only: the calendar view shows it next to the studio's own records
   if (p === '/api/schedule' && req.method === 'GET') {

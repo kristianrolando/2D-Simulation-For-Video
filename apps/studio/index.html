@@ -109,27 +109,33 @@
 
   <section id="vview" aria-label="Videos" hidden>
     <header class="vtop">
-      <button id="vBack" type="button" class="link"><span class="ico-slot" data-icon="back"></span> Studio</button>
+      <button id="vBack" type="button" class="link" title="Back to the simulation studio (Esc)"><span class="ico-slot" data-icon="back"></span> Back to studio</button>
       <h1>Videos</h1>
-      <div id="vMode" class="seg" role="group" aria-label="Show videos as">
-        <button id="vModeList" type="button" aria-pressed="true">List</button>
-        <button id="vModeCal" type="button" aria-pressed="false" title="Upload schedule as a calendar">Calendar</button>
-        <button id="vModeCompile" type="button" aria-pressed="false" title="Join Shorts into long 16:9 videos">Compile</button>
+      <div id="vFormat" class="seg" role="radiogroup" aria-label="Video format"></div>
+      <div id="vMode" class="seg" role="group" aria-label="View">
+        <button id="vModeList" type="button" aria-pressed="true" title="The videos as a list, with their texts and status">List</button>
+        <button id="vModeCal" type="button" aria-pressed="false" title="The upload schedule as a calendar (the plan is for Shorts)">Calendar</button>
+        <button id="vModeCompile" type="button" aria-pressed="false" title="Join Shorts into long 16:9 videos: suggest, edit, build">Build long video</button>
       </div>
+    </header>
+    <div id="vBar" class="vbar">
       <div id="vChips" class="chips" role="group" aria-label="Filter by status"></div>
-      <input id="vSearch" type="search" placeholder="Search videos…" aria-label="Search videos" autocomplete="off" spellcheck="false">
-      <label class="sel" title="Language of the suggested title, description and tags (interface stays English)">Suggestions <select id="vLang"><option value="en">English</option><option value="id">Indonesian</option></select></label>
-      <details class="menu" id="vExport"><summary>Export</summary>
+      <input id="vSearch" type="search" placeholder="Search videos…  ( / )" aria-label="Search videos" autocomplete="off" spellcheck="false">
+      <select id="vScene" aria-label="Filter by simulation"></select>
+      <select id="vStyle" aria-label="Filter by style"></select>
+      <select id="vSort" aria-label="Sort videos"></select>
+      <details class="menu" id="vExport"><summary>More</summary>
         <div class="menu-body">
-          <a href="/api/videos/export?format=csv" download>Spreadsheet (CSV)</a>
-          <a href="/api/videos/export?format=json" download>Backup copy (JSON)</a>
+          <label class="sel" title="Language of the suggested title, description and tags (interface stays English)">Suggestions <select id="vLang"><option value="en">English</option><option value="id">Indonesian</option></select></label>
+          <button id="vCsv" type="button" class="link" title="The videos of the chosen format as a spreadsheet">Spreadsheet (CSV)</button>
+          <a href="/api/videos/export?format=json" download title="Everything in the list, Shorts and long videos">Backup copy of all videos (JSON)</a>
           <button id="vYt" type="button" class="link">YouTube settings…</button>
           <button id="vData" type="button" class="link">Open data folder</button>
         </div>
       </details>
-    </header>
+    </div>
     <div id="vReadOnly" class="vnotice ro" role="status" hidden><span></span></div>
-    <div id="vUntracked" class="vnotice info" role="status" hidden><span></span> <button type="button" class="primary"></button></div>
+    <div id="vUntracked" class="vnotice info" role="status" hidden><span></span> <button id="vAddAll" type="button" class="primary"></button> <button id="vDismissUntracked" type="button" class="link">Dismiss</button></div>
     <div id="vNotice" class="vnotice" role="status" hidden><span></span> <button type="button" class="link">Dismiss</button></div>
     <div id="vCal" class="vcal" hidden></div>
     <div id="vCompile" class="vcompile" hidden></div>

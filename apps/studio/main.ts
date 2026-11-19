@@ -507,8 +507,7 @@ help.addEventListener('click', (e) => { if (e.target === help) help.close(); });
 showDebug();
 
 // the menu bar app opens http://127.0.0.1:5180/#videos to land on the video list
-if (location.hash === '#videos') vids.show();
-addEventListener('hashchange', () => { if (location.hash === '#videos' && !vids.shown()) vids.show(); });
+vids.applyHash(); // an address like #videos/long opens that view; later changes of the address are followed by the Videos page itself
 
 addEventListener('keydown', (e) => {
   const t = e.target as HTMLElement;
@@ -524,7 +523,7 @@ addEventListener('keydown', (e) => {
   if (act === 'play') player.playing ? player.pause() : player.play();
   else if (act === 'render') $('render').click();
   else if (act === 'videos') (vids.shown() ? vids.hide() : vids.show());
-  else if (act === 'search') { const b = vids.shown() ? $<HTMLInputElement>('vSearch') : searchBox; b.focus(); b.select(); }
+  else if (act === 'search') { if (vids.shown()) vids.focusSearch(); else { searchBox.focus(); searchBox.select(); } }
   else if (act === 'prevScene') stepScene(-1);
   else if (act === 'nextScene') stepScene(1);
   else if (act === 'mute') { soundBox.checked = !soundBox.checked; soundBox.onchange!(new Event('change')); }

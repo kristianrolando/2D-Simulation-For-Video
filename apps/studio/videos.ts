@@ -13,6 +13,12 @@ import { friendlyError, fmtSize, needsCounts, firstNeeding, uploadFailed, upload
 import { icon } from './icons.ts';
 import { initCalendar } from './calendar-ui.ts';
 import { initCompile, longDetail } from './compile-ui.ts';
+import {
+  FORMATS, FORMAT_LABEL, FORMAT_HINT, SORTS, SORT_LABEL, NO_FILTERS, formatCounts, formatOf, inFormat, statusCountsIn, parseHash, formatHash, writeFormat, startNav, browserStore, readSort,
+  bannerVisible, bannerText, addConfirmText, dismissBanner, readDismissed, sortVideos, filterBy, optionsOf, hasFilters, type Format, type Mode, type Sort,
+} from './videos-nav.ts';
+import { toCsv } from '../../packages/publish/index.ts';
+import './videos-nav.css';
 import { youtubePanel, openYoutubeSettings, loadYt, ytState } from './youtube-ui.ts';
 import type { SceneModule } from '../../packages/core/index.ts';
 
@@ -39,7 +45,10 @@ const secOpen = (name: string, dflt: boolean) => { try { const v = localStorage.
 
 export function initVideos(deps: VideosDeps) {
   let videos: VideoView[] = [], selected = '', status: Status | 'all' = 'all', focus: '' | 'failed' | 'uploading' = '', query = '', untracked = 0, dataDir = 'data', loaded = false, readOnly = false, readOnlyReason = '', lang: 'en' | 'id' = 'en';
-  const sceneName = (id: string) => deps.scenes.find(s => s.meta.id === id)?.meta.name ?? id;
+  // what the page is showing: the format (All / Shorts / Long), the view, and the extra filters; the format is remembered and is in the address
+  const store = browserStore(), first = startNav(location.hash, store);
+  let format: Format = first.format, mode: Mode = first.mode, sceneF = '', styleF = '', sortBy: Sort = readSort(store), untrackedFiles: string[] = [];
+  const sceneName = (id: string) => id === 'compilation' ? 'Long video' : deps.scenes.find(s => s.meta.id === id)?.meta.name ?? id;
   const styleName = (id: string) => getTheme(id).name;
   const autoTried = new Set<string>(); // videos whose cover was already tried (or that were opened for you, so nothing is made behind your back)
   const view = $('vview'), save = { timer: 0, pending: {} as Record<string, unknown>, id: '', state: '' };
@@ -47,8 +56,8 @@ export function initVideos(deps: VideosDeps) {
   // ---------- data ----------
   async function refresh() {
     try {
-      const r = await call<{ videos: VideoView[]; notice: { level: string; text: string } | null; untracked: number; dataDir: string; readOnly: boolean; readOnlyReason: string; settings: { suggestLang: 'en' | 'id' } }>('/api/videos');
-      videos = r.videos.map(fix); untracked = r.untracked; dataDir = r.dataDir; loaded = true; readOnly = r.readOnly; readOnlyReason = r.readOnlyReason; lang = r.settings.suggestLang;
+      const r = await call<{ videos: VideoView[]; notice: { level: string; text: string } | null; untracked: number; untrackedFiles?: string[]; dataDir: string; readOnly: boolean; readOnlyReason: string; settings: { suggestLang: 'en' | 'id' } }>('/api/videos');
+      videos = r.videos.map(fix); untracked = r.untracked; untrackedFiles = r.untrackedFiles ?? []; dataDir = r.dataDir; loaded = true; readOnly = r.readOnly; readOnlyReason = r.readOnlyReason; lang = r.settings.suggestLang;
       if (r.notice) banner(r.notice.text);
       await loadYt();
     } catch (e) { banner((e as Error).message); }
@@ -105,24 +114,45 @@ export function initVideos(deps: VideosDeps) {
   function setSaveState(t: string, bad = false) { const s = document.getElementById('vSaved'); if (s) { s.textContent = t; s.className = 'msg' + (bad ? ' bad' : ''); } }
 
   // ---------- list / calendar ----------
-  const calendar = initCalendar({ host: $('vCal'), videos: () => videos, sceneName, open: async (id) => { setMode('list'); await flush(); selected = id; view.dataset.step = 'detail'; render(); } });
+  const calendar = initCalendar({ host: $('vCal'), videos: () => videos, format: () => format, sceneName, open: async (id) => { setMode('list'); await flush(); selected = id; view.dataset.step = 'detail'; render(); } });
   const compile = initCompile({ host: $('vCompile'), onChange: () => { void refresh(); } });
-  function setMode(m: 'list' | 'calendar' | 'compile') {
-    view.dataset.mode = m; $('vCal').hidden = m !== 'calendar'; $('vCompile').hidden = m !== 'compile'; document.querySelector<HTMLElement>('#vview .vbody')!.hidden = m !== 'list';
-    $('vModeList').setAttribute('aria-pressed', String(m === 'list')); $('vModeCal').setAttribute('aria-pressed', String(m === 'calendar')); $('vModeCompile').setAttribute('aria-pressed', String(m === 'compile'));
-    $('vChips').hidden = $('vSearch').hidden = m !== 'list'; if (m === 'calendar') void calendar.show(); if (m === 'compile') compile.show(); else void compile.hide(); if (m === 'list') void refresh(); // long videos finish while another page is open
+  /** the address names the state (#videos/long/build), so it can be linked and the back button walks through it; it is only written while the page is open */
+  function syncHash() { if (view.hidden) return; const h = formatHash({ format, mode }); if (location.hash !== h) { try { history.pushState(null, '', h); } catch { /* the address is a convenience */ } } }
+  function setMode(m: Mode, push = true) {
+    mode = m; view.dataset.mode = m;
+    $('vCal').hidden = m !== 'calendar'; $('vCompile').hidden = m !== 'build'; document.querySelector<HTMLElement>('#vview .vbody')!.hidden = m !== 'list';
+    for (const [id, k] of [['vModeList', 'list'], ['vModeCal', 'calendar'], ['vModeCompile', 'build']] as const) $(id).setAttribute('aria-pressed', String(m === k));
+    $('vBar').hidden = m !== 'list'; // search, filters and sorting belong to the list
+    if (m === 'calendar') void calendar.show(); if (m === 'build') compile.show(); else void compile.hide(); if (m === 'list') void refresh(); // long videos finish while another page is open
+    renderBanner(); if (push) syncHash();
   }
-  $('vModeList').onclick = () => setMode('list'); $('vModeCal').onclick = () => setMode('calendar'); $('vModeCompile').onclick = () => setMode('compile');
+  function setFormat(f: Format, push = true) {
+    format = f; writeFormat(store, f);
+    if (mode === 'build') setMode('list', false); // the builder has no format: picking one takes you back to the videos
+    if (selected && !inFormat(videos, f).some(v => v.id === selected)) selected = '';
+    sceneF = styleF = ''; render(); if (mode === 'calendar') calendar.render(); if (push) syncHash();
+  }
+  $('vModeList').onclick = () => setMode('list'); $('vModeCal').onclick = () => setMode('calendar'); $('vModeCompile').onclick = () => setMode('build');
+  /** the address changed (a link, the back button, the menu bar app): follow it */
+  function applyHash() {
+    const h = parseHash(location.hash);
+    if (!h) { if (shown()) void hide(); return; }
+    if (h.format && h.format !== format) { format = h.format; writeFormat(store, format); sceneF = styleF = ''; }
+    if (!shown()) show(undefined, false);
+    const m = h.mode ?? 'list'; if (m !== mode) setMode(m, false); else if (h.format) { render(); if (mode === 'calendar') calendar.render(); }
+  }
+  addEventListener('hashchange', applyHash);
 
   // ---------- show / hide ----------
-  function show(id?: string) {
+  function show(id?: string, push = true) {
     if (id) selected = id;
     view.hidden = false; document.body.classList.add('view-videos'); view.dataset.step = id ? 'detail' : 'list';
     $('navStudio').setAttribute('aria-pressed', 'false'); $('navVideos').setAttribute('aria-pressed', 'true');
-    deps.onVisibility?.(true); render();
+    deps.onVisibility?.(true); setMode(mode, false); render(); if (push) syncHash();
     refresh().then(() => {
       if (id && !videos.some(v => v.id === id)) selected = '';
-      if (!selected && wide()) { const f = firstNeeding(filterVideos(videos, { status: 'all', query: '' }, { scene: sceneName, style: styleName })); if (f) { selected = f.id; autoTried.add(f.id); } } // open the one that needs you first
+      const sv = videos.find(v => v.id === selected); if (sv && !inFormat([sv], format).length) { format = formatOf(sv); writeFormat(store, format); syncHash(); } // a video opened from a render belongs to its own format
+      if (!selected && wide() && mode === 'list') { const f = firstNeeding(filterVideos(inFormat(videos, format), { status: 'all', query: '' }, { scene: sceneName, style: styleName })); if (f) { selected = f.id; autoTried.add(f.id); } } // open the one that needs you first
       render();
     });
   }
@@ -130,28 +160,73 @@ export function initVideos(deps: VideosDeps) {
     await flush();
     view.hidden = true; document.body.classList.remove('view-videos');
     $('navStudio').setAttribute('aria-pressed', 'true'); $('navVideos').setAttribute('aria-pressed', 'false');
+    if (parseHash(location.hash)) { try { history.replaceState(null, '', location.pathname + location.search); } catch { /* the address is a convenience */ } }
     deps.onVisibility?.(false);
   }
   const shown = () => !view.hidden;
   $('navStudio').onclick = hide; $('vBack').onclick = hide; $('navVideos').onclick = () => (shown() ? hide() : show());
 
   // ---------- top bar ----------
+  /** All / Shorts / Long with their counts (a radio group: arrow keys move the choice) */
+  function renderFormat() {
+    const box = $('vFormat'), c = formatCounts(videos), hadFocus = box.contains(document.activeElement); box.replaceChildren();
+    for (const f of FORMATS) {
+      const b = el('button', { type: 'button', className: f === format ? 'on' : '' }, `${FORMAT_LABEL[f]} `, el('span', { className: 'n' }, String(c[f])));
+      b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(f === format)); b.tabIndex = f === format ? 0 : -1; b.title = FORMAT_HINT[f]; b.dataset.format = f;
+      b.onclick = () => setFormat(f);
+      b.onkeydown = (e) => {
+        const i = FORMATS.indexOf(f), to = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? (i + 1) % FORMATS.length : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? (i + FORMATS.length - 1) % FORMATS.length : -1;
+        if (to < 0) return; e.preventDefault(); setFormat(FORMATS[to]); $('vFormat').querySelector<HTMLElement>(`[data-format=${FORMATS[to]}]`)?.focus();
+      };
+      box.append(b);
+    }
+    if (hadFocus) box.querySelector<HTMLElement>('[aria-checked=true]')?.focus();
+  }
   function renderChips() {
-    const box = $('vChips'), c = statusCounts(videos); box.replaceChildren();
+    const box = $('vChips'), c = statusCountsIn(videos, format); box.replaceChildren();
     for (const s of ['all', ...STATUSES] as const) {
       const b = el('button', { type: 'button', className: 'chip' + (status === s ? ' on' : '') }, `${s === 'all' ? 'All' : STATUS_LABEL[s]} ${c[s]}`);
       b.setAttribute('aria-pressed', String(status === s)); if (s !== 'all') b.dataset.status = s;
       b.onclick = () => { status = s; focus = ''; render(); }; box.append(b);
     }
   }
-  $<HTMLInputElement>('vSearch').oninput = (e) => { query = (e.target as HTMLInputElement).value; renderList(); };
-  const impBtn = $('vUntracked').querySelector('button') as HTMLButtonElement;
+  /** the menus of the toolbar: only simulations and styles that exist in this format; none for long videos (they have no simulation or style) */
+  const sceneSel = $<HTMLSelectElement>('vScene'), styleSel = $<HTMLSelectElement>('vStyle'), sortSel = $<HTMLSelectElement>('vSort');
+  function renderToolbar() {
+    const o = optionsOf(inFormat(videos, format)), long = format === 'long';
+    if (!o.scenes.includes(sceneF)) sceneF = ''; if (!o.styles.includes(styleF)) styleF = '';
+    const fill = (sel: HTMLSelectElement, all: string, items: [string, string][], val: string) => { sel.replaceChildren(el('option', { value: '' }, all), ...items.map(([v, t]) => el('option', { value: v }, t))); sel.value = val; };
+    fill(sceneSel, 'All simulations', o.scenes.map(id => [id, sceneName(id)]), sceneF); fill(styleSel, 'All styles', o.styles.map(id => [id, styleName(id)]), styleF);
+    sceneSel.hidden = styleSel.hidden = long;
+    sortSel.replaceChildren(...SORTS.map(k => el('option', { value: k }, SORT_LABEL[k]))); sortSel.value = sortBy;
+    $('vCsv').textContent = `Spreadsheet (CSV): ${FORMAT_LABEL[format].toLowerCase()}`;
+  }
+  sceneSel.onchange = () => { sceneF = sceneSel.value; renderList(); }; styleSel.onchange = () => { styleF = styleSel.value; renderList(); };
+  sortSel.onchange = () => { sortBy = sortSel.value as Sort; store.set('studio.vsort', sortBy); renderList(); };
+  const searchBox = $<HTMLInputElement>('vSearch');
+  searchBox.oninput = () => { query = searchBox.value; renderList(); };
+  searchBox.onkeydown = (e) => { if (e.key === 'Escape' && searchBox.value) { e.stopPropagation(); searchBox.value = query = ''; renderList(); } };
+  const clearFilters = () => { status = 'all'; focus = ''; query = ''; sceneF = styleF = ''; searchBox.value = ''; render(); };
+  const impBtn = $('vAddAll') as HTMLButtonElement;
+  /** renders in output/ that are not in the list: say how many, ask before adding, add exactly the files that were counted */
+  function renderBanner() {
+    const n = untrackedFiles.length, ub = $('vUntracked');
+    ub.hidden = !bannerVisible({ files: untrackedFiles, dismissedSig: readDismissed(store), readOnly, format, mode });
+    (ub.firstElementChild as HTMLElement).textContent = bannerText(n); impBtn.textContent = n === 1 ? 'Add it…' : `Add all ${n}…`;
+  }
   impBtn.onclick = async () => {
+    const files = [...untrackedFiles]; if (!files.length || !confirm(addConfirmText(files.length))) return;
     impBtn.disabled = true;
-    try { const r = await call<{ added: number; videos: VideoView[] }>('/api/videos/import', send('POST')); videos = r.videos.map(fix); untracked = 0; banner(`Added ${r.added} render${r.added === 1 ? '' : 's'} to the list.`); }
+    try { const r = await call<{ added: number; videos: VideoView[] }>('/api/videos/import', send('POST', { files })); videos = r.videos.map(fix); untrackedFiles = []; untracked = 0; banner(`Added ${r.added} render${r.added === 1 ? '' : 's'} to the list.`); }
     catch (e) { banner((e as Error).message); }
     impBtn.disabled = false; badge(); render();
   };
+  $('vDismissUntracked').onclick = () => { dismissBanner(store, untrackedFiles); renderBanner(); };
+  $('vCsv').onclick = () => {
+    const blob = new Blob([toCsv(inFormat(videos, format))], { type: 'text/csv;charset=utf-8' }), a = el('a', { href: URL.createObjectURL(blob), download: `videos-${format}-${new Date().toISOString().slice(0, 10)}.csv` }) as HTMLAnchorElement;
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); ($('vExport') as HTMLDetailsElement).open = false;
+  };
+  document.addEventListener('click', (e) => { const m = $('vExport') as HTMLDetailsElement; if (m.open && !(e.target as HTMLElement).closest('#vExport')) m.open = false; });
   const langSel = $<HTMLSelectElement>('vLang');
   langSel.onchange = async () => {
     try { const r = await call<{ suggestLang: 'en' | 'id' }>('/api/settings', send('PUT', { suggestLang: langSel.value })); lang = r.suggestLang; renderDetail(); }
@@ -162,6 +237,7 @@ export function initVideos(deps: VideosDeps) {
 
   // ---------- coverage: which scene × style combinations exist ----------
   function renderCoverage() {
+    ($('vCoverage') as HTMLElement).hidden = format === 'long'; // the scene × style map is about Shorts
     const styles = deps.styleIds(), scenes = deps.scenes.map(s => s.meta.id), cov = coverage(videos, scenes, styles);
     $('vCovSummary').textContent = cov.none === 0 ? `All ${cov.total} scene × style combinations have a video` : `${cov.none} of ${cov.total} scene × style combinations never made into a video`;
     const box = $('vMatrix'); if (!($('vCoverage') as HTMLDetailsElement).open && box.childElementCount) return;
@@ -187,7 +263,7 @@ export function initVideos(deps: VideosDeps) {
   const fmtDate = (iso: string) => new Date(iso).toLocaleDateString([], { day: 'numeric', month: 'short' });
   /** one line: what needs you, each part a one-click filter */
   function renderNeeds() {
-    const box = $('vNeeds'), n = needsCounts(videos); box.replaceChildren();
+    const box = $('vNeeds'), n = needsCounts(inFormat(videos, format)); box.replaceChildren();
     const part = (label: string, ic: string, on: boolean, go: () => void, cls = '') => { const b = el('button', { type: 'button', className: cls + (on ? ' on' : '') }); b.innerHTML = icon(ic, 13); b.append(label); b.setAttribute('aria-pressed', String(on)); b.onclick = go; box.append(b); };
     if (n.failed) part(`${n.failed} upload${n.failed === 1 ? '' : 's'} failed`, 'warn', focus === 'failed', () => { status = 'all'; focus = focus === 'failed' ? '' : 'failed'; render(); }, 'bad');
     if (n.uploading) part(`${n.uploading} uploading`, 'upload', focus === 'uploading', () => { status = 'all'; focus = focus === 'uploading' ? '' : 'uploading'; render(); });
@@ -196,14 +272,24 @@ export function initVideos(deps: VideosDeps) {
     if (!box.hidden) box.prepend(el('span', {}, 'Needs you:'));
   }
   function renderList() {
-    const box = $('vList'); let list = filterVideos(videos, { status, query }, { scene: sceneName, style: styleName });
+    const box = $('vList'), inF = inFormat(videos, format);
+    let list = sortVideos(filterBy(filterVideos(inF, { status, query }, { scene: sceneName, style: styleName }), { scene: sceneF, style: styleF }), sortBy);
     if (focus === 'failed') list = list.filter(uploadFailed); else if (focus === 'uploading') list = list.filter(uploadRunning);
     box.replaceChildren(); renderNeeds();
+    if (!loaded) { box.append(el('p', { className: 'empty' }, 'Loading videos…')); return; }
+    const toBuild = () => { const b = el('button', { type: 'button', className: 'primary vshortcut', title: 'Join Shorts into a long 16:9 video' }, 'Build long video →'); b.onclick = () => setMode('build'); return b; };
     if (!videos.length) {
       box.append(el('div', { className: 'empty' }, el('p', {}, 'No videos yet. Every render you make in the studio appears here, with the title, description and tags already written for you.'), (() => { const b = el('button', { type: 'button', className: 'primary' }, 'Go to the studio'); b.onclick = hide; return b; })()));
       return;
     }
-    if (!list.length) { box.append(el('p', { className: 'empty' }, 'Nothing matches this filter.')); return; }
+    if (!inF.length) {
+      box.append(format === 'long'
+        ? el('div', { className: 'empty' }, el('p', {}, 'No long videos yet. Join your Shorts into 16:9 videos of 9–18 minutes, one theme each.'), toBuild())
+        : el('div', { className: 'empty' }, el('p', {}, 'No Shorts yet. Every render you make in the studio appears here.')));
+      return;
+    }
+    if (format === 'long') box.append(el('div', { className: 'vshortrow' }, toBuild()));
+    if (!list.length) { box.append(el('div', { className: 'empty' }, el('p', {}, 'Nothing matches these filters.'), hasFilters({ ...NO_FILTERS, status, query, scene: sceneF, style: styleF, focus }) ? (() => { const b = el('button', { type: 'button', className: 'primary' }, 'Clear filters'); b.onclick = clearFilters; return b; })() : '')); return; }
     for (const v of list) {
       const badges = el('span', { className: 'vbs' });
       const bd = (cls: string, ic: string, text: string) => { const b = el('span', { className: 'vbadge ' + cls }); b.innerHTML = icon(ic, 12); b.append(text); badges.append(b); };
@@ -306,7 +392,7 @@ export function initVideos(deps: VideosDeps) {
       };
       stat.append(b);
     }
-    if (v.kind === 'long') { longDetail(v, box, { patch, openCompile: () => setMode('compile'), statusBar: stat, note: nextStep(v) }); return; } // a long video: facts, texts to copy and the owner's own tracking; the texts are edited on the Compile page
+    if (v.kind === 'long') { longDetail(v, box, { patch, openCompile: () => setMode('build'), statusBar: stat, note: nextStep(v) }); return; } // a long video: facts, texts to copy and the owner's own tracking; the texts are edited on the Compile page
     box.append(el('div', { className: 'vhead' },
       el('div', {}, el('h2', {}, `${sceneName(v.sceneId)} · ${styleName(v.style)}`),
         el('p', { className: 'msg' }, `Shorts · 1080×1920 · 60 fps${v.durationSec ? ` · ${v.durationSec.toFixed(1)} s` : ''}${v.sizeBytes ? ' · ' + fmtSize(v.sizeBytes) : ''} · created ${fmtDate(v.createdAt)}`)),
@@ -401,16 +487,15 @@ export function initVideos(deps: VideosDeps) {
     if (readOnly) for (const c of box.querySelectorAll<HTMLElement>('input, textarea, button, select')) if (!c.dataset.keep && !(c as HTMLElement).closest('video')) (c as HTMLInputElement).disabled = true;
   }
 
-  function render() { renderChips(); renderList(); renderDetail(); renderCoverage();
-    const ub = $('vUntracked'); ub.hidden = untracked === 0 || readOnly;
-    (ub.firstElementChild as HTMLElement).textContent = `${untracked} render${untracked === 1 ? ' is' : 's are'} in output/ but not in this list yet (for example made with npm run render).`;
-    impBtn.textContent = untracked === 1 ? 'Add it to the list' : `Add all ${untracked} to the list`;
+  function render() { renderFormat(); renderToolbar(); renderChips(); renderList(); renderDetail(); renderCoverage(); renderBanner();
     const ro = $('vReadOnly'); ro.hidden = !readOnly; (ro.firstElementChild as HTMLElement).textContent = `Read-only: ${readOnlyReason} You can look and copy texts, but nothing is saved. Close the other studio, then reload this page.`;
     langSel.value = lang; langSel.disabled = readOnly; }
 
   // first load happens quietly so the badge is right when the studio opens
   refresh();
-  return { show, hide, shown, refresh, loaded: () => loaded,
+  /** the slash shortcut: the search box of the list (the other views have none, so it opens the list first) */
+  function focusSearch() { if (mode !== 'list') setMode('list'); searchBox.focus(); searchBox.select(); }
+  return { show, hide, shown, refresh, applyHash, focusSearch, loaded: () => loaded,
     /** open the entry that belongs to a render job (used by "Texts & publish" under the preview) */
     async showJob(jobId: string) { await refresh(); const v = videos.find(x => x.jobId === jobId); show(v?.id); } };
 }

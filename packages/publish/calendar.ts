@@ -5,8 +5,8 @@ import type { Video } from './index.ts';
 
 export type CalState = 'planned' | 'uploading' | 'waiting' | 'scheduled' | 'published' | 'failed';
 export const CAL_LABEL: Record<CalState, string> = { planned: 'Planned', uploading: 'Uploading', waiting: 'Waiting for quota', scheduled: 'Scheduled on YouTube', published: 'Published', failed: 'Upload failed' };
-export interface CalEntry { ms: number; date: string; time: string; videoId: string; sceneId: string; title: string; state: CalState; inPlan: boolean }
-type V = Pick<Video, 'id' | 'sceneId' | 'title' | 'status' | 'scheduledAt' | 'publishedAt' | 'youtube'>;
+export interface CalEntry { ms: number; date: string; time: string; videoId: string; sceneId: string; title: string; state: CalState; inPlan: boolean; /** 'long' for a long video (the upload plan is for Shorts, so these only show with a date the owner entered) */ kind?: 'long' }
+type V = Pick<Video, 'id' | 'sceneId' | 'title' | 'status' | 'scheduledAt' | 'publishedAt' | 'youtube'> & { kind?: 'long' };
 
 /** What the owner should see for a slot: the studio's own record of the video wins over the plan file (it is what really happened). */
 export function slotState(slot: Pick<PlanSlot, 'status'> | null, v: V | undefined): CalState {
@@ -31,7 +31,7 @@ export function calendarEntries(plan: { slots: PlanSlot[] } | null, videos: V[])
     if (used.has(v.id) || (v.status !== 'scheduled' && v.status !== 'published')) continue;
     const ms = v.youtube?.publishAt ? Date.parse(v.youtube.publishAt) : v.scheduledAt ? Date.parse(v.scheduledAt + '+07:00') : NaN;   // scheduledAt is the Mac's local time, WIB here
     if (Number.isNaN(ms)) continue;
-    out.push({ ms, ...at(ms), videoId: v.id, sceneId: v.sceneId, title: v.title, state: slotState(null, v), inPlan: false });
+    out.push({ ms, ...at(ms), videoId: v.id, sceneId: v.sceneId, title: v.title, state: slotState(null, v), inPlan: false, ...(v.kind === 'long' ? { kind: 'long' as const } : {}) });
   }
   return out.sort((a, b) => a.ms - b.ms);
 }

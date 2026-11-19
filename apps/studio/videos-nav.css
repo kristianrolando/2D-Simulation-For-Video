@@ -1,0 +1,29 @@
+/* Videos page navigation: format picker, view switch, toolbar, banner, empty states. Colours come from the studio's tokens, so light and dark follow the interface. */
+.vtop { gap: 8px 14px; }
+.vtop .link { white-space: nowrap; }
+#vFormat button { white-space: nowrap; } #vFormat .n { margin-left: 4px; padding: 0 6px; border-radius: 999px; background: var(--panel2); color: var(--muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+.seg button[aria-checked=true] { background: var(--seg-on); color: var(--text); } .seg button[aria-checked=true] .n { color: var(--text); }
+#vFormat button:focus-visible, #vMode button:focus-visible, .vbar :focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+/* the toolbar: wraps on a narrow window, the search takes the room that is left */
+.vbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.vbar[hidden] { display: none !important; }
+.vbar .chips { margin: 0; }
+.vbar input[type=search] { flex: 1 1 260px; min-width: 180px; margin: 0; }
+.vbar select { max-width: 190px; }
+.vbar select[hidden] { display: none; }
+.vbar .menu { margin-left: auto; }
+.menu-body label.sel { padding: 4px 8px; justify-content: space-between; gap: 10px; } .menu-body label.sel select { max-width: 130px; }
+.menu-body { min-width: 220px; z-index: 5; }
+.vshortrow { display: flex; justify-content: flex-end; }
+.vshortcut { align-self: flex-start; }
+.empty .primary { margin-top: 4px; }
+.cal-note { margin: 0; }
+@media (max-width: 900px) {
+  #vview[data-step=detail] .vbar { display: none; }
+  .vbar select { flex: 1 1 130px; max-width: none; }
+  .vbar .menu { margin-left: 0; }
+  .menu-body { right: auto; left: 0; }
+}
+@media (max-width: 760px) { .vtop #vFormat, .vtop #vMode { order: 3; flex: 1 1 100%; } .vtop #vFormat button, .vtop #vMode button { flex: 1; padding-left: 6px; padding-right: 6px; } }
+/* small extra: on a phone the rows of a long list were squeezed to one line each (the title and the second line overlapped) */
+#vList .vrow { flex: none; }
