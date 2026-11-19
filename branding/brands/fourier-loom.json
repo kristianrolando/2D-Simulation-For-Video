@@ -1,0 +1,39 @@
+{
+  "name": "Fourier Loom",
+  "handle": "@FourierLoom",
+  "tagline": "Curves, drawn by physics.",
+  "bannerLine": "Waves, curves & satisfying simulations · New Shorts weekly",
+  "textCase": "none",
+  "mark": "lissajous",
+  "bgLinear": ["#000000", "#101217", "#004d13"],
+  "gridSize": 59,
+  "gridOpacity": "0.17",
+  "colors": {
+    "bg0": "#000000",
+    "bg1": "#101217",
+    "bg2": "#004d13",
+    "core": "#e8eefc",
+    "glow": "#7f93c8",
+    "hi": "#9be36b",
+    "accent": "#ffd23f",
+    "text": "#eef2ff",
+    "muted": "#c8d2eb",
+    "grid": "#939db4"
+  },
+  "fonts": {
+    "display": "DejaVu Sans Bold",
+    "displayFile": "assets/fonts/DejaVuSans-Bold.ttf",
+    "fallback": "DejaVu Sans, sans-serif"
+  },
+  "examples": {
+    "cover": "example_galton-board_cover_1080x1920.jpg",
+    "thumb": "example_sync-lines_thumb_1280x720.jpg"
+  },
+  "thumb": {
+    "series": "Curve",
+    "number": "007",
+    "title": "Will the loop close?",
+    "counterLabel": "Loops",
+    "counterValue": "64"
+  }
+}

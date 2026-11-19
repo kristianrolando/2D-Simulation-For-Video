@@ -2,7 +2,8 @@
 // Edit brand.json (name, handle, colors, font, sample thumbnail text), then run:
 //   node branding/build.mjs                    Photon Lab: reads brand.json, writes branding/svg/ and branding/png/
 //   node branding/build.mjs plasma-pendulum    reads branding/brands/<id>.json, writes branding/brands/<id>/{svg,png}/
-// The default run is unchanged by the optional brand keys (bgLinear, mark, textCase, colors.glow): without them the output is byte-identical.
+// The default run is unchanged by the optional brand keys (bgLinear, mark, textCase, colors.glow, colors.hi, gridSize, gridOpacity): without them the output is byte-identical.
+//   mark: "lissajous" (fourier-loom) draws a two-frequency curve over a faint grid, and uses curves instead of bouncing-ball trails in banner/cover decoration.
 import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -57,8 +58,8 @@ const defs = (w, h, id = 'bg', extra = '') => `
       : `<radialGradient id="${id}" cx="50%" cy="45%" r="75%">
       <stop offset="0" stop-color="${C.bg2}"/><stop offset="0.55" stop-color="${C.bg1}"/><stop offset="1" stop-color="${C.bg0}"/>
     </radialGradient>`}
-    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
-      <path d="M48 0H0V48" fill="none" stroke="${C.grid}" stroke-width="1" opacity="0.10"/>
+    <pattern id="grid" width="${B.gridSize || 48}" height="${B.gridSize || 48}" patternUnits="userSpaceOnUse">
+      <path d="M${B.gridSize || 48} 0H0V${B.gridSize || 48}" fill="none" stroke="${C.grid}" stroke-width="1" opacity="${B.gridOpacity ?? '0.10'}"/>
     </pattern>
     <filter id="blurS" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
     <filter id="blurM" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14"/></filter>
@@ -112,7 +113,28 @@ function pendulumMark(cx, cy, R, { ticks = true, glowOn = true, dark = true, mon
     ${arc}${echoes}${string}${bar}${bob}
   </g>`;
 }
-const markFn = (...a) => (B.mark === 'pendulum' ? pendulumMark(...a) : mark(...a));
+// ---------- logo mark "lissajous": a 3:2 two-frequency curve with a harmonograph echo over a faint grid (brands with "mark": "lissajous") ----------
+const lissPts = (cx, cy, ax, ay, fx, fy, ph, n = 720) => Array.from({ length: n + 1 }, (_, i) => { const t = (i / n) * Math.PI * 2; return `${f(cx + ax * Math.sin(fx * t + ph))},${f(cy + ay * Math.sin(fy * t))}`; }).join(' ');
+function lissajousMark(cx, cy, R, { ticks = true, glowOn = true, dark = true, mono = false } = {}) {
+  const halo = mono ? C.text : (C.glow || C.core), main = mono ? C.text : C.core, hi = mono ? C.text : (C.hi || C.accent), hot = mono ? C.text : C.accent;
+  const A = R * 0.74, sw = R * 0.115;
+  const fill = dark ? `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(R * 1.02)}" fill="${C.bg0}" opacity="0.72"/>` : '';
+  // faint grid, drawn as chords of the disc (no clipPath: keeps Skia output predictable)
+  const gl = []; const step = R * 0.37, lim = R * 0.92;
+  for (let k = -2; k <= 2; k++) { const o = k * step, h = Math.sqrt(Math.max(0, lim * lim - o * o)); gl.push(`<line x1="${f(cx - h)}" y1="${f(cy + o)}" x2="${f(cx + h)}" y2="${f(cy + o)}"/><line x1="${f(cx + o)}" y1="${f(cy - h)}" x2="${f(cx + o)}" y2="${f(cy + h)}"/>`); }
+  const grid = `<g stroke="${C.grid}" stroke-width="${f(R * 0.014)}" opacity="0.55">${gl.join('')}</g>`;
+  const ring = `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(R)}" fill="none" stroke="${halo}" stroke-width="${f(R * 0.028)}" opacity="0.9"/>`;
+  const curve = `<polyline points="${lissPts(cx, cy, A, A, 3, 2, Math.PI / 2)}" fill="none" stroke="${main}" stroke-width="${f(sw)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const echo = `<polyline points="${lissPts(cx, cy, A, A, 3, 2, Math.PI / 2 + 0.5)}" fill="none" stroke="${hi}" stroke-width="${f(sw * 0.38)}" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>`;
+  const t0 = 0.62, dx = cx + A * Math.sin(3 * t0 + Math.PI / 2), dy = cy + A * Math.sin(2 * t0);
+  return `<g>${fill}${grid}${ring}
+    ${glowOn ? `<g filter="url(#blurM)" opacity="0.9">${curve}</g>` : ''}
+    ${echo}${curve}
+    ${glowOn ? `<circle cx="${f(dx)}" cy="${f(dy)}" r="${f(R * 0.2)}" fill="${hot}" filter="url(#blurS)" opacity="0.7"/>` : ''}
+    <circle cx="${f(dx)}" cy="${f(dy)}" r="${f(R * 0.105)}" fill="${hot}"/>
+  </g>`;
+}
+const markFn = (...a) => (B.mark === 'pendulum' ? pendulumMark(...a) : B.mark === 'lissajous' ? lissajousMark(...a) : mark(...a));
 
 // ---------- photon trails: a ball bouncing in a rectangle ----------
 function boxTrail(x0, y0, w, h, sx, sy, ang, len, color, width, op) {
@@ -177,7 +199,12 @@ const text = (x, y, size, s, fill, anchor = 'start', op = 1) =>
   const tx = gx + markD + gap;
   const yT = by + capT, yN = yT + g1 + capN, yL = yN + g2 + capL;
   // decorative trails across the whole canvas (outside-safe decoration, faint behind centre)
-  const trails = [
+  const liss = B.mark === 'lissajous';
+  const trails = liss ? [
+    { svg: `<polyline points="${lissPts(500, 420, 520, 330, 3, 2, 1.2)}" fill="none" stroke="${C.core}" stroke-width="3" opacity="0.30"/>`, end: [500 + 520 * Math.sin(1.2), 420] },
+    { svg: `<polyline points="${lissPts(2060, 1020, 560, 340, 5, 4, 0.6)}" fill="none" stroke="${C.core}" stroke-width="2" opacity="0.22"/>`, end: [2060 + 560 * Math.sin(0.6), 1020] },
+    { svg: `<polyline points="${lissPts(1280, 1250, 900, 150, 4, 3, 0.3)}" fill="none" stroke="${C.hi || C.accent}" stroke-width="2" opacity="0.30"/>`, end: [1280 + 900 * Math.sin(0.3), 1250] },
+  ] : [
     boxTrail(0, 0, W, H, 120, 300, 0.42, 9000, C.core, 3, 0.35),
     boxTrail(0, 0, W, H, 2400, 1200, -2.6, 7000, C.core, 2, 0.22),
     boxTrail(0, 0, W, H, 900, 1380, -1.1, 6000, C.accent, 2, 0.18),
@@ -216,6 +243,18 @@ function hudCorners(x, y, w, h, len, col, sw, op = 0.8) {
   return c(x, y, 1, 1) + c(x + w, y, -1, 1) + c(x, y + h, 1, -1) + c(x + w, y + h, -1, -1);
 }
 function arena(x, y, w, h, seed) {
+  if (B.mark === 'lissajous') {
+    const cx = x + w / 2, cy = y + h / 2, ax = w / 2 - 36, ay = h / 2 - 36;
+    const curve = `<polyline points="${lissPts(cx, cy, ax, ay, 3, 2, 1.1 + seed)}" fill="none" stroke="${C.text}" stroke-width="4" stroke-linejoin="round" opacity="0.8"/>`;
+    const echo = `<polyline points="${lissPts(cx, cy, ax * 0.8, ay * 0.8, 5, 4, 0.4 + seed)}" fill="none" stroke="${C.hi || C.core}" stroke-width="3" stroke-linejoin="round" opacity="0.6"/>`;
+    const gl = []; for (let k = 1; k < 6; k++) gl.push(`<line x1="${f(x + (w * k) / 6)}" y1="${y}" x2="${f(x + (w * k) / 6)}" y2="${y + h}"/><line x1="${x}" y1="${f(y + (h * k) / 6)}" x2="${x + w}" y2="${f(y + (h * k) / 6)}"/>`);
+    const px = cx + ax * Math.sin(3 * 0.7 + 1.1 + seed), py = cy + ay * Math.sin(2 * 0.7);
+    const box = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${w * 0.04}" fill="none" stroke="${C.core}" stroke-width="5"/>`;
+    return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${w * 0.04}" fill="${C.bg0}" opacity="0.55"/>
+      <g stroke="${C.grid}" stroke-width="1.5" opacity="0.35">${gl.join('')}</g>
+      ${glow(box, 'blurM', 0.9)}<g filter="url(#blurS)">${curve}</g>${curve}${echo}
+      <g filter="url(#blurM)"><circle cx="${f(px)}" cy="${f(py)}" r="${w * 0.028}" fill="${C.accent}"/></g><circle cx="${f(px)}" cy="${f(py)}" r="${w * 0.028}" fill="${C.accent}"/>`;
+  }
   const inner = [0.62, 1.9, 4.05, 5.2].map((a, i) => boxTrail(x + 8, y + 8, w - 16, h - 16, x + w / 2, y + h / 2, a + seed, (w + h) * 2.2, i % 2 ? C.core : C.text, 3, 0.55));
   const dots = inner.map((t, i) => `<circle cx="${f(t.end[0])}" cy="${f(t.end[1])}" r="${w * 0.028}" fill="${i === 0 ? C.accent : C.core}"/>`).join('');
   const box = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${w * 0.04}" fill="none" stroke="${C.core}" stroke-width="5"/>`;

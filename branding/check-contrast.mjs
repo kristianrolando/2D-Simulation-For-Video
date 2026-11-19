@@ -34,6 +34,6 @@ x.fillText('TV (full 2560x1440)', 20, 250); x.drawImage(banner, 20, 260, 640, 36
 x.fillText('Desktop (2560x423 centre band)', 700, 250); x.drawImage(banner, 0, 508, 2560, 423, 700, 260, 640, 106);
 x.fillText('Mobile (1546x423 safe area, shown at phone width 360)', 700, 400); x.drawImage(banner, 507, 508, 1546, 423, 700, 410, 360, 98);
 x.fillText('Mobile at 320 wide', 1080, 400); x.drawImage(banner, 507, 508, 1546, 423, 1080, 410, 300, 82);
-x.fillText('Cover 1080x1920 at feed size', 20, 660); const cov = await loadImage(path.join(P, 'example_pendulum-wave_cover_1080x1920.jpg')); x.drawImage(cov, 20, 670, 90, 160); x.drawImage(cov, 130, 670, 45, 80);
-const th = await loadImage(path.join(P, 'example_hammer-smash_thumb_1280x720.jpg')); x.fillText('Thumbnail 1280x720 at 246 / 168 wide', 220, 660); x.drawImage(th, 220, 670, 246, 138); x.drawImage(th, 490, 670, 168, 94);
+x.fillText('Cover 1080x1920 at feed size', 20, 660); const cov = await loadImage(path.join(P, '' + ((B.examples && B.examples.cover) || 'example_pendulum-wave_cover_1080x1920.jpg') + '')); x.drawImage(cov, 20, 670, 90, 160); x.drawImage(cov, 130, 670, 45, 80);
+const th = await loadImage(path.join(P, '' + ((B.examples && B.examples.thumb) || 'example_hammer-smash_thumb_1280x720.jpg') + '')); x.fillText('Thumbnail 1280x720 at 246 / 168 wide', 220, 660); x.drawImage(th, 220, 670, 246, 138); x.drawImage(th, 490, 670, 168, 94);
 fs.writeFileSync(path.join(P, 'check_small_sizes.png'), await S.encode('png')); console.log('wrote', path.join('branding/brands', id, 'png/check_small_sizes.png'));
