@@ -12,6 +12,7 @@ import { getTheme } from '../../packages/theme/index.ts';
 import { friendlyError, fmtSize, needsCounts, firstNeeding, uploadFailed, uploadRunning, uploadWaiting } from './ux.ts';
 import { icon } from './icons.ts';
 import { initCalendar } from './calendar-ui.ts';
+import { initCompile, longDetail } from './compile-ui.ts';
 import { youtubePanel, openYoutubeSettings, loadYt, ytState } from './youtube-ui.ts';
 import type { SceneModule } from '../../packages/core/index.ts';
 
@@ -68,7 +69,7 @@ export function initVideos(deps: VideosDeps) {
     }, 1000);
   }
   function badge() {
-    const n = statusCounts(videos).rendered, b = $('videosBadge');
+    const n = statusCounts(videos.filter(v => v.kind !== 'long')).rendered, b = $('videosBadge'); // long videos cannot be uploaded from the studio, so they are not "waiting for you"
     b.hidden = n === 0; b.textContent = String(n); b.title = `${n} rendered, not scheduled or published yet`; b.setAttribute('aria-label', b.title);
   }
   function banner(text: string) {
@@ -105,12 +106,13 @@ export function initVideos(deps: VideosDeps) {
 
   // ---------- list / calendar ----------
   const calendar = initCalendar({ host: $('vCal'), videos: () => videos, sceneName, open: async (id) => { setMode('list'); await flush(); selected = id; view.dataset.step = 'detail'; render(); } });
-  function setMode(m: 'list' | 'calendar') {
-    view.dataset.mode = m; $('vCal').hidden = m !== 'calendar'; document.querySelector<HTMLElement>('#vview .vbody')!.hidden = m === 'calendar';
-    $('vModeList').setAttribute('aria-pressed', String(m === 'list')); $('vModeCal').setAttribute('aria-pressed', String(m === 'calendar'));
-    $('vChips').hidden = $('vSearch').hidden = m === 'calendar'; if (m === 'calendar') void calendar.show();
+  const compile = initCompile({ host: $('vCompile'), onChange: () => { void refresh(); } });
+  function setMode(m: 'list' | 'calendar' | 'compile') {
+    view.dataset.mode = m; $('vCal').hidden = m !== 'calendar'; $('vCompile').hidden = m !== 'compile'; document.querySelector<HTMLElement>('#vview .vbody')!.hidden = m !== 'list';
+    $('vModeList').setAttribute('aria-pressed', String(m === 'list')); $('vModeCal').setAttribute('aria-pressed', String(m === 'calendar')); $('vModeCompile').setAttribute('aria-pressed', String(m === 'compile'));
+    $('vChips').hidden = $('vSearch').hidden = m !== 'list'; if (m === 'calendar') void calendar.show(); if (m === 'compile') compile.show(); else void compile.hide(); if (m === 'list') void refresh(); // long videos finish while another page is open
   }
-  $('vModeList').onclick = () => setMode('list'); $('vModeCal').onclick = () => setMode('calendar');
+  $('vModeList').onclick = () => setMode('list'); $('vModeCal').onclick = () => setMode('calendar'); $('vModeCompile').onclick = () => setMode('compile');
 
   // ---------- show / hide ----------
   function show(id?: string) {
@@ -206,11 +208,12 @@ export function initVideos(deps: VideosDeps) {
       const badges = el('span', { className: 'vbs' });
       const bd = (cls: string, ic: string, text: string) => { const b = el('span', { className: 'vbadge ' + cls }); b.innerHTML = icon(ic, 12); b.append(text); badges.append(b); };
       bd('s-' + v.status, v.status === 'draft' ? 'draft' : v.status === 'rendered' ? 'rendered' : v.status === 'scheduled' ? 'calendar' : 'published', STATUS_LABEL[v.status]);
+      if (v.kind === 'long') bd('s-long', 'rendered', 'Long');
       if (uploadFailed(v)) bd('up-failed', 'warn', 'Upload failed'); else if (uploadRunning(v)) bd('up-running', 'upload', uploadWaiting(v) ? 'Waiting for quota' : 'Uploading');
       const when = v.status === 'published' && v.publishedAt ? `published ${v.publishedAt}` : v.status === 'scheduled' && v.scheduledAt ? `for ${v.scheduledAt.replace('T', ' ')}` : fmtDate(v.createdAt);
       const row = el('button', { type: 'button', className: 'vrow' + (v.id === selected ? ' on' : '') },
         el('span', { className: 'vt' }, v.title || '(no title)'), badges,
-        el('span', { className: 'vm' }, `${sceneName(v.sceneId)} · ${styleName(v.style)} · ${when}${v.status !== 'draft' && !v.fileExists && v.file ? ' · MP4 missing' : ''}`));
+        el('span', { className: 'vm' }, `${v.kind === 'long' ? `Long video · ${(v.durationSec / 60).toFixed(1)} min` : `${sceneName(v.sceneId)} · ${styleName(v.style)}`} · ${when}${v.status !== 'draft' && !v.fileExists && v.file ? ' · MP4 missing' : ''}`));
       row.setAttribute('role', 'listitem'); row.dataset.id = v.id;
       row.onclick = async () => { await flush(); selected = v.id; view.dataset.step = 'detail'; renderList(); renderDetail(); $('vList').querySelector<HTMLElement>('.vrow.on')?.focus({ preventScroll: true }); };
       box.append(row);
@@ -303,6 +306,7 @@ export function initVideos(deps: VideosDeps) {
       };
       stat.append(b);
     }
+    if (v.kind === 'long') { longDetail(v, box, { patch, openCompile: () => setMode('compile'), statusBar: stat, note: nextStep(v) }); return; } // a long video: facts, texts to copy and the owner's own tracking; the texts are edited on the Compile page
     box.append(el('div', { className: 'vhead' },
       el('div', {}, el('h2', {}, `${sceneName(v.sceneId)} · ${styleName(v.style)}`),
         el('p', { className: 'msg' }, `Shorts · 1080×1920 · 60 fps${v.durationSec ? ` · ${v.durationSec.toFixed(1)} s` : ''}${v.sizeBytes ? ' · ' + fmtSize(v.sizeBytes) : ''} · created ${fmtDate(v.createdAt)}`)),
