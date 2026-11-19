@@ -28,6 +28,12 @@ import { themeOf, sanitizeStylePreset, serializeStylePreset } from '../../packag
 import { readStylePresets, saveStylePreset, deleteStylePreset } from '../../packages/theme/node.ts';
 import { slugify } from '../../packages/theme/editor.ts';
 import { toFile } from '../../packages/theme/style-preset.ts';
+import { installLog } from './log.ts';
+import { checkHealth, MIN_FREE_GB, type Health } from './health.ts';
+import { sweep } from './sweep.ts';
+import { createAwake } from './awake.ts';
+
+const logger = installLog({ redact: yt.redact }); // time stamps, no secrets, and a log file that does not grow forever
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
 const PORT = +(process.env.PORT || 5180);
@@ -176,6 +182,11 @@ async function recoverJobs() {
   }
   if (owner) { const n = removeFiles(strayRequests(OUT)); if (n) console.log(`render list: removed ${n} leftover request file${n === 1 ? '' : 's'}`); saveJobs(); }
 }
+/** a plain-words refusal when the disk is nearly full (an ffmpeg error halfway through a render says far less); '' when fine */
+function lowDisk(): string {
+  const free = checkHealth({ outDir: OUT, dataDir: DATA, minFreeGB: MIN_FREE, probes: { has: () => true, writable: () => true } }).freeGB;
+  return free !== null && free < MIN_FREE ? `Only ${free.toFixed(1)} GB are free on the disk, so the render was not started (it needs at least ${MIN_FREE} GB free). Free some space and try again.` : '';
+}
 /** a new render job from a scene and parameters (used by "Render" and "Render again") */
 function enqueue(scene: NonNullable<ReturnType<typeof sceneById>>, input: Record<string, unknown>) {
   const { params, errors } = validate(scene.schema, input);
@@ -313,7 +324,7 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
   const p = url.pathname;
   if (p === '/api/status' && req.method === 'GET') { // light status for the macOS menu bar app (localhost only, no parameters or paths)
     if (!isLoopback(req.socket.remoteAddress)) { json(res, 403, { error: 'localhost only' }); return true; }
-    json(res, 200, buildStatus(jobs, { nowMs: Date.now(), readOnly: videos.readOnly, pid: process.pid, uptimeSec: process.uptime(), codeStale: codeStale() })); return true;
+    json(res, 200, buildStatus(jobs, { nowMs: Date.now(), readOnly: videos.readOnly, pid: process.pid, uptimeSec: process.uptime(), codeStale: codeStale(), problems: health.problems })); return true;
   }
   if (p === '/api/youtube' && req.method === 'GET') { json(res, 200, { ...yt.status(), live: uploader.live(), resetAt: yt.quotaResetLocal(), minLeadMin: MIN_LEAD_MIN }); return true; }
   if (p === '/api/youtube/client' && req.method === 'POST') {
@@ -416,6 +427,7 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
   if (p === '/api/jobs' && req.method === 'POST') {
     const b = await readBody(req); const scene = sceneById(String(b.sceneId));
     if (!scene) { json(res, 400, { error: 'unknown scene' }); return true; }
+    if (lowDisk()) { json(res, 507, { error: lowDisk() }); return true; }
     const { j, errors } = enqueue(scene, b.params ?? {});
     json(res, 200, { ...publicJob(j), warnings: errors }); return true;
   }
@@ -428,6 +440,7 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     const prev = old.retriedBy ? jobs.find(x => x.id === old.retriedBy) : undefined;
     if (prev && prev.status !== 'error' && prev.status !== 'stopped') { json(res, 409, { error: 'This render was already started again.' }); return true; }
     const scene = sceneById(old.sceneId); if (!scene) { json(res, 400, { error: 'unknown scene' }); return true; }
+    if (lowDisk()) { json(res, 507, { error: lowDisk() }); return true; }
     const { j, errors } = enqueue(scene, old.params);
     old.retriedBy = j.id; saveJobs(); broadcast(old);
     json(res, 200, { ...publicJob(j), warnings: errors }); return true;
@@ -520,6 +533,26 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
 
 // ---------------- server ----------------
 await recoverJobs();
+
+// ---------------- housekeeping: health check, hourly sweep, keep the Mac awake while there is work ----------------
+const MIN_FREE = process.env.SIM_MIN_FREE_GB ? +process.env.SIM_MIN_FREE_GB : MIN_FREE_GB; // SIM_MIN_FREE_GB: tests only
+let health: Health = { problems: [], freeGB: null };
+function housekeeping(first = false) {
+  health = checkHealth({ outDir: OUT, dataDir: DATA, minFreeGB: MIN_FREE });
+  if (first || health.problems.length) for (const p of health.problems) console.warn('health:', p);
+  if (first) console.log(`health: ${health.problems.length ? `${health.problems.length} problem(s)` : 'ok'}${health.freeGB !== null ? ` · ${health.freeGB.toFixed(0)} GB free` : ''}`);
+  if (videos.readOnly) return; // only the studio that owns the data folder cleans it
+  const active = new Set(jobs.filter(j => j.status === 'running' || j.status === 'queued').map(j => path.basename(j.out).replace(/\.mp4$/, '')));
+  const gone = sweep({ outDir: OUT, dataDir: DATA, activeBases: active });
+  if (gone.length) console.log(`sweep: removed ${gone.length} leftover temporary file${gone.length === 1 ? '' : 's'}`);
+  if (logger.rotate()) console.log('log: the log file was over 5 MB; the old part is in "Sim Studio.log.1"');
+}
+housekeeping(true);
+setInterval(housekeeping, 60 * 60e3).unref();
+const awake = createAwake();
+const syncAwake = () => awake.set(jobs.some(j => j.status === 'running' || j.status === 'queued') || uploader.busy());
+syncAwake(); setInterval(syncAwake, 5e3).unref();
+
 loadHistory();
 const vite = await createVite({ root: path.join(ROOT, 'apps/studio'), configFile: false, appType: 'spa', logLevel: 'warn',
   server: { middlewareMode: true, fs: { allow: [ROOT] }, hmr: { port: PORT + 1 } } });

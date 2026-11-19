@@ -493,8 +493,10 @@ syncNav();
 async function checkStale() {
   try {
     const st = await (await fetch('/api/status')).json(), box = $('staleNote');
-    box.hidden = !st.codeStale;
-    if (st.codeStale) (box.firstElementChild as HTMLElement).textContent = 'The server started before some files changed. Restart it to get the latest fixes (Terminal: pkill -f apps/server/server.ts, then open Sim Studio again). Renders keep working meanwhile.';
+    const msg = st.codeStale ? 'The server started before some files changed. Restart it to get the latest fixes (Terminal: pkill -f apps/server/server.ts, then open Sim Studio again). Renders keep working meanwhile.'
+      : Array.isArray(st.problems) && st.problems.length ? `Heads up: ${st.problems.join(' ')}` : '';
+    box.hidden = !msg;
+    if (msg) (box.firstElementChild as HTMLElement).textContent = msg;
   } catch { /* server unreachable: the rest of the page already says so */ }
 }
 void checkStale(); addEventListener('focus', () => void checkStale());

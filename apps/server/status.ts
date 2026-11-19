@@ -15,9 +15,11 @@ export interface Status {
   uptimeSec: number;
   /** server-side files changed on disk after this server started: it runs older code than the files (restart it) */
   codeStale: boolean;
+  /** plain-words problems with the machine (no ffmpeg, disk nearly full); absent when there are none */
+  problems?: string[];
 }
 
-export function buildStatus(jobs: StatusJob[], o: { nowMs: number; readOnly: boolean; pid: number; uptimeSec: number; codeStale?: boolean }): Status {
+export function buildStatus(jobs: StatusJob[], o: { nowMs: number; readOnly: boolean; pid: number; uptimeSec: number; codeStale?: boolean; problems?: string[] }): Status {
   const run = jobs.find(j => j.status === 'running');
   const queued = jobs.filter(j => j.status === 'queued').length;
   const finished = jobs.filter(j => (j.status === 'done' || j.status === 'error') && j.finished).sort((a, b) => b.finished! - a.finished!)[0];
@@ -30,6 +32,7 @@ export function buildStatus(jobs: StatusJob[], o: { nowMs: number; readOnly: boo
     errors: jobs.filter(j => j.status === 'error').length,
     last: finished ? { sceneId: finished.sceneId, ok: finished.status === 'done', secondsAgo: Math.max(0, Math.round((o.nowMs - finished.finished!) / 1000)) } : null,
     readOnly: o.readOnly, pid: o.pid, uptimeSec: Math.round(o.uptimeSec), codeStale: o.codeStale === true,
+    ...(o.problems?.length ? { problems: o.problems } : {}),
   };
 }
 
