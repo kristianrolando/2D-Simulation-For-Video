@@ -127,6 +127,14 @@ export function youtubeIdOf(s: string): string {
   return m && isYoutubeUrl(t) ? m[1] : '';
 }
 
+/** '' when a video may be marked "uploaded manually" (nothing is sent anywhere); otherwise why not. A scheduled or published video, or one the
+ *  studio itself uploaded, is never touched by this. */
+export function manualMarkProblem(v: Pick<Video, 'status' | 'youtube' | 'uploadedManually'>): string {
+  if (v.youtube) return 'The studio already has an upload record for this video. It cannot be marked as uploaded by hand.';
+  if (v.status !== 'rendered') return 'Only a Rendered video can be marked as uploaded by hand.';
+  return '';
+}
+
 export function newId(now: Date = new Date()): string { return 'v-' + now.getTime().toString(36) + Math.random().toString(36).slice(2, 6); }
 
 /** a stored record -> a valid Video, or null when it is not even an object. Bad fields fall back to defaults. */
@@ -348,7 +356,7 @@ export function filterVideos<T extends Video>(videos: T[], f: VideoFilter, names
   return videos.filter(v => {
     if (f.status && f.status !== 'all' && v.status !== f.status) return false;
     if (!words.length) return true;
-    const hay = norm([v.title, v.description, v.tags.join(' '), v.hashtags.join(' '), v.notes, v.youtubeUrl, v.sceneId, v.style, names.scene?.(v.sceneId) ?? '', names.style?.(v.style) ?? '', STATUS_LABEL[v.status]].join(' '));
+    const hay = norm([v.title, v.description, v.tags.join(' '), v.hashtags.join(' '), v.notes, v.youtubeUrl, v.sceneId, v.style, names.scene?.(v.sceneId) ?? '', names.style?.(v.style) ?? '', STATUS_LABEL[v.status], v.channel ?? '', v.id].join(' '));
     return words.every(w => hay.includes(w));
   }).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }

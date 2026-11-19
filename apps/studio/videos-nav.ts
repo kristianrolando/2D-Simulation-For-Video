@@ -69,18 +69,26 @@ export const bannerText = (n: number) => `${n} render${n === 1 ? '' : 's'} in ou
 export const addConfirmText = (n: number) => `Add ${n} render${n === 1 ? '' : 's'} from output/ to the list? Nothing is uploaded or deleted; each gets a draft title and description.`;
 
 // ---------------- sort and filter ----------------
-export type Sort = 'newest' | 'schedule' | 'title';
-export const SORTS: readonly Sort[] = ['newest', 'schedule', 'title'];
-export const SORT_LABEL: Record<Sort, string> = { newest: 'Newest first', schedule: 'By schedule date', title: 'By title (A–Z)' };
+// 'newest' = last edited (what the list always did); 'created' = the render date; 'duration' = length. `reverse` flips any of them.
+export type Sort = 'newest' | 'created' | 'schedule' | 'title' | 'duration';
+export const SORTS: readonly Sort[] = ['newest', 'created', 'schedule', 'title', 'duration'];
+export const SORT_LABEL: Record<Sort, string> = { newest: 'Last edited', created: 'Render date', schedule: 'Schedule date', title: 'Title (A–Z)', duration: 'Duration' };
 export const readSort = (s: Store): Sort => { try { const v = s.get(SORT_KEY); return (SORTS as readonly (string | null)[]).includes(v) ? (v as Sort) : 'newest'; } catch { return 'newest'; } };
+export const SORT_DIR_KEY = 'studio.vsortdir';
+export const readReverse = (s: Store): boolean => { try { return s.get(SORT_DIR_KEY) === '1'; } catch { return false; } };
+export const writeReverse = (s: Store, r: boolean) => { try { s.set(SORT_DIR_KEY, r ? '1' : '0'); } catch { /* not remembered */ } };
 const when = (v: Video) => v.youtube?.publishAt || v.scheduledAt || v.publishedAt || '';
-/** a new sorted list: 'schedule' puts videos with a date first (earliest first) and the rest after, newest first */
-export function sortVideos<T extends Video>(vs: T[], by: Sort): T[] {
+/** a new sorted list. 'newest'/'created': latest first; 'schedule': videos with a date first (earliest first), the rest after, newest first;
+ *  'title': A–Z; 'duration': longest first. `reverse` turns the order around (a tie keeps the newest first). */
+export function sortVideos<T extends Video>(vs: T[], by: Sort, reverse = false): T[] {
   const newest = (a: T, b: T) => b.updatedAt.localeCompare(a.updatedAt);
   const out = [...vs];
-  if (by === 'title') return out.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }) || newest(a, b));
-  if (by === 'schedule') return out.sort((a, b) => { const x = when(a), y = when(b); return x && y ? x.localeCompare(y) || newest(a, b) : x ? -1 : y ? 1 : newest(a, b); });
-  return out.sort(newest);
+  if (by === 'title') out.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }) || newest(a, b));
+  else if (by === 'schedule') out.sort((a, b) => { const x = when(a), y = when(b); return x && y ? x.localeCompare(y) || newest(a, b) : x ? -1 : y ? 1 : newest(a, b); });
+  else if (by === 'created') out.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || newest(a, b));
+  else if (by === 'duration') out.sort((a, b) => b.durationSec - a.durationSec || newest(a, b));
+  else out.sort(newest);
+  return reverse ? out.reverse() : out;
 }
 export interface Filters { status: string; query: string; scene: string; style: string; focus: string; channel?: string }
 export const NO_FILTERS: Filters = { status: 'all', query: '', scene: '', style: '', focus: '', channel: '' };
