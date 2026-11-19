@@ -616,6 +616,11 @@ export function initVideos(deps: VideosDeps) {
     };
     box.append(youtubePanel(v, { refresh, flush, readOnly, onSettings: () => openYoutubeSettings(refresh) }));
     box.append(pubBox, section('notes', 'Notes', v.notes ? 'has notes' : 'empty', !!v.notes, notes), el('div', { className: 'row between' }, el('span', { id: 'vSaved', className: 'msg' }), del));
+    // a field whose label is not tied to it (the label sits beside the input) still gets its name for a screen reader
+    for (const f of box.querySelectorAll('.vfield')) {
+      const t = (f.querySelector('label span') ?? f.querySelector('label'))?.firstChild?.textContent?.trim() || f.querySelector('label span')?.textContent?.trim() || '';
+      for (const i of f.querySelectorAll<HTMLInputElement>('input, textarea, select')) if (t && !i.getAttribute('aria-label') && !i.labels?.length) i.setAttribute('aria-label', t);
+    }
     updateDerived();
     if (readOnly) for (const c of box.querySelectorAll<HTMLElement>('input, textarea, button, select')) if (!c.dataset.keep && !(c as HTMLElement).closest('video')) (c as HTMLInputElement).disabled = true;
   }
